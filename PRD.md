@@ -1,6 +1,6 @@
 # PRD — PumaTrade (Goya-Hack) — MVP "El Ladrillo"
 
-**Versión:** 3.1 — restaura flujo de escrow con TTL / auto-resolve / dispute (basado en v2)
+**Versión:** 3.2 — el evento central del escrow es **el intercambio físico de los objetos**
 **Fecha:** 2026-09-24
 **Estado:** Aprobado para implementación
 **Tiempo de implementación:** <24h
@@ -15,17 +15,18 @@
 
 **PumaTrade** es un marketplace móvil-first donde los estudiantes universitarios pueden **publicar un artículo** y recibir propuestas en **3 formatos** (solo saldo en PumaDolar, objeto por objeto, o una combinación de objeto + saldo). El vendedor **elige la oferta que mejor le conviene** desde un tablero.
 
-**El dinero se congela** en un smart contract (cuenta Stellar multi-sig 2-de-2) hasta que el comprador **prueba físicamente el artículo** durante una **ventana de prueba (TTL)** que arranca cuando se encuentran en la facultad. Tres caminos posibles durante esa ventana:
+**El dinero se congela** en un smart contract (cuenta Stellar multi-sig 2-de-2). Cuando los estudiantes se encuentran en la facultad e **intercambian físicamente los objetos**, registran ese momento en la app. En ese instante arranca una **ventana de prueba (TTL)** — 48h en producción, 3 min en demo — durante la cual el comprador prueba el artículo. Tres caminos posibles:
 
 - **Rama A (happy path):** funciona → comprador acepta → el pago se libera al vendedor.
 - **Rama B (auto-resolve):** el comprador no confirma → el TTL expira → el sistema libera automáticamente al vendedor (evita que un comprador malicioso secuestros los fondos).
-- **Rama C (disputa):** está dañado → comprador reporta con evidencia antes del TTL → el escrow se congela para revisión.
+- **Rama C (disputa):** algo está mal → comprador reporta con evidencia antes del TTL → el escrow se congela para revisión.
 
 **Diferenciadores del MVP:**
 
 1. **Intercambio flexible, no solo venta** — la diferencia de valor entre dos artículos se cubre con PumaDolar.
 2. **Tablero de ofertas múltiples** — el vendedor ve todas las propuestas y elige.
-3. **Candado con ventana de prueba** — TTL configurable (48h en producción, 3 min en demo) + auto-resolve a favor del vendedor + rama de disputa con evidencia.
+3. **El intercambio físico es el evento central** — la confianza se construye alrededor del momento en que los objetos cambian de manos, no alrededor de un QR o un botón abstracto.
+4. **Candado con ventana de prueba** — TTL configurable (48h en producción, 3 min en demo) + auto-resolve a favor del vendedor + rama de disputa con evidencia.
 
 **Stack:** Next.js 14 + `@pollar/react` + Stellar testnet (USDC como PumaDolar).
 
@@ -92,15 +93,22 @@ type ListingType =
 type Condition = 'nuevo' | 'como-nuevo' | 'bueno' | 'aceptable';
 type OfferType = 'pollar-only' | 'barter' | 'hybrid';
 
-// Estados del escrow según el modelo COMMIT / GRACE / auto-resolve / dispute
+// Estados del escrow — el evento central es el intercambio físico de los objetos
 type EscrowStatus =
-  | 'awaiting-funding'           // vendedor aceptó, comprador debe fondear
-  | 'funded'                     // fondeado, esperando encuentro
-  | 'pending-verification'       // COMMIT hecho, TTL corriendo
-  | 'released'                   // Rama A: comprador aceptó
-  | 'auto-released'              // Rama B: TTL expiró → auto-resolve
-  | 'disputed'                   // Rama C: comprador reportó con evidencia
-  | 'refunded';                  // cancelación antes del COMMIT
+  | 'awaiting-funding'        // vendedor aceptó, comprador debe fondear
+  | 'funded'                  // fondeado, aún no hay intercambio
+  | 'awaiting-exchange'       // una parte registró el intercambio, la otra debe confirmar
+  | 'exchange-recorded'       // ambas partes confirmaron → TTL corriendo
+  | 'released'                // Rama A: comprador aceptó
+  | 'auto-released'           // Rama B: TTL expiró → auto-resolve
+  | 'disputed'                // Rama C: comprador reportó
+  | 'refunded';               // cancelación antes del intercambio
+
+// Las 3 razones válidas de disputa
+type DisputeReason =
+  | 'item-damaged'            // el artículo no funciona o tiene defectos
+  | 'exchange-never-happened' // el intercambio nunca ocurrió en realidad
+  | 'item-different';         // lo recibido no coincide con lo publicado
 
 interface User {
   id: string;
@@ -155,14 +163,12 @@ interface Escrow {
 
   status: EscrowStatus;
 
-  // COMMIT
-  commitMethod?: 'qr' | 'manual';
-  commitNonce?: string;           // nonce del QR
-  committedAt?: string;
-
-  // GRACE_PERIOD (TTL)
-  ttlStartsAt?: string;           // == committedAt
-  ttlExpiresAt?: string;          // ttlStartsAt + TTL
+  // Registro del intercambio físico (evento central)
+  exchangeInitiatorId?: string;     // quién tocó primero "Intercambio realizado"
+  exchangeInitiatedAt?: string;     // cuándo lo registró
+  exchangeConfirmedAt?: string;    // cuándo la otra parte confirmó
+  // ttlStartsAt === exchangeConfirmedAt
+  ttlExpiresAt?: string;           // ttlStartsAt + TTL
 
   // Resolución
   acceptedAt?: string;
@@ -171,28 +177,20 @@ interface Escrow {
 
   // Disputa
   disputedAt?: string;
-  disputeReason?: string;
+  disputeReason?: DisputeReason;
   disputeEvidenceUrl?: string;
+  disputeDescription?: string;     // ≤500 chars
 
   platformFeePumaDolar: number;
   createdAt: string;
-}
-
-interface DisputeEvidence {
-  id: string;
-  escrowId: string;
-  reporterId: string;
-  reason: string;            // ≤500 chars
-  photoUrl: string;          // 1 foto obligatoria
-  createdAt: string;
-  status: 'pending' | 'resolved' | 'rejected';
 }
 
 interface TransactionLog {
   id: string;
   escrowId: string;
   actorId: string;
-  action: 'offer-accepted' | 'escrow-funded' | 'committed-qr' | 'committed-manual'
+  action: 'offer-accepted' | 'escrow-funded'
+        | 'exchange-initiated' | 'exchange-confirmed'
         | 'accepted' | 'auto-released' | 'disputed' | 'refunded';
   metadata?: Record<string, unknown>;
   createdAt: string;
@@ -232,24 +230,24 @@ PASO 5 — Juan fondea el escrow (CHECKOUT)
    [Tx visible en stellar.expert]
    [Estado: funded]
 
-PASO 6 — Se encuentran en la facultad (Fase 1: COMMIT)
-   [María muestra el QR único del escrow]
-   [Juan escanea el QR (o toca "Confirmar encuentro" si la cámara falla)]
-   [El smart contract NO libera nada. Solo cambia el estado a PENDING_VERIFICATION
-    e inicia el TTL: 48h en producción, 3 min en modo demo]
-   [Ambos ven el countdown corriendo]
+PASO 6 — Se encuentran en la facultad e intercambian
+   [María entrega la TI-89. Juan la recibe.]
+   [María toca "Intercambio realizado" en su app]
+   [Estado → awaiting-exchange · Juan ve la notificación]
+   [Juan toca "Sí, confirmo el intercambio"]
+   [Estado → exchange-recorded · arranca el TTL: 48h prod, 3 min demo]
 
-PASO 7 — Juan prueba la calculadora en su casa (Fase 2: GRACE)
+PASO 7 — Juan prueba la calculadora (Fase 2: GRACE)
 
    -> RAMA A (happy): funciona bien → toca "Aceptar artículo"
       [Estado: released · 300 P$ − 6 P$ (2%) = 294 P$ para María]
 
    -> RAMA B (auto-resolve): Juan no confirma → TTL a cero
       [Estado: auto-released · 294 P$ para María]
-      [Previene que un comprador malicioso secuestros los fondos]
 
-   -> RAMA C (disputa): la calculadora está rota → toca "Reportar fallo"
-      [Modal: sube foto del daño + razón ≤500 chars]
+   -> RAMA C (disputa): algo está mal → toca "Reportar problema"
+      [Elige razón: dañado / nunca ocurrió / item diferente]
+      [Sube foto + razón ≤500 chars]
       [TTL se cancela · estado: disputed · fondos congelados]
 
 PASO 8 — Recibo
@@ -276,7 +274,7 @@ Threshold: 2
 ```typescript
 // lib/escrow.ts
 const DEFAULT_TTL_MINUTES = 48 * 60; // 2880 min = 48h (producción)
-// En demo: DEMO_TTL_MINUTES=3 → 3 minutos (default 3 también si DEMO_FAST_TIMEOUT=true)
+// Demo: DEMO_TTL_MINUTES=3 → 3 minutos
 
 export const TTL_MINUTES = (() => {
   if (process.env.DEMO_TTL_MINUTES) return parseInt(process.env.DEMO_TTL_MINUTES, 10);
@@ -284,12 +282,10 @@ export const TTL_MINUTES = (() => {
   return DEFAULT_TTL_MINUTES;
 })();
 
-export function ttlExpiry(committedAt: Date): Date {
-  return new Date(committedAt.getTime() + TTL_MINUTES * 60 * 1000);
+export function ttlExpiry(exchangeConfirmedAt: Date): Date {
+  return new Date(exchangeConfirmedAt.getTime() + TTL_MINUTES * 60 * 1000);
 }
 ```
-
-**Para el demo:** `DEMO_TTL_MINUTES=3` permite demostrar el auto-resolve en vivo durante el pitch. Si el demo dura más de 3 min sin confirmar, el cron libera automáticamente (eso es exactamente lo que queremos mostrar).
 
 ### 4.3 Estados del escrow
 
@@ -305,53 +301,71 @@ export function ttlExpiry(committedAt: Date): Date {
                      funded ────────────────────┐
                         │                        │  [cualquiera cancela]
                         │                        ▼
-   [COMMIT: QR o botón "Confirmar encuentro"]  refunded
+   [Una parte registra el intercambio]         refunded
                         │
                         ▼
-             pending-verification (TTL corriendo)
+              awaiting-exchange
+                        │
+              [La otra parte confirma]
+                        │
+                        ▼
+            exchange-recorded (TTL corriendo)
                 │           │            │
-   [Aceptar]    │   [TTL=0] │  [Reportar fallo con evidencia]
+   [Aceptar]    │   [TTL=0] │  [Reportar problema con evidencia]
                 │           │            │
                 ▼           ▼            ▼
              released   auto-released  disputed
              (Rama A)   (Rama B)      (Rama C, congelado)
 ```
 
-### 4.4 COMMIT — el QR del encuentro
+### 4.4 El momento del intercambio (evento central)
 
-Al crear el escrow, el sistema genera un `commitNonce` único y se lo asigna al **vendedor**. El vendedor lo muestra como QR (formato: `pumatrade://escrow/{escrowId}?nonce={nonce}`). El comprador escanea con su cámara:
+El TTL no arranca por un QR, una cámara o un gesto técnico. Arranca porque **los objetos cambiaron de manos** — y ambas partes lo reconocen.
+
+**Registro simétrico:**
+
+1. Cualquiera de las dos partes toca **"Intercambio realizado"** en su app (en su pantalla de escrow `funded`).
+2. El estado pasa a `awaiting-exchange`. La otra parte recibe una notificación push: *"{Nombre} registró que hicieron el intercambio. ¿Confirmas?"*
+3. La otra parte tiene dos opciones:
+   - **"Sí, confirmar intercambio"** → estado `exchange-recorded`, arranca el TTL.
+   - **"No, eso no pasó"** → se abre inmediatamente Rama C con razón `exchange-never-happened`.
 
 ```typescript
-// POST /api/escrow/commit
-{ escrowId, nonce, method: 'qr' | 'manual' }
+// POST /api/escrow/record-exchange
+{ escrowId, initiator: 'buyer' | 'seller' }
+// → status = awaiting-exchange, exchangeInitiatorId + exchangeInitiatedAt set
+
+// POST /api/escrow/confirm-exchange
+{ escrowId, confirmerId }
+// Valida que confirmer sea la otra parte
+// → status = exchange-recorded, ttlStartsAt = exchangeConfirmedAt, ttlExpiresAt = ttlExpiry(now)
 ```
 
-Validaciones:
-- El escrow debe estar en estado `funded`
-- El nonce debe coincidir con el del escrow
-- Si `method === 'qr'` → log `committed-qr`
-- Si `method === 'manual'` → log `committed-manual` (auditoría:追踪 cuando se usó fallback)
-
-Tras validar, estado → `pending-verification`, se setea `ttlStartsAt` y `ttlExpiresAt`.
+**Auditoría:** el `TransactionLog` distingue quién inició y quién confirmó, con timestamps separados. Si alguna vez hay una investigación, queda claro quién hizo qué.
 
 ### 4.5 Resolución
 
 **Rama A — Accept (`POST /api/escrow/accept`):**
-- Comprador toca "Aceptar artículo" mientras está en `pending-verification`
+- Comprador toca "Aceptar artículo" mientras está en `exchange-recorded`
 - Plataforma firma + comprador firma → tx Stellar: escrow → vendedor (− comisión) + escrow → treasury (comisión)
 - Estado: `released`
 
 **Rama B — Auto-resolve (`GET /api/escrow/timeout-check`, llamado por cron cada 30s):**
-- Encuentra escrows donde `ttlExpiresAt < NOW()` y status = `pending-verification`
-- Plataforma firma con timestamp (válido por Stellar porque el ledger tiene timestamp verificable)
+- Encuentra escrows donde `ttlExpiresAt < NOW()` y status = `exchange-recorded`
+- Plataforma firma con timestamp (verificable en el ledger de Stellar)
 - Tx Stellar: igual a Rama A
 - Estado: `auto-released`
 
-**Rama C — Dispute (`POST /api/escrow/dispute`):**
-- Comprador sube 1 foto + razón ≤500 chars → guardado en `dispute_evidence` table
-- TTL se cancela (no se ejecuta auto-resolve)
+**Rama C — Disputa (`POST /api/escrow/dispute`):**
+- Comprador toca "Reportar problema" mientras está en `exchange-recorded` (o `awaiting-exchange` si eligió "no, eso no pasó")
+- Elige razón de una de las 3 opciones:
+  - **`item-damaged`**: el artículo tiene defectos o no funciona
+  - **`exchange-never-happened`**: el intercambio nunca ocurrió
+  - **`item-different`**: lo recibido no es lo publicado
+- Sube 1 foto (obligatoria) + descripción ≤500 chars
+- TTL se cancela
 - Estado: `disputed`
-- La plataforma ve la disputa en `/admin/disputes` (vista básica, sin resolución real en MVP)
+- Aparece en la cola de disputas en `/admin/disputes` para revisión manual
 
 ### 4.6 Comisión
 
@@ -377,12 +391,13 @@ Visible en stellar.expert en el historial de ambas wallets.
 
 ```typescript
 // app/api/escrow/accept-offer/route.ts   POST — vendedor acepta oferta → crea escrow
-// app/api/escrow/fund/route.ts           POST — comprador fondea multi-sig (SendModal client + submit server)
-// app/api/escrow/commit/route.ts         POST — COMMIT: {escrowId, nonce, method} → pending-verification + TTL
+// app/api/escrow/fund/route.ts           POST — comprador fondea multi-sig (SendModal)
+// app/api/escrow/record-exchange/route.ts POST — una parte registra el intercambio → awaiting-exchange
+// app/api/escrow/confirm-exchange/route.ts POST — la otra parte confirma → exchange-recorded + TTL
 // app/api/escrow/accept/route.ts         POST — Rama A: liberar al vendedor (resta comisión)
 // app/api/escrow/timeout-check/route.ts  GET  — cron: auto-resolve TTL vencidos
 // app/api/escrow/dispute/route.ts        POST — Rama C: evidencia + congelar
-// app/api/escrow/cancel/route.ts         POST — reembolso antes del COMMIT
+// app/api/escrow/cancel/route.ts         POST — reembolso antes del intercambio
 // app/api/disputes/route.ts              GET  — cola de disputas para admin
 // app/api/offers/route.ts                POST — crear oferta
 // app/api/listings/route.ts              POST — crear listing
@@ -439,7 +454,7 @@ export function checkPrice(title: string, type: ListingType, price: number): Pri
 }
 ```
 
-UI en el form de crear oferta / listing:
+UI:
 ```
 ✓ Precio dentro del mercado ($650–850 según 14 listados reales)
 ⚠ Precio por encima del mercado ($650–850). Sugerencia: ajustar a $750.
@@ -449,9 +464,7 @@ UI en el form de crear oferta / listing:
 
 ## 6. Categorías
 
-Dos ejes: **Carrera** (multi-select: Ing. en Computación / Eléctrica / Mecánica / Matemáticas / Física / Química / Biología / Otra) × **Tipo de item** (libros / calculadoras / electronica / batas-uniformes / laboratorio / otros).
-
-UI de filtrado sticky en el marketplace.
+Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras / electronica / batas-uniformes / laboratorio / otros). UI de filtrado sticky en el marketplace.
 
 ---
 
@@ -535,7 +548,6 @@ UI de filtrado sticky en el marketplace.
 │  [📷 Foto]                          │
 │  Calculadora TI-89 Titanium         │
 │  800 P$ · ✓ Verificado              │
-│  Vendida por María R.               │
 │                                     │
 │  ─── Tablero de ofertas (3) ───     │
 │                                     │
@@ -615,34 +627,40 @@ UI de filtrado sticky en el marketplace.
 │  📍 Punto sugerido:                 │
 │     Biblioteca central, 12:00 hrs   │
 │                                     │
+│  Cuando intercambien los objetos,   │
+│  toquen "Intercambio realizado"     │
+│  para empezar la prueba.            │
+│                                     │
+│  [Intercambio realizado →]          │
+│  [Cancelar → reembolso]             │
+│                                     │
 │  Cuenta escrow: GABC...XYZ          │
 │  [Ver en stellar.expert ↗]          │
-│                                     │
-│  [Cancelar → reembolso]             │
 └─────────────────────────────────────┘
 ```
 
-### 7.8 Escaneo QR — COMMIT (comprador)
+### 7.8 Notificación — la otra parte registró el intercambio
 
 ```
 ┌─────────────────────────────────────┐
-│ ← Atrás   Confirmar encuentro       │
+│ 🔔 Nueva notificación               │
 ├─────────────────────────────────────┤
-│  Escanea el QR del vendedor         │
+│                                     │
+│  María registró que hicieron        │
+│  el intercambio.                    │
+│                                     │
+│  ¿Lo confirmas?                     │
 │                                     │
 │  ┌─────────────────────────────┐    │
-│  │     ┌─────────┐             │    │
-│  │     │ QR CODE │             │    │
-│  │     └─────────┘             │    │
-│  │   (cámara)                  │    │
+│  │  ✅ Sí, confirmar             │    │
+│  │  → empieza la prueba (48h)    │    │
 │  └─────────────────────────────┘    │
 │                                     │
-│  Esto abre tu ventana de prueba.    │
-│  El dinero sigue retenido hasta     │
-│  que confirmes que funciona.        │
+│  ┌─────────────────────────────┐    │
+│  │  ⚠️ No, eso no pasó          │    │
+│  │  → abrir disputa              │    │
+│  └─────────────────────────────┘    │
 │                                     │
-│  [⚠ No puedo escanear — confirmar   │
-│     encuentro manualmente]          │
 └─────────────────────────────────────┘
 ```
 
@@ -657,7 +675,6 @@ UI de filtrado sticky en el marketplace.
 │  ⏱ Tiempo restante:                │
 │  ┌─────────────────────────────┐    │
 │  │  ⏳ 02 : 58 : 14            │    │
-│  │   TTL cuenta regresiva       │    │
 │  └─────────────────────────────┘    │
 │                                     │
 │  ¿Funciona la TI-89?                │
@@ -668,7 +685,7 @@ UI de filtrado sticky en el marketplace.
 │  └─────────────────────────────┘    │
 │                                     │
 │  ┌─────────────────────────────┐    │
-│  │  ⚠️ Reportar fallo          │    │
+│  │  ⚠️ Reportar problema        │    │
 │  └─────────────────────────────┘    │
 │                                     │
 │  💡 Si no haces nada, al llegar     │
@@ -677,25 +694,49 @@ UI de filtrado sticky en el marketplace.
 └─────────────────────────────────────┘
 ```
 
-### 7.10 Reportar fallo (Rama C)
+### 7.10 Reportar problema (Rama C) — elegir razón
 
 ```
 ┌─────────────────────────────────────┐
-│ ← Atrás   Reportar fallo            │
+│ ← Atrás   Reportar problema         │
 ├─────────────────────────────────────┤
 │  ⚠ Esto congelará el escrow.       │
-│  Tu evidencia será revisada por    │
-│  el equipo de PumaTrade.            │
 │                                     │
-│  Razón (máx 500 chars):             │
+│  ¿Qué pasó?                         │
+│                                     │
 │  ┌─────────────────────────────┐    │
-│  │ La calculadora no enciende, │    │
-│  │ la pantalla está rota...    │    │
+│  │ 🔧 El artículo está dañado    │    │
+│  │    o no funciona              │    │
 │  └─────────────────────────────┘    │
+│  ┌─────────────────────────────┐    │
+│  │ 🚫 El intercambio nunca      │    │
+│  │    ocurrió                    │    │
+│  └─────────────────────────────┘    │
+│  ┌─────────────────────────────┐    │
+│  │ 📦 Lo que recibí no es lo     │    │
+│  │    que se publicó             │    │
+│  └─────────────────────────────┘    │
+└─────────────────────────────────────┘
+```
+
+### 7.11 Reportar problema — evidencia
+
+```
+┌─────────────────────────────────────┐
+│ ← Atrás   Reportar problema         │
+├─────────────────────────────────────┤
+│  Razón seleccionada:                │
+│  "El artículo está dañado"          │
 │                                     │
 │  Foto de evidencia (obligatoria):   │
 │  ┌─────────────────────────────┐    │
 │  │ 📷 Subir foto                │    │
+│  └─────────────────────────────┘    │
+│                                     │
+│  Describe (máx 500 chars):          │
+│  ┌─────────────────────────────┐    │
+│  │ La pantalla no enciende,     │    │
+│  │ la batería está inflada...   │    │
 │  └─────────────────────────────┘    │
 │                                     │
 │  ┌─────────────────────────────┐    │
@@ -704,7 +745,7 @@ UI de filtrado sticky en el marketplace.
 └─────────────────────────────────────┘
 ```
 
-### 7.11 Recibo final
+### 7.12 Recibo final
 
 ```
 ┌─────────────────────────────────────┐
@@ -732,7 +773,7 @@ UI de filtrado sticky en el marketplace.
 └─────────────────────────────────────┘
 ```
 
-### 7.12 Crear listing
+### 7.13 Crear listing
 
 ```
 ┌─────────────────────────────────────┐
@@ -753,7 +794,7 @@ UI de filtrado sticky en el marketplace.
 └─────────────────────────────────────┘
 ```
 
-### 7.13 Settings / Wallet
+### 7.14 Settings / Wallet
 
 ```
 ┌─────────────────────────────────────┐
@@ -770,7 +811,29 @@ UI de filtrado sticky en el marketplace.
 │  [Resetear datos demo]              │
 │                                     │
 │  [Cerrar sesión]                    │
-│  v0.3.1 · Stellar Testnet           │
+│  v0.3.2 · Stellar Testnet           │
+└─────────────────────────────────────┘
+```
+
+### 7.15 Admin — cola de disputas
+
+```
+┌─────────────────────────────────────┐
+│ Admin · Disputas pendientes         │
+├─────────────────────────────────────┤
+│  ┌─────────────────────────────┐    │
+│  │ ⚠ Disputa #abc              │    │
+│  │ TI-89 Titanium · Juan vs María│    │
+│  │ Razón: item-damaged          │    │
+│  │ Hace 12 min                  │    │
+│  │ [Ver evidencia]              │    │
+│  └─────────────────────────────┘    │
+│  ┌─────────────────────────────┐    │
+│  │ ⚠ Disputa #def              │    │
+│  │ ThinkPad X1 · Pablo vs Sofía│    │
+│  │ Razón: exchange-never-happened│    │
+│  │ [Ver evidencia]              │    │
+│  └─────────────────────────────┘    │
 └─────────────────────────────────────┘
 ```
 
@@ -840,8 +903,7 @@ UI de filtrado sticky en el marketplace.
     "@pollar/core": "^0.11.3", "@pollar/react": "^0.11.3",
     "@stellar/stellar-sdk": "^11.0.0",
     "tailwindcss": "^3.4.0", "zustand": "^4.5.0", "zod": "^3.23.0",
-    "@prisma/client": "^5.15.0", "lucide-react": "^0.400.0", "date-fns": "^3.6.0",
-    "html5-qrcode": "^2.3.8"
+    "@prisma/client": "^5.15.0", "lucide-react": "^0.400.0", "date-fns": "^3.6.0"
   },
   "devDependencies": {
     "prisma": "^5.15.0", "@types/node": "^20.0.0", "@types/react": "^18.3.0",
@@ -861,25 +923,24 @@ UI de filtrado sticky en el marketplace.
 │   ├── marketplace/page.tsx
 │   ├── marketplace/[listingId]/page.tsx
 │   ├── offer/[listingId]/page.tsx
-│   ├── escrow/[escrowId]/page.tsx          # detalle + estados
-│   ├── escrow/[escrowId]/scan/page.tsx     # escáner QR
-│   ├── escrow/[escrowId]/report/page.tsx   # Rama C
+│   ├── escrow/[escrowId]/page.tsx
+│   ├── escrow/[escrowId]/report/page.tsx
 │   ├── receipt/[escrowId]/page.tsx
 │   ├── create/page.tsx
 │   ├── settings/page.tsx
-│   ├── admin/disputes/page.tsx             # cola de disputas
+│   ├── admin/disputes/page.tsx
 │   └── api/
-│       ├── escrow/{accept-offer,fund,commit,accept,timeout-check,dispute,cancel}/route.ts
+│       ├── escrow/{accept-offer,fund,record-exchange,confirm-exchange,accept,timeout-check,dispute,cancel}/route.ts
 │       ├── disputes/route.ts
 │       ├── offers/route.ts
 │       ├── listings/route.ts
 │       ├── price-alert/route.ts
 │       └── reset-demo/route.ts
-├── components/{ListingCard,OfferCard,EscrowTimeline,FilterBar,WalletBadge,QRScanner,CountdownTimer}.tsx
+├── components/{ListingCard,OfferCard,EscrowTimeline,FilterBar,WalletBadge,CountdownTimer,DisputeReasonPicker}.tsx
 ├── lib/
 │   ├── db.ts  pollar.ts  stellar.ts  fees.ts  validation.ts
-│   ├── escrow.ts                     # estados + TTL
-│   ├── cron.ts                       # timeout-check cada 30s
+│   ├── escrow.ts
+│   ├── cron.ts
 │   └── priceAlert/{referencePrices,engine}.ts
 ├── prisma/schema.prisma
 ├── seed/seed.json
@@ -894,7 +955,7 @@ POLLAR_SECRET_KEY=sk_test_...
 NEXT_PUBLIC_STELLAR_NETWORK=TESTNET
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
 DEMO_TTL_MINUTES=3                  # demo: 3 min; producción: omitir (default 2880)
-DEMO_FAST_TIMEOUT=true              # alternativa: cualquier valor truthy usa 3 min
+DEMO_FAST_TIMEOUT=true
 HACKATHON_FREE_FEES=true
 POLLAR_TREASURY_WALLET_ID=G-...
 ```
@@ -924,7 +985,7 @@ import { PollarProvider } from '@pollar/react';
 
 **T-2h:**
 - [ ] `npm install`, `.env.local`, `prisma migrate dev`, `prisma db seed`
-- [ ] `DEMO_TTL_MINUTES=3` y `HACKATHON_FREE_FEES=true` configurados
+- [ ] `DEMO_TTL_MINUTES=3` y `HACKATHON_FREE_FEES=true`
 - [ ] Login Google OK, saldos visibles, listings seed visibles
 - [ ] Botón "Reset demo data" funciona
 - [ ] Cron de timeout-check corriendo
@@ -936,73 +997,76 @@ import { PollarProvider } from '@pollar/react';
 4. Hacer oferta (3 tipos)
 5. Tablero + aceptar oferta → escrow (awaiting-funding)
 6. Fondear escrow (SendModal) → funded
-7. Pantalla escrow funded
-8. Escáner QR (con fallback manual) → pending-verification
+7. Pantalla escrow funded + botón "Intercambio realizado"
+8. Notificación + confirmar intercambio → exchange-recorded + TTL
 9. Countdown TTL + Aceptar → released + recibo
 10. Rama B (auto-resolve): esperar TTL expirar → auto-released
-11. Rama C (disputa con evidencia): reporte → disputed
-12. Alerta de precios en crear listing/oferta
-13. Reset demo
+11. Rama C (disputa con evidencia): reporte → disputed (3 razones)
+12. Admin /disputes para ver la cola
+13. Alerta de precios en crear listing/oferta
+14. Reset demo
 
 ---
 
 ## 12. Backlog post-MVP ("La Casa")
 
-- Tarjeta física NFC (Tangem) — "tan sencillo como pagar el transporte público"
+- Tarjeta física NFC (Tangem)
 - Pagos de depósitos de renta para estudiantes foráneos
 - Pago de comidas en cafeterías con PumaDolar
 - Foro comunitario para alumnos de nuevo ingreso
 - Compra urgente por la plataforma (buyback)
 - Asistente IA completo (búsqueda en lenguaje natural, tasador de depreciación)
 - On-ramp fiat (depósito real vía SEP-24)
-- Featured listings (10–15 P$/semana)
+- Featured listings
 - Reputación y ratings post-transacción
 - Smart contract Soroban real sustituyendo multi-sig
 - App nativa iOS/Android
+- Resolución automática de disputas con evidencia + reglas
 
 ---
 
 ## 13. Demo script (3 minutos)
 
-**Setup previo:** `DEMO_TTL_MINUTES=3`, `HACKATHON_FREE_FEES=true`. Teléfono de Juan (comprador, 2,000 P$) + María (vendedora) precargadas. Laptop con stellar.expert.
+**Setup previo:** `DEMO_TTL_MINUTES=3`, `HACKATHON_FREE_FEES=true`. Teléfonos de Juan y María precargadas. Laptop con stellar.expert.
 
 ```
 [0:00–0:30] PROBLEMA
 "Cada semestre gastamos miles de pesos en libros, calculadoras,
 componentes… que quedan arrumbados. El trueque tradicional falla
-porque es casi imposible encontrar equivalencia exacta. Y comprar
-usado es ruleta rusa: ¿está quemado? ¿me van a estafar?
+porque es difícil encontrar equivalencia exacta. Y comprar usado
+es ruleta rusa: ¿está quemado? ¿me van a estafar?
 
 PumaTrade resuelve las dos cosas: intercambio flexible con el
-saldo cubriendo la diferencia, y dinero protegido con ventana
-de prueba."
+saldo cubriendo la diferencia, y dinero protegido durante una
+ventana de prueba."
 
 [0:30–1:00] EL TABLERO
 [Abrir como María → ver su TI-89 con 3 ofertas]
-"María vende su calculadora. Su tablero muestra tres ofertas:
-Pablo le ofrece 750 en PumaDolar, Juan le ofrece un Arduino
-valuado en 450 más 300 en PumaDolar, y Andrea un trueque
-directo que no procede por diferencia. María elige la híbrida."
+"María vende su calculadora. Su tablero muestra tres ofertas.
+María elige la híbrida: Juan le da su Arduino valuado en 450
+más 300 en PumaDolar. María se lleva un componente que SÍ va a
+usar más saldo para el próximo semestre."
 
 [1:00–1:30] CHECKOUT + FUNDED
 [Juan compra → SendModal → funded]
 "Juan paga los 300 P$ en PumaDolar. Inmediatamente el dinero
 se congela en un smart contract — una cuenta multi-sig en
-Stellar, aquí está la transacción en vivo en stellar.expert.
-Ni Juan ni María pueden tocar ese dinero todavía."
+Stellar, aquí está la transacción en vivo. Ni Juan ni María
+pueden tocar ese dinero todavía."
 
-[1:30–2:00] EL ENCUENTRO Y LA VENTANA DE PRUEBA
-[Simular encuentro: María muestra QR, Juan escanea → TTL]
-"Se encuentran en la biblioteca. Juan recibe la calculadora
-y escanea el QR de María — eso abre su ventana de prueba.
-El dinero sigue congelado. Si Juan cierra la app, no pasa
-nada malo: el TTL está corriendo en blockchain."
+[1:30–2:00] EL ENCUENTRO
+[Simular encuentro: María entrega, Juan recibe, ambos tocan "Intercambio realizado"]
+"Se encuentran en la biblioteca. María entrega la calculadora,
+Juan la recibe. Cada uno toca 'Intercambio realizado' en su
+app — ese es el momento que registra el contrato. Ahora arranca
+la ventana de prueba."
 
 [2:00–2:30] LAS TRES SALIDAS
 [Mostrar las 3 opciones]
 "Desde aquí Juan tiene tres caminos:
-- Si funciona, toca Aceptar artículo y se libera el pago.
-- Si está dañada, sube foto y reporta — el escrow se congela.
+- Funciona → toca Aceptar artículo y se libera el pago.
+- Está dañada, no es la correcta, o el intercambio nunca
+  ocurrió → sube foto, explica, y el escrow se congela.
 - Si no hace nada, al llegar el TTL a cero el sistema libera
   automáticamente. Nadie puede secuestrar los fondos de María."
 
@@ -1026,7 +1090,6 @@ cada artículo contra precios reales del mercado."]
 | Riesgo | Probabilidad | Mitigación |
 |---|---|---|
 | Multi-sig setup tarda | Alta | Cuenta Stellar pre-creada como template; clonar por escrow |
-| QR scanning falla en demo | Media | Fallback "Confirmar encuentro manualmente" siempre visible |
 | TTL demo muy corto | Baja | `DEMO_TTL_MINUTES=3` da tiempo a explicar y mostrar Rama B |
 | Auto-resolve no dispara en vivo | Baja | Cron corre cada 30s; suficiente margen |
 | SendModal falla en Safari | Baja | Probar en Chrome; tener Chrome como backup |
@@ -1034,6 +1097,7 @@ cada artículo contra precios reales del mercado."]
 | Tx hash no aparece inmediato en explorer | Alta | Esperar 5–10s; tx de backup visible |
 | Wallets seed no listas | Media | Plan B: 2 wallets + 3 listings dummy |
 | Comisión rompe el flujo visual | Baja | Hackathon: `HACKATHON_FREE_FEES=true` |
+| Una parte no confirma el intercambio | Baja | Cualquiera puede cancelar; reembolso |
 
 ---
 
@@ -1043,15 +1107,15 @@ cada artículo contra precios reales del mercado."]
 - **Pollar (SDK):** infraestructura de wallets embebidas + auth para Stellar.
 - **Stellar:** blockchain L1 de liquidación.
 - **Escrow:** retención de fondos en cuenta multi-sig 2-de-2.
-- **TTL / ventana de prueba:** período entre COMMIT y resolución (48h prod, 3 min demo).
-- **COMMIT:** encuentro físico + escaneo QR o botón manual → arranca TTL.
+- **TTL / ventana de prueba:** período entre el intercambio registrado y la resolución (48h prod, 3 min demo).
+- **Intercambio registrado:** ambas partes confirman que los objetos cambiaron físicamente de manos → arranca el TTL.
 - **Rama A:** comprador acepta → release.
 - **Rama B:** TTL expira → auto-resolve a favor del vendedor.
-- **Rama C:** comprador reporta con evidencia → disputa congelada.
+- **Rama C:** comprador reporta (dañado / nunca ocurrió / item diferente) → disputa congelada.
 - **Oferta híbrida:** objeto + PumaDolar como diferencia.
 - **"El Ladrillo":** lo que se demuestra en el hackathon.
 - **"La Casa":** la visión completa post-MVP.
 
 ---
 
-**FIN DEL PRD v3.1** — Marketplace de intercambio flexible con escrow de ventana de prueba (COMMIT/TTL/auto-resolve/dispute con evidencia). Listo para implementar.
+**FIN DEL PRD v3.2** — El intercambio físico es el evento central: ambas partes lo registran, el TTL arranca, y de ahí vienen las tres salidas posibles. Listo para implementar.
