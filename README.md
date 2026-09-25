@@ -1,12 +1,16 @@
 # PumaTrade — Goya-Hack
 
-> **Marketplace universitario de intercambio flexible con dinero protegido hasta que pruebas el producto.**
+> **Marketplace universitario de intercambio flexible con dinero protegido y ventana de prueba.**
 
 PumaTrade permite a los estudiantes de la UNAM **publicar artículos académicos en desuso** (libros, calculadoras, batas, componentes electrónicos) y recibir propuestas en **3 formatos**: solo saldo en **PumaDolar (P$)**, objeto por objeto (trueque puro), o una combinación de ambos (híbrido). El vendedor **elige la mejor oferta desde su tablero**.
 
-Cuando una oferta se acepta, el saldo del comprador se **congela en un smart contract** (cuenta Stellar multi-sig 2-de-2) hasta que ambos estudiantes se encuentran en la facultad, **verifican que el artículo funciona**, y **confirman en la app**. Solo entonces se libera el pago al vendedor.
+Cuando una oferta se acepta, el saldo del comprador se **congela en un smart contract** (cuenta Stellar multi-sig 2-de-2). Los estudiantes se encuentran en la facultad, el comprador **escanea el QR del vendedor** (o confirma con un botón si la cámara falla), y arranca una **ventana de prueba (TTL)** — 48 horas en producción, 3 minutos en modo demo. Tres caminos posibles durante esa ventana:
 
-Todo el dinero se mueve en **PumaDolar**, una moneda digital respaldada por USDC en Stellar testnet, gestionada a través del SDK [Pollar](https://pollar.xyz) — wallets embebidas que se crean con solo iniciar sesión con Google. Cero seed phrases, cero conocimiento de blockchain.
+- **Rama A (happy path):** el comprador prueba el artículo y acepta → el pago se libera al vendedor.
+- **Rama B (auto-resolve):** el comprador no confirma → el TTL expira → el sistema libera automáticamente (nadie puede secuestrar los fondos).
+- **Rama C (disputa):** el comprador reporta el fallo con una foto y razón → el escrow se congela para revisión.
+
+Todo se mueve en **PumaDolar**, una moneda digital respaldada por USDC en Stellar testnet, gestionada a través del SDK [Pollar](https://pollar.xyz) — wallets embebidas que se crean con solo iniciar sesión con Google. Cero seed phrases, cero conocimiento de blockchain.
 
 ---
 
@@ -17,10 +21,9 @@ Cada semestre los estudiantes gastan miles de pesos en activos académicos tempo
 ## La solución (MVP "El Ladrillo")
 
 1. **Intercambio flexible, no solo venta.** Si tu artículo vale $300 y el otro vale $800, puedes ofrecer tu artículo + 500 P$ de diferencia. PumaDolar cubre el desbalance.
-2. **Tablero de ofertas múltiples.** El vendedor no depende de un solo interesado. Ve todas las propuestas (solo saldo / objeto↔objeto / híbrido) y elige la que mejor resuelve su semestre.
-3. **Candado de seguridad.** El saldo del comprador queda retenido en un smart contract de Stellar hasta que ambos confirman la entrega en la app.
-
-**Diferenciador técnico:** una alerta básica de IA compara cada precio contra una base local de referencias y avisa si un artículo está por encima del mercado.
+2. **Tablero de ofertas múltiples.** El vendedor ve todas las propuestas y elige.
+3. **Candado con ventana de prueba.** El dinero se retiene hasta el encuentro + TTL con auto-resolve a favor del vendedor y rama de disputa con evidencia.
+4. **Alerta de precios básicos.** Comparación contra una base local de referencias — si un artículo está por encima del mercado, la app lo señala.
 
 ---
 
@@ -36,7 +39,7 @@ Cada semestre los estudiantes gastan miles de pesos en activos académicos tempo
 
 ## Documentación
 
-- **[`PRD.md`](PRD.md)** — El Product Requirements Document completo: modelo de datos, flujos de los 3 tipos de oferta, mecánica del escrow, wireframes, seed data, checklist pre-hackathon y guión de demo de 3 minutos. **Este es el documento principal del proyecto.**
+- **[`PRD.md`](PRD.md)** — El Product Requirements Document completo: modelo de datos, los 3 tipos de oferta, máquina de estados del escrow (COMMIT/TTL/auto-resolve/dispute), wireframes, seed data, variables de entorno, checklist pre-hackathon y guión de demo de 3 minutos. **Este es el documento principal del proyecto.**
 
 ---
 
@@ -49,14 +52,17 @@ Cada semestre los estudiantes gastan miles de pesos en activos académicos tempo
 - Publicación con video mock de verificación
 - 3 tipos de oferta: solo saldo / trueque puro / híbrida (objeto + saldo)
 - Tablero del vendedor para elegir la mejor oferta
-- Escrow Stellar con doble confirmación (ambos confirman en el encuentro → release)
+- Escrow Stellar con flujo COMMIT → TTL → 3 ramas de resolución:
+  - Rama A: comprador acepta → release
+  - Rama B: TTL expira → auto-resolve a favor del vendedor
+  - Rama C: comprador reporta con foto + razón → disputa congelada
+- Escaneo QR del vendedor (con fallback a botón manual)
 - Comisión de plataforma (2% sobre PumaDolar liberado; 0% durante el hackathon)
-- Alerta básica de precios inflados vs. mercado (DB local de referencias)
-- 5 usuarios seed + 10 listings + 5 ofertas precargados para demo
+- Alerta de precios inflados vs. mercado (DB local de referencias)
+- 5 usuarios seed + 10 listings + 4 ofertas precargados
 
 ### Fuera de alcance del MVP ("La Casa" a futuro)
 - Tarjeta física NFC (Tangem) para confirmar transacciones
-- Resolución de disputas con TTL y auto-resolve a favor del vendedor
 - Pagos de depósitos de renta para estudiantes foráneos
 - Pago de comidas en cafeterías con PumaDolar
 - Foro comunitario para guiar a alumnos de nuevo ingreso
