@@ -1,0 +1,42 @@
+# --- Documentos originales del equipo (no se suben al repo público) ---
+Descripcion.md
+PuntosUNAM.md
+
+# --- Obsidian vault metadata ---
+.obsidian/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+build/
+dist/
+.turbo/
+
+# --- Entorno y secretos ---
+.env
+.env.local
+.env.*.local
+*.pem
+
+# --- Datos locales / DB ---
+*.db
+*.sqlite
+dev.db*
+prisma/dev.db*
+
+# --- Logs ---
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# --- Sistema / editor ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# --- Cobertura de tests ---
+coverage/
