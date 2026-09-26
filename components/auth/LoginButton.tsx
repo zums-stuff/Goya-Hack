@@ -15,7 +15,7 @@
 
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { usePollar, WalletButton } from '@pollar/react';
 
@@ -25,19 +25,11 @@ type AuthState =
   | { kind: 'authenticated'; email: string; address: string }
   | { kind: 'error'; message: string };
 
-/** Una key de Pollar real viene del dashboard (prefijo pub_ y sin xxxx). */
-function pollarKeyIsReal(): boolean {
-  const k = process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY ?? '';
-  return k.startsWith('pub_') && !/xxxx/i.test(k);
-}
-
-export function LoginButton() {
+export function LoginButton({ needsSetup }: { needsSetup: boolean }) {
   const router = useRouter();
   const { wallet, isAuthenticated, openLoginModal, configStatus, getClient } = usePollar();
   const [state, setState] = useState<AuthState>({ kind: 'idle' });
   const syncedAddress = useRef<string | null>(null);
-
-  const keyIsReal = useMemo(pollarKeyIsReal, []);
 
   // Sincroniza al backend cuando Pollar confirma la sesión.
   useEffect(() => {
@@ -93,38 +85,22 @@ export function LoginButton() {
     };
   }, [isAuthenticated, wallet, router]);
 
-  // ── Keys de Pollar no configuradas ───────────────────────────────────
-  if (!keyIsReal) {
+  // ── Keys de Pollar sin configurar: CTA que lleva a la guía ──────────
+  if (needsSetup) {
     return (
-      <div
-        data-testid="login-button"
-        className="w-full max-w-sm rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900"
-      >
-        <p className="font-semibold">⚠️ Pollar no está configurado todavía</p>
-        <p className="mt-2 leading-relaxed">
-          El login usa las wallets de <strong>Pollar</strong>, pero las keys del
-          dashboard no están en <code className="rounded bg-amber-100 px-1">.env.local</code>.
+      <div data-testid="login-button" className="flex flex-col items-center gap-3">
+        <button
+          onClick={() =>
+            document.getElementById('pollar-guide')?.scrollIntoView({ behavior: 'smooth' })
+          }
+          className="w-full rounded-xl bg-white/10 px-6 py-3.5 text-base font-semibold text-white ring-1 ring-inset ring-white/20 transition hover:bg-white/15"
+        >
+          Configura Pollar para entrar
+        </button>
+        <p className="text-xs text-slate-400 text-center">
+          Faltan las keys del dashboard. Mira la guía ⬇ — dice exactamente qué pegar
+          en <code className="font-mono text-sky-200">.env.local</code>.
         </p>
-        <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
-          <li>
-            Crea las 2 apps en{' '}
-            <span className="font-mono">dashboard.pollar.xyz</span> (Usuarios:
-            Google + email OTP; Operacional: server-only).
-          </li>
-          <li>
-            Pega en <code className="rounded bg-amber-100 px-1">.env.local</code>:
-            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
-              NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_…
-            </code>
-            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
-              POLLAR_USERS_SECRET_KEY=sec_testnet_users_…
-            </code>
-            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
-              POLLAR_OPS_SECRET_KEY=sec_testnet_ops_…
-            </code>
-          </li>
-          <li>Reinicia <code className="rounded bg-amber-100 px-1">npm run dev</code>.</li>
-        </ol>
       </div>
     );
   }
@@ -133,7 +109,7 @@ export function LoginButton() {
   if (state.kind === 'authenticated') {
     return (
       <div data-testid="login-button" className="flex flex-col items-center gap-3 w-full max-w-sm">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-slate-300">
           Sesión activa — <span className="font-mono text-xs">{state.email}</span>
         </p>
         <WalletButton />
@@ -148,16 +124,16 @@ export function LoginButton() {
       <button
         onClick={openLoginModal}
         disabled={busy}
-        className="w-full rounded-xl bg-[var(--color-primary)] px-6 py-3.5 text-base font-semibold text-[var(--color-primary-foreground)] shadow-sm transition hover:opacity-90 disabled:opacity-50"
+        className="w-full rounded-xl bg-[var(--color-primary)] px-6 py-3.5 text-base font-semibold text-[var(--color-primary-foreground)] shadow-[0_10px_30px_-10px_rgba(59,130,246,0.7)] transition hover:brightness-110 disabled:opacity-50"
       >
         {state.kind === 'syncing' ? 'Conectando tu wallet…' : configStatus === 'loading' ? 'Cargando Pollar…' : 'Iniciar sesión con Pollar'}
       </button>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-slate-400">
         Google o código por email · Wallet Stellar segura, sin seed phrases
       </p>
 
       {state.kind === 'error' && (
-        <p className="text-xs text-red-600 text-center">{state.message}</p>
+        <p className="text-xs text-rose-400 text-center">{state.message}</p>
       )}
     </div>
   );
