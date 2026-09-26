@@ -1,8 +1,10 @@
 // components/escrow/DisputeForm.tsx — Sube foto + razón + descripción.
+// Sistema: radio-card (.form-check), form-field, form-error, cancel-button.
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, Image as ImageIcon } from 'lucide-react';
 
 type Props = {
   escrowId: string;
@@ -10,10 +12,22 @@ type Props = {
   disabled?: boolean;
 };
 
-const REASONS: Array<{ code: 'item-damaged' | 'exchange-never-happened' | 'item-different'; label: string }> = [
-  { code: 'item-damaged', label: 'El artículo tiene defectos o no funciona' },
-  { code: 'exchange-never-happened', label: 'El intercambio nunca ocurrió' },
-  { code: 'item-different', label: 'Lo recibido no es lo publicado' },
+const REASONS: Array<{ code: 'item-damaged' | 'exchange-never-happened' | 'item-different'; label: string; description: string }> = [
+  {
+    code: 'item-damaged',
+    label: 'El artículo tiene defectos o no funciona',
+    description: 'Llega roto, no enciende, le falta una pieza clave…',
+  },
+  {
+    code: 'exchange-never-happened',
+    label: 'El intercambio nunca ocurrió',
+    description: 'La otra parte no se presentó o canceló a último momento.',
+  },
+  {
+    code: 'item-different',
+    label: 'Lo recibido no es lo publicado',
+    description: 'Diferente modelo, condición peor, o no coincide con la foto.',
+  },
 ];
 
 export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
@@ -61,67 +75,115 @@ export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
 
   if (disabled) {
     return (
-      <p className="text-sm text-gray-500">
-        Este escrow ya tiene una disputa abierta. No se puede escalar otra.
-      </p>
+      <div className="empty-state">
+        <strong>Este escrow ya tiene una disputa abierta</strong>
+        No se puede escalar otra. Espera a que un administrador la resuelva.
+      </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <fieldset className="space-y-2">
-        <legend className="text-sm font-medium">¿Qué pasó?</legend>
+    <form
+      onSubmit={onSubmit}
+      style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+    >
+      <fieldset style={{ display: 'flex', flexDirection: 'column', gap: 8, border: 0, padding: 0 }}>
+        <legend
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            color: '#6b7280',
+            letterSpacing: 0.4,
+            textTransform: 'uppercase',
+            marginBottom: 2,
+            padding: 0,
+          }}
+        >
+          ¿Qué pasó?
+        </legend>
         {REASONS.map((r) => (
-          <label key={r.code} className="block text-sm">
+          <label
+            key={r.code}
+            style={{
+              display: 'flex',
+              gap: 12,
+              border: '1px solid var(--line)',
+              background: reason === r.code ? '#f7f9fc' : '#fff',
+              borderColor: reason === r.code ? 'var(--primary)' : 'var(--line)',
+              borderRadius: 9,
+              padding: '11px 13px',
+              cursor: 'pointer',
+              transition: 'border-color 0.15s ease, background 0.15s ease',
+            }}
+          >
             <input
               type="radio"
               name="reason"
               value={r.code}
               checked={reason === r.code}
               onChange={() => setReason(r.code)}
-              className="mr-2"
+              style={{ accentColor: 'var(--primary)', marginTop: 2, flexShrink: 0 }}
             />
-            {r.label}
+            <span style={{ minWidth: 0 }}>
+              <strong style={{ display: 'block', fontSize: 12, color: 'var(--ink)' }}>
+                {r.label}
+              </strong>
+              <small style={{ fontSize: 10, color: '#7f8c9d' }}>{r.description}</small>
+            </span>
           </label>
         ))}
       </fieldset>
 
-      <label className="block">
-        <span className="text-sm">Descripción (máx 500 chars)</span>
+      <label className="form-label">
+        <span>Descripción (máx 500 chars)</span>
         <textarea
+          className="form-field"
           required
           minLength={10}
           maxLength={500}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={4}
-          className="w-full border rounded px-3 py-2 mt-1"
+          placeholder="Cuenta qué pasó con detalles verificables: lugar, fecha, número de mensajes, etc."
         />
       </label>
 
-      <label className="block">
-        <span className="text-sm">Foto (≤2 MB, jpeg/png/webp)</span>
+      <label className="form-label">
+        <span>
+          <ImageIcon
+            style={{ width: 12, height: 12, display: 'inline-block', verticalAlign: 'text-bottom', marginRight: 4 }}
+          />
+          Foto de evidencia
+        </span>
+        <span className="form-hint">jpeg/png/webp · ≤2 MB · La foto ayuda al administrador a resolver.</span>
         <input
+          className="form-field"
           type="file"
           accept="image/jpeg,image/png,image/webp"
           required
           onChange={(e) => {
-            const f = e.target.files?.[0];
-            setPhoto(f ?? null);
+            setPhoto(e.target.files?.[0] ?? null);
           }}
-          className="block mt-1 text-sm"
         />
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="form-error">
+          <AlertCircle />
+          {error}
+        </div>
+      )}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="bg-red-600 text-white py-2 px-4 rounded disabled:opacity-50"
-      >
-        {busy ? 'Enviando...' : 'Enviar disputa'}
-      </button>
+      <div className="submit-row">
+        <button
+          type="submit"
+          className="sell-button"
+          disabled={busy}
+          style={{ opacity: busy ? 0.5 : 1 }}
+        >
+          {busy ? 'Enviando…' : 'Enviar evidencia'}
+        </button>
+      </div>
     </form>
   );
 }

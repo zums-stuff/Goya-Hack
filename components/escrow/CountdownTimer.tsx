@@ -1,5 +1,5 @@
 // components/escrow/CountdownTimer.tsx — Timer countdown para ventanas.
-// No pinta "00:00:00" rojo si no hay ventana activa (§10.3 + Pasada 4 del doc).
+// Sistema: .timeout-text + .critical + .ai-price-signal cuando expires.
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -40,13 +40,20 @@ export function CountdownTimer({ targetDate, status }: Props) {
     return () => clearInterval(id);
   }, [targetDate]);
 
-  if (!targetDate) return null;
-  if (!remaining) return null;
+  if (!targetDate || !remaining) return null;
+  if (status === 'released' || status === 'auto-released' || status === 'refunded') return null;
 
   const isCritical = remaining === '00:00:00';
+  if (isCritical) {
+    return (
+      <span className="ai-price-signal pricey" style={{ marginTop: 0 }}>
+        Expirado — el cron procesará en la próxima pasada
+      </span>
+    );
+  }
   return (
-    <div className={`mt-3 font-mono text-sm ${isCritical ? 'text-red-600' : 'text-gray-600'}`}>
-      {isCritical ? 'Expirado — el cron procesará en la próxima pasada.' : `Tiempo: ${remaining}`}
-    </div>
+    <span className="timeout-text">
+      ⏳ {remaining}
+    </span>
   );
 }

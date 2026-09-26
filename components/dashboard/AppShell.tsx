@@ -1,14 +1,13 @@
 // components/dashboard/AppShell.tsx — Shell compartido para páginas autenticadas.
-//
-// Sidebar + topbar del frontend example, pero con `<Link>` reales a las rutas
-// existentes. El item activo se calcula con `usePathname()`. "Cerrar sesión"
-// usa /api/auth/logout.
-// Se monta una sola vez por el route group (authed)/layout.tsx.
+// El top-search navega a /marketplace?search=<q> cuando hay query.
+// Sidebar items activos vía usePathname(). Botón Cerrar sesión llama a
+// /api/auth/logout.
 
 'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState, type FormEvent } from 'react';
 import {
   Bell,
   Bot,
@@ -44,11 +43,19 @@ function initials(name: string) {
 export function AppShell({ me, children }: { me: Me; children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [search, setSearch] = useState('');
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/');
     router.refresh();
+  }
+
+  function onSearch(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const q = search.trim();
+    if (!q) return;
+    router.push(`/marketplace?search=${encodeURIComponent(q)}`);
   }
 
   const ini = initials(me.displayName);
@@ -71,7 +78,11 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
             <Link
               key={href}
               href={href}
-              className={`nav-item ${pathname === href || (href !== '/home' && pathname.startsWith(href)) ? 'active' : ''}`}
+              className={`nav-item ${
+                pathname === href || (href !== '/home' && pathname.startsWith(href))
+                  ? 'active'
+                  : ''
+              }`}
             >
               <Icon />
               {name}
@@ -99,23 +110,29 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
 
       <main className="main-content">
         <header className="topbar">
-          <div className="top-search">
+          <form className="top-search" onSubmit={onSearch} role="search">
             <Search />
             <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Busca libros, calculadoras, electrónica..."
-              aria-label="Buscar artículos"
+              aria-label="Buscar artículos en el marketplace"
             />
-          </div>
+          </form>
           <div className="top-actions">
             <div className="balance-chip">
               <WalletCards />
               <span>P$ {fmtPrice(me.balanceXlm)}</span>
             </div>
-            <button type="button" className="icon-button" aria-label="Notificaciones">
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Notificaciones"
+            >
               <Bell />
               <span className="notification-dot" />
             </button>
-            <Link href="/settings" className="top-avatar">
+            <Link href="/settings" className="top-avatar" aria-label="Mi cuenta">
               {ini}
             </Link>
           </div>

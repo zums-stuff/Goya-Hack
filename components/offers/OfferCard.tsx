@@ -1,25 +1,25 @@
-// components/offers/OfferCard.tsx — Cada oferta en el tablero; botones Accept / Reject.
+// components/offers/OfferCard.tsx — Cada oferta en el tablero.
+// Sistema: .offer-card + .avatar + .types-badge + .sell-button/.outline-button.
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Check, X, ShieldCheck } from 'lucide-react';
 
-type Props = {
-  offer: {
-    id: string;
-    type: 'saldo-only' | 'barter' | 'hybrid';
-    xlmAmount: number | null;
-    message: string | null;
-    offerer: { id: string; displayName: string; major: string };
-  };
-};
+type Props = { offer: { id: string; type: 'saldo-only' | 'barter' | 'hybrid'; xlmAmount: number | null; message: string | null; offerer: { id: string; displayName: string; major: string }; }; listingPriceCents: number };
 
-export function OfferCard({ offer }: Props) {
+export function OfferCard({ offer, listingPriceCents }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
 
+  const coveragePct =
+    listingPriceCents > 0 && offer.xlmAmount != null
+      ? Math.round((offer.xlmAmount - listingPriceCents) / (listingPriceCents / 100))
+      : null;
+
   async function accept() {
-    if (!confirm(`¿Aceptar la oferta de ${offer.offerer.displayName}? Crea el escrow.`)) return;
+    if (!confirm(`¿Aceptar la oferta de ${offer.offerer.displayName}? Crea el escrow.`))
+      return;
     setBusy(true);
     try {
       const res = await fetch('/api/escrow/accept-offer', {
@@ -59,19 +59,15 @@ export function OfferCard({ offer }: Props) {
   }
 
   return (
-    <article className="border rounded-lg p-4 bg-white dark:bg-gray-900">
-      <header className="flex justify-between items-start gap-3">
-        <div>
-          <div className="font-medium">{offer.offerer.displayName}</div>
-          <div className="text-xs text-gray-500">{offer.offerer.major}</div>
-        </div>
+    <article className="offer-card recommended" style={{ padding: 14 }}>
+      <div className="offer-top">
         <span
-          className={`text-xs uppercase font-semibold rounded px-2 py-1 ${
+          className={`type-badge ${
             offer.type === 'saldo-only'
-              ? 'bg-blue-100 text-blue-700'
+              ? 'saldo-only'
               : offer.type === 'hybrid'
-                ? 'bg-purple-100 text-purple-700'
-                : 'bg-amber-100 text-amber-700'
+                ? 'hybrid'
+                : 'barter'
           }`}
         >
           {offer.type === 'saldo-only'
@@ -80,33 +76,90 @@ export function OfferCard({ offer }: Props) {
               ? 'Híbrida'
               : 'Trueque puro'}
         </span>
-      </header>
-
-      <div className="mt-3 text-sm">
-        {offer.xlmAmount !== null && (
-          <div className="font-mono">{(offer.xlmAmount / 100).toFixed(2)} XLM</div>
-        )}
-        {offer.message && (
-          <p className="text-gray-600 dark:text-gray-400 italic mt-1">"{offer.message}"</p>
+        {offer.xlmAmount != null && (
+          <span className="offer-total">
+            P$ {(offer.xlmAmount / 100).toLocaleString('es-MX', { maximumFractionDigits: 2 })}
+            {coveragePct !== null && (
+              <span
+                className={`ai-price-signal ${coveragePct >= 0 ? 'cheap' : 'pricey'}`}
+                style={{ fontSize: 8, marginLeft: 6, marginTop: 0, padding: '3px 6px' }}
+              >
+                {coveragePct >= 0 ? '+' : ''}
+                {coveragePct}% vs precio
+              </span>
+            )}
+          </span>
         )}
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 10 }}>
+        <span className="avatar" style={{ width: 38, height: 38, fontSize: 11 }}>
+          {initials(offer.offerer.displayName)}
+        </span>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <strong style={{ display: 'block', fontSize: 12 }}>
+            {offer.offerer.displayName}
+          </strong>
+          <small style={{ fontSize: 10, color: '#8793a3' }}>
+            {offer.offerer.major}
+          </small>
+        </div>
+        <span className="verified">
+          <ShieldCheck />
+          Verificado
+        </span>
+      </div>
+
+      {offer.message && (
+        <p
+          style={{
+            fontSize: 11,
+            fontStyle: 'italic',
+            color: '#5a6878',
+            marginTop: 10,
+            lineHeight: 1.5,
+            borderLeft: '2px solid var(--line)',
+            paddingLeft: 12,
+          }}
+        >
+          “{offer.message}”
+        </p>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 8,
+          alignItems: 'center',
+          marginTop: 14,
+          paddingTop: 12,
+          borderTop: '1px solid var(--line)',
+        }}
+      >
         <button
           onClick={accept}
           disabled={busy}
-          className="bg-green-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+          className="sell-button"
+          style={{ padding: '8px 14px', fontSize: 10, opacity: busy ? 0.5 : 1 }}
         >
-          Aceptar
+          <Check />
+          {busy ? 'Aceptando…' : 'Aceptar'}
         </button>
         <button
           onClick={reject}
           disabled={busy}
-          className="bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-gray-100 px-3 py-1 rounded text-sm disabled:opacity-50"
+          className="outline-button"
+          style={{ padding: '8px 14px', fontSize: 10, opacity: busy ? 0.5 : 1 }}
         >
+          <X />
           Rechazar
         </button>
       </div>
     </article>
   );
+}
+
+function initials(name: string): string {
+  const p = name.replace(/\./g, '').trim().split(/\s+/);
+  return ((p[0]?.[0] ?? '?') + (p[1]?.[0] ?? '')).toUpperCase();
 }

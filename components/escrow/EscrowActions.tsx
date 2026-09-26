@@ -1,9 +1,17 @@
-// components/escrow/EscrowActions.tsx — Botones según estado + rol.
-// (Sección §10.4 — implementado con separación KISS de ramas.)
+// components/escrow/EscrowActions.tsx — Acciones por estado y rol.
+// Sistema: detail-trust (.detail-trust/.wallet-panel), botones sell-button
+// primario + cancel-button secundario. Texto con .subcopy/.warning-text/.
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  HandHeart,
+  CheckCircle2,
+  ArrowRightLeft,
+  ShieldAlert,
+  Receipt,
+} from 'lucide-react';
 import { usePollar } from '@pollar/react';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -57,7 +65,6 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
         router.refresh();
         return;
       }
-      // Pago via Pollar runTx (verificado §5.4). NO usamos SendModal.
       const client = getClient();
       await client.runTx('payment', {
         destination: data.paymentParams.destination,
@@ -65,7 +72,6 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
         asset: data.paymentParams.asset,
       });
       await client.refreshBalance();
-      // Re-call para confirmar funded tras pago.
       await callApi('/api/escrow/fund', { escrowId: escrow.id });
       router.refresh();
     } catch (e) {
@@ -73,142 +79,210 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
     }
   }
 
-  /** Switch por estado. Sigue §10.4 del ARCHITECTURE. */
   return (
-    <div className="space-y-3">
-      {error && <p className="text-sm text-red-600">{error}</p>}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {error && (
+        <div className="form-error">
+          {error}
+        </div>
+      )}
 
       {escrow.status === 'awaiting-funding' && isBuyer && (
+        <>
+          <button
+            disabled={busy || escrow.amountXlm === 0}
+            onClick={() => void fund()}
+            className="sell-button"
+            style={{ width: '100%', justifyContent: 'center', opacity: busy || escrow.amountXlm === 0 ? 0.5 : 1, padding: '14px 18px' }}
+          >
+            {escrow.amountXlm === 0
+              ? '✦ Trueque puro · no requiere fondeo'
+              : `Fondear escrow · P$ {(escrow.amountXlm / 100).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`}
+          </button>
+          <p className="subcopy" style={{ fontSize: 10, color: '#7f8c9d' }}>
+            Tu pago se transfiere a la cuenta de escrow Stellar. Se libera al
+            vendedor cuando confirmes que recibiste el artículo.
+          </p>
+        </>
+      )}
+
+      {escrow.status === 'awaiting-funding' && (isBuyer || isSeller) && (
         <button
-          disabled={busy || escrow.amountXlm === 0}
-          onClick={() => void fund()}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+          disabled={busy}
+          onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+          className="cancel-button"
+          style={{ opacity: busy ? 0.5 : 1 }}
         >
-          {escrow.amountXlm === 0
-            ? '(trueque puro)'
-            : `Fondear escrow (${(escrow.amountXlm / 100).toFixed(2)} XLM)`}
+          Cancelar y reembolsar
         </button>
       )}
 
-      {escrow.status === 'awaiting-funding' &&
-        (isBuyer || isSeller) && (
-          <button
-            disabled={busy}
-            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
-            className="w-full text-gray-500 py-2 text-sm"
-          >
-            Cancelar y reembolsar
-          </button>
-        )}
-
-      {escrow.status === 'funded' &&
-        (isBuyer || isSeller) && (
-          <>
-            <p className="text-sm text-gray-600">
-              Coordina el encuentro entre las dos partes (Biblioteca central…).
-              Cuando intercambien los objetos, pulsen "Intercambio realizado".
-            </p>
+      {escrow.status === 'funded' && (isBuyer || isSeller) && (
+        <>
+          <div className="detail-trust" style={{ background: 'var(--mint)', borderColor: '#d8f0e7' }}>
+            <HandHeart />
+            <span>
+              <strong>Coordina el encuentro entre las dos partes</strong>
+              <small>
+                Bibliotecao central, Facultad de Ingeniería u otro punto
+                acordado. Cuando intercambien los objetos, pulsen{' '}
+                <em>“Intercambio realizado”</em>.
+              </small>
+            </span>
+          </div>
+          <div className="submit-row">
             <button
               disabled={busy}
               onClick={() => callApi('/api/escrow/record-exchange', { escrowId: escrow.id })}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+              className="sell-button"
+              style={{ opacity: busy ? 0.5 : 1 }}
             >
-              🤝 Intercambio realizado
+              <ArrowRightLeft />
+              {busy ? 'Registrando…' : 'Intercambio realizado'}
             </button>
-            <button
-              disabled={busy}
-              onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
-              className="w-full text-gray-500 py-2 text-sm"
-            >
-              Cancelar y reembolso
-            </button>
-          </>
-        )}
-
-      {escrow.status === 'awaiting-exchange' &&
-        (isBuyer || isSeller) && (
-          <>
-            {escrow.exchangeInitiatorId === me?.id ? (
-              <p className="text-sm text-gray-600">
-                Esperando que la otra parte confirme el intercambio.
-              </p>
-            ) : (
-              <>
-                <p className="text-sm">
-                  La otra parte registró que hicieron el intercambio. ¿Lo confirmas?
-                </p>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    callApi('/api/escrow/confirm-exchange', { escrowId: escrow.id })
-                  }
-                  className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
-                >
-                  ✅ Sí, confirmar
-                </button>
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    router.push(`/escrow/${escrow.id}/report?reason=exchange-never-happened`)
-                  }
-                  className="w-full text-red-600 py-2 text-sm"
-                >
-                  ⚠ No, eso no pasó
-                </button>
-              </>
-            )}
-            <button
-              disabled={busy}
-              onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
-              className="w-full text-gray-500 py-2 text-sm"
-            >
-              Cancelar y reembolsar
-            </button>
-          </>
-        )}
-
-      {escrow.status === 'exchange-recorded' && isBuyer && (
-        <>
-          <p className="text-sm">¿Funciona el artículo?</p>
+          </div>
           <button
             disabled={busy}
-            onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id })}
-            className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+            className="cancel-button"
           >
-            ✅ Aceptar artículo
-          </button>
-          <button
-            disabled={busy}
-            onClick={() => router.push(`/escrow/${escrow.id}/report`)}
-            className="w-full text-red-600 py-2 text-sm"
-          >
-            ⚠ Reportar problema
+            Cancelar y reembolso
           </button>
         </>
       )}
 
+      {escrow.status === 'awaiting-exchange' && (isBuyer || isSeller) && (
+        <>
+          {escrow.exchangeInitiatorId === me?.id ? (
+            <div className="detail-trust" style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}>
+              <ArrowRightLeft />
+              <span>
+                <strong>Esperando que la otra parte confirme</strong>
+                <small>Ya registraste el encuentro. La otra parte acepta o disputa desde su cuenta.</small>
+              </span>
+            </div>
+          ) : (
+            <>
+              <div className="detail-trust" style={{ background: 'var(--yellow)', borderColor: '#e9d279' }}>
+                <CheckCircle2 />
+                <span>
+                  <strong>La otra parte dice que hicieron el intercambio</strong>
+                  <small>Si ocurrió, confírmalo. Si no, repórtalo.</small>
+                </span>
+              </div>
+              <div className="submit-row">
+                <button
+                  disabled={busy}
+                  onClick={() => callApi('/api/escrow/confirm-exchange', { escrowId: escrow.id })}
+                  className="sell-button"
+                  style={{ opacity: busy ? 0.5 : 1 }}
+                >
+                  <CheckCircle2 />
+                  {busy ? 'Confirmando…' : 'Sí, confirmar'}
+                </button>
+                <button
+                  disabled={busy}
+                  onClick={() => router.push(`/escrow/${escrow.id}/report?reason=exchange-never-happened`)}
+                  className="outline-button"
+                  style={{ padding: '10px 14px', fontSize: 11, justifyContent: 'center' }}
+                >
+                  <ShieldAlert />
+                  No, eso no pasó
+                </button>
+              </div>
+            </>
+          )}
+          <button
+            disabled={busy}
+            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+            className="cancel-button"
+          >
+            Cancelar y reembolsar
+          </button>
+        </>
+      )}
+
+      {escrow.status === 'exchange-recorded' && isBuyer && (
+        <>
+          <div className="detail-trust">
+            <ShieldAlert />
+            <span>
+              <strong>¿Funciona el artículo?</strong>
+              <small>
+                Tienes la <strong>ventana de prueba</strong> para probarlo. Si
+                todo va bien, liberas el pago. Si no, puedes reportar.
+              </small>
+            </span>
+          </div>
+          <div className="submit-row">
+            <button
+              disabled={busy}
+              onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id })}
+              className="sell-button"
+              style={{ opacity: busy ? 0.5 : 1 }}
+            >
+              <CheckCircle2 />
+              {busy ? 'Aceptando…' : 'Aceptar artículo · liberar pago'}
+            </button>
+            <button
+              onClick={() => router.push(`/escrow/${escrow.id}/report`)}
+              className="outline-button"
+              style={{ padding: '10px 14px', fontSize: 11, justifyContent: 'center' }}
+            >
+              <ShieldAlert />
+              Reportar problema
+            </button>
+          </div>
+        </>
+      )}
+
       {escrow.status === 'exchange-recorded' && isSeller && (
-        <p className="text-sm text-gray-600">
-          Esperando que el comprador pruebe el artículo…
-        </p>
+        <div className="detail-trust">
+          <CheckCircle2 />
+          <span>
+            <strong>Esperando que el comprador pruebe el artículo</strong>
+            <small>Recuerda: tienes 48h de inacción → activa el botón “Liberar” te corresponde a vos o al admin.</small>
+          </span>
+        </div>
       )}
 
       {(escrow.status === 'released' || escrow.status === 'auto-released') && (
-        <button
-          onClick={() => router.push(`/receipt/${escrow.id}`)}
-          className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold"
-        >
-          Ver recibo
-        </button>
+        <LinkPill href={`/receipt/${escrow.id}`} icon={<Receipt />} text="Ver recibo final" />
       )}
 
       {escrow.status === 'disputed' && (
-        <p className="text-red-600">⚠ Disputa abierta. Nuestro equipo la revisará.</p>
+        <div
+          className="detail-trust"
+          style={{ background: '#fff0ed', borderColor: '#f3c8bf', color: '#c45f4e' }}
+        >
+          <ShieldAlert />
+          <span>
+            <strong>⚠ Disputa abierta</strong>
+            <small>Nuestro equipo revisará la evidencia de ambas partes antes de resolver.</small>
+          </span>
+        </div>
       )}
 
       {escrow.status === 'refunded' && (
-        <p className="text-gray-500">Este intercambio fue cancelado y reembolsado.</p>
+        <div className="empty-state">
+          <strong>Intercambio cancelado y reembolsado</strong>
+          El dinero volvió al comprador sin penalización.
+        </div>
       )}
     </div>
+  );
+}
+
+function LinkPill({ href, icon, text }: { href: string; icon: React.ReactNode; text: string }) {
+  // tiny helper to avoid importing Link wrapping client-component log
+  return (
+    <a
+      href={href}
+      className="sell-button"
+      style={{ justifyContent: 'center', textDecoration: 'none', padding: '12px 18px' }}
+    >
+      {icon}
+      {text}
+    </a>
   );
 }

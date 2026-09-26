@@ -608,3 +608,193 @@ button { cursor: pointer; }
   .top-actions { gap: 6px; }
   .top-avatar { width: 28px; height: 28px; }
 }
+
+/* ── Form system appended by audit (form-field, tab-bar, etc) ────── */
+.form-field {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 11px 12px;
+  font-size: 12px;
+  color: #516174;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  transition: border-color .15s ease, background .15s ease;
+}
+.form-field:focus {
+  outline: none;
+  border-color: var(--primary);
+  background: #fff;
+  box-shadow: 0 0 0 3px #ee705d22;
+}
+.form-field::placeholder { color: #9da8b6; }
+.form-field[disabled] { opacity: 0.6; cursor: not-allowed; }
+textarea.form-field { resize: vertical; min-height: 80px; line-height: 1.5; }
+
+.form-label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #556477;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.form-label > span { margin-bottom: -2px; }
+.form-hint {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #8793a3;
+  font-size: 10px;
+  margin-top: -3px;
+}
+
+.form-row { display: flex; gap: 14px; align-items: stretch; }
+.form-row > .form-label { flex: 1; }
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #fff0ed;
+  border: 1px solid #f3c8bf;
+  border-radius: 8px;
+  color: #c45f4e;
+  padding: 10px 13px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 6px;
+  background: #f7f9fc;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 4px;
+}
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #758197;
+  letter-spacing: 0.2px;
+  transition: background .15s ease, color .15s ease;
+  font-family: inherit;
+  cursor: pointer;
+}
+.tab-btn:hover { color: var(--ink); }
+.tab-btn.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 6px #26364c14;
+}
+
+.form-fieldset {
+  border: 1px solid var(--line);
+  background: #fafbfc;
+  border-radius: 11px;
+  padding: 13px 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+}
+.form-fieldset legend {
+  font-size: 10px;
+  font-weight: 700;
+  color: #6b7280;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+.form-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4a5568;
+}
+.form-check input[type="checkbox"],
+.form-check input[type="radio"] {
+  accent-color: var(--primary);
+  width: 14px;
+  height: 14px;
+}
+
+.kv-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #4a5568;
+  padding: 5px 0;
+}
+.kv-row strong { color: #18222f; font-weight: 700; }
+
+.empty-state {
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 26px 18px;
+  text-align: center;
+  font-size: 11px;
+  color: #8793a3;
+}
+.empty-state strong { display: block; font-size: 14px; color: #18222f; margin-bottom: 4px; }
+
+.submit-row { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+.submit-row .sell-button { flex: 1; justify-content: center; }
+
+input[type="file"].form-field { padding: 9px 12px; font-size: 11px; line-height: 1.4; }
+input[type="file"].form-field::file-selector-button {
+  background: #f4f6f8;
+  border: 0;
+  border-radius: 6px;
+  padding: 5px 10px;
+  margin-right: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.timeout-text { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 11px; color: #4a5568; }
+.timeout-text.critical { color: #c45f4e; }
+
+/* Offer-card types badges (matched to .ai-price-signal palette) */
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.type-badge.saldo-only { background: #eaf0ff; color: #5577bf; }
+.type-badge.barter { background: #fff4d8; color: #b47b1f; }
+.type-badge.hybrid { background: #f2edff; color: #8e6cd1; }
+
+.cancel-button {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  color: #8793a3;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cancel-button:hover { color: #c45f4e; }

@@ -1,13 +1,21 @@
 // components/listings/ListingForm.tsx — Form de crear listing.
+// Sistema: form-field, form-label, form-fieldset (majors), sell-button.
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle, Plus } from 'lucide-react';
 import { ListingTypeSchema, MajorSchema, ConditionSchema } from '@/lib/schemas';
 
 const LISTING_TYPES = ListingTypeSchema.options;
 const MAJORS = MajorSchema.options;
 const CONDITIONS = ConditionSchema.options;
+
+const CONDITION_LABEL: Record<string, string> = {
+  'como-nuevo': 'Como nuevo',
+  bueno: 'Bueno',
+  aceptable: 'Aceptable',
+};
 
 export function ListingForm() {
   const router = useRouter();
@@ -21,7 +29,7 @@ export function ListingForm() {
     const formData = new FormData(event.currentTarget);
     try {
       const majors = (formData.getAll('majors') as string[]).filter(Boolean);
-      const priceXlm = Math.round(Number(formData.get('priceXlm')) * 100); // XLM → centavos
+      const priceXlm = Math.round(Number(formData.get('priceXlm')) * 100);
       const photoUrl = (formData.get('photoUrl') ?? '').toString();
       const payload = {
         title: formData.get('title')?.toString() ?? '',
@@ -53,47 +61,58 @@ export function ListingForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <label className="block">
-        <span className="text-sm">Título</span>
+    <form
+      onSubmit={onSubmit}
+      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+    >
+      <label className="form-label">
+        <span>Título</span>
+        <span className="form-hint">5–80 caracteres</span>
         <input
+          className="form-field"
           name="title"
           minLength={5}
           maxLength={80}
           required
-          className="w-full border rounded px-3 py-2 mt-1"
           placeholder="Calculadora TI-89 Titanium"
         />
       </label>
 
-      <label className="block">
-        <span className="text-sm">Descripción</span>
+      <label className="form-label">
+        <span>Descripción</span>
+        <span className="form-hint">Cuenta el estado real — los demás valoran honestidad</span>
         <textarea
+          className="form-field"
           name="description"
           minLength={20}
           maxLength={500}
           required
-          className="w-full border rounded px-3 py-2 mt-1"
           rows={4}
+          placeholder="Calculadora gráfica usada 2 semestres. Funciona perfecto, sin marcas."
         />
       </label>
 
-      <div className="flex gap-3">
-        <label className="block flex-1">
-          <span className="text-sm">Precio (XLM)</span>
+      <div className="form-row">
+        <label className="form-label">
+          <span>Precio (XLM)</span>
+          <span className="form-hint">Conserva decimales</span>
           <input
+            className="form-field"
             name="priceXlm"
             type="number"
             min={0.01}
             max={5_000}
             step={0.01}
             required
-            className="w-full border rounded px-3 py-2 mt-1"
           />
         </label>
-        <label className="block flex-1">
-          <span className="text-sm">Tipo</span>
-          <select name="type" required className="w-full border rounded px-3 py-2 mt-1">
+
+        <label className="form-label">
+          <span>Tipo</span>
+          <select className="form-field" name="type" required defaultValue="">
+            <option value="" disabled>
+              Selecciona…
+            </option>
             {LISTING_TYPES.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -101,55 +120,64 @@ export function ListingForm() {
             ))}
           </select>
         </label>
-        <label className="block flex-1">
-          <span className="text-sm">Condición</span>
-          <select name="condition" required className="w-full border rounded px-3 py-2 mt-1">
+
+        <label className="form-label">
+          <span>Condición</span>
+          <select className="form-field" name="condition" required defaultValue="bueno">
             {CONDITIONS.map((c) => (
               <option key={c} value={c}>
-                {c}
+                {CONDITION_LABEL[c] ?? c}
               </option>
             ))}
           </select>
         </label>
       </div>
 
-      <fieldset className="border rounded p-3 space-y-1">
-        <legend className="text-sm">Majors aceptados</legend>
-        <div className="grid grid-cols-2 gap-1 text-sm">
-          {MAJORS.map((m) => (
-            <label key={m} className="flex items-center gap-2">
-              <input type="checkbox" name="majors" value={m} />
-              {m}
-            </label>
-          ))}
-        </div>
+      <fieldset className="form-fieldset">
+        <legend>Majors aceptados</legend>
+        {MAJORS.map((m) => (
+          <label key={m} className="form-check">
+            <input type="checkbox" name="majors" value={m} />
+            {m}
+          </label>
+        ))}
       </fieldset>
 
-      <label className="block">
-        <span className="text-sm">URL de foto</span>
+      <label className="form-label">
+        <span>URL de foto</span>
+        <span className="form-hint">Productos con foto reciben 3× más ofertas</span>
         <input
+          className="form-field"
           name="photoUrl"
           type="url"
           required
-          className="w-full border rounded px-3 py-2 mt-1"
           placeholder="https://images.unsplash.com/..."
         />
       </label>
 
-      <label className="flex items-center gap-2 text-sm">
+      <label className="form-check">
         <input type="checkbox" name="videoVerified" defaultChecked />
-        Video verificado
+        Subí un video del artículo (verificado por la comunidad)
       </label>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="form-error">
+          <AlertCircle />
+          {error}
+        </div>
+      )}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="bg-green-600 text-white py-2 px-4 rounded disabled:opacity-50"
-      >
-        {busy ? 'Publicando...' : 'Publicar'}
-      </button>
+      <div className="submit-row">
+        <button
+          type="submit"
+          className="sell-button"
+          disabled={busy}
+          style={{ opacity: busy ? 0.5 : 1 }}
+        >
+          <Plus />
+          {busy ? 'Publicando…' : 'Publicar artículo'}
+        </button>
+      </div>
     </form>
   );
 }

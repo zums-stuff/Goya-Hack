@@ -1,8 +1,8 @@
 // components/offers/OfferBoard.tsx — Tablero del vendedor (§10.2).
-// Ordena: hybrid con valor cercano al listing primero; luego saldo-only; luego barter.
-// Cada OfferCard muestra la "brecha de valor" cuando aplica (UI-only; server NO rechaza).
+// Sistema: section-heading + empty-state para "sin ofertas".
 'use client';
 
+import { Tag } from 'lucide-react';
 import { OfferCard } from './OfferCard';
 
 type OfferLite = {
@@ -15,29 +15,42 @@ type OfferLite = {
 
 export type { OfferLite };
 
-type Props = { offers: OfferLite[] };
+type Props = { offers: OfferLite[]; listingPriceCents: number };
 
-export function OfferBoard({ offers }: Props) {
+export function OfferBoard({ offers, listingPriceCents }: Props) {
   const sorted = [...offers].sort((a, b) => scoreOffer(b) - scoreOffer(a));
   return (
-    <div className="space-y-3" data-testid="offer-board">
-      <h2 className="text-sm uppercase tracking-wide text-gray-500">
-        Tablero de ofertas ({offers.length})
-      </h2>
+    <div data-testid="offer-board">
+      <div className="section-heading" style={{ marginBottom: 16, alignItems: 'flex-start' }}>
+        <div>
+          <p className="eyebrow">TABLERO · PUMATRADE</p>
+          <h2 style={{ marginBottom: 4 }}>Ofertas pendientes ({offers.length})</h2>
+          <p>Elige la propuesta que más te convenga. Verás primero las más cercanas al precio pedido.</p>
+        </div>
+        <span style={{ color: '#a18cdb' }}>
+          <Tag />
+        </span>
+      </div>
+
       {sorted.length === 0 && (
-        <p className="text-gray-500 text-sm py-6 text-center border rounded">
-          Aún no hay ofertas. Las ofertas públicas aparecerán aquí en tiempo real.
-        </p>
+        <div className="empty-state">
+          <strong>Aún no hay ofertas</strong>
+          Las ofertas públicas aparecerán aquí en tiempo real.
+        </div>
       )}
-      {sorted.map((o) => (
-        <OfferCard key={o.id} offer={o} />
-      ))}
+
+      <ul style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {sorted.map((o) => (
+          <li key={o.id}>
+            <OfferCard offer={o} listingPriceCents={listingPriceCents} />
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
 function scoreOffer(o: OfferLite): number {
-  // Heurística para ordenar el tablero sin meter lógica de servidor.
   if (o.type === 'hybrid') return 100 + (o.xlmAmount ?? 0) / 100;
   if (o.type === 'saldo-only') return 50 + (o.xlmAmount ?? 0) / 100;
   return 30;

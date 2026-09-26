@@ -155,7 +155,7 @@ export default async function ListingDetailPage(props: {
                 </div>
                 <Tag />
               </div>
-              <OfferBoard offers={offers} />
+              <OfferBoard offers={offers} listingPriceCents={listing.priceXlm} />
               <div style={{ height: 10 }} />
               <Link href="/marketplace" className="sell-button offer-button">
                 Volver a tu publicación <ChevronRight />

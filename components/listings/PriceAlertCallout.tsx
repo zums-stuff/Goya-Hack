@@ -1,8 +1,10 @@
-// components/listings/PriceAlertCallout.tsx — Alerta inline que muestra
-// si el precio listing está fuera del rango del motor (§10.X PRD §5).
+// components/listings/PriceAlertCallout.tsx — Alerta precio vs mercado.
+// Sistema: .detail-trust mint (ganga) / lavender (sobreprecio aviso). No
+// interrumpe la página — sólo aparece si hay alerta real.
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AlertCircle, Sparkles } from 'lucide-react';
 import type { PriceAlertResult } from '@/lib/priceAlert';
 import type { ListingType } from '@/lib/schemas';
 
@@ -36,8 +38,6 @@ export function PriceAlertCallout({ title, type, priceCents }: Props) {
       })
       .catch((e) => {
         if (!alive || e.name === 'AbortError') return;
-        // 404 silencioso: el endpoint placeholder no acepta id "_", pero si el
-        // server devuelve 404 el cliente no debe romper.
         setStatus({ kind: 'error', message: undefined });
       });
     return () => {
@@ -47,27 +47,45 @@ export function PriceAlertCallout({ title, type, priceCents }: Props) {
   }, [title, type, priceCents]);
 
   if (status.kind === 'loading') return null;
-
   if (status.kind === 'error' || status.kind !== 'ok') return null;
   const r = status.result;
 
-  if (r.verdict === 'no_reference') return null;
-  if (r.verdict === 'fair') return null;
+  if (r.verdict === 'no_reference' || r.verdict === 'fair') return null;
 
   const fairXlm = (r.fairPriceCents / 100).toFixed(2);
   const actualXlm = (r.actualCents / 100).toFixed(2);
+
   if (r.verdict === 'overpriced') {
     return (
-      <div className="bg-red-50 border-l-4 border-red-400 p-3 rounded text-red-800 text-sm">
-        ⚠️ <strong>Sobreprecio:</strong> el precio justo ronda {fairXlm} XLM; estás pagando{' '}
-        {actualXlm} XLM (+{r.deltaPct}%).
+      <div
+        className="detail-trust"
+        style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}
+      >
+        <AlertCircle />
+        <span>
+          <strong>Sobreprecio IA — {r.deltaPct}%</strong>
+          <small>
+            El precio justo ronda <strong>{fairXlm} XLM</strong>; el publicado
+            es <strong>{actualXlm} XLM</strong>. Útil para negociar.
+          </small>
+        </span>
       </div>
     );
   }
+
   return (
-    <div className="bg-green-50 border-l-4 border-green-400 p-3 rounded text-green-800 text-sm">
-      💚 <strong>Ganga:</strong> el precio justo ronda {fairXlm} XLM; estás pagando {actualXlm}{' '}
-      XLM ({r.deltaPct}%). Verifica que no esté dañado.
+    <div
+      className="detail-trust"
+      style={{ background: 'var(--mint)', borderColor: '#d8f0e7' }}
+    >
+      <Sparkles />
+      <span>
+        <strong>Ganga IA — {r.deltaPct}%</strong>
+        <small>
+          Precio justo ~ <strong>{fairXlm} XLM</strong>; este listing está en{' '}
+          <strong>{actualXlm} XLM</strong>. Verifica el estado antes de ofertar.
+        </small>
+      </span>
     </div>
   );
 }

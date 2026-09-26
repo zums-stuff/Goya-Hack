@@ -1,9 +1,11 @@
-// components/offers/OfferForm.tsx — Ofertar (3 tipos). Muestra aviso de brecha
-// de valor cuando el total es menor al listing price (UI-only).
+// components/offers/OfferForm.tsx — Form con tabs (3 tipos) + campos.
+// Sistema: tabs (.tab-bar/.tab-btn), inputs (.form-field), boton primario
+// (.sell-button), aviso de brecha (.detail-trust lavender).
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { AlertCircle } from 'lucide-react';
 
 type Props = {
   listingId: string;
@@ -75,97 +77,118 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
-      <div className="flex gap-2">
+    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Tabs de tipo de oferta */}
+      <div className="tab-bar" role="tablist">
         {(['saldo-only', 'barter', 'hybrid'] as const).map((t) => (
           <button
             key={t}
             type="button"
+            role="tab"
+            aria-selected={type === t}
             onClick={() => setType(t)}
-            className={`px-3 py-2 rounded border text-sm ${
-              type === t
-                ? 'bg-blue-600 text-white border-blue-600'
-                : 'bg-white dark:bg-gray-900 text-gray-700'
-            }`}
+            className={`tab-btn ${type === t ? 'active' : ''}`}
           >
             {t === 'saldo-only' ? 'Solo saldo' : t === 'hybrid' ? 'Objeto + saldo' : 'Trueque puro'}
           </button>
         ))}
       </div>
 
-      {(type === 'saldo-only' || type === 'hybrid') && (
-        <label className="block">
-          <span className="text-sm">Saldo XLM</span>
-          <input
-            type="number"
-            min={0.01}
-            step={0.01}
-            value={xlmAmount}
-            onChange={(e) => setXlmAmount(e.target.value)}
-            className="w-full border rounded px-3 py-2 mt-1"
-            placeholder="300"
-            required
-          />
-        </label>
-      )}
-
-      {(type === 'barter' || type === 'hybrid') && (
-        <>
-          <label className="block">
-            <span className="text-sm">Objeto que ofreces</span>
+      {/* Campos según tipo */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {(type === 'saldo-only' || type === 'hybrid') && (
+          <label className="form-label">
+            <span>Saldo XLM</span>
             <input
-              value={itemTitle}
-              onChange={(e) => setItemTitle(e.target.value)}
-              className="w-full border rounded px-3 py-2 mt-1"
-              placeholder="Arduino Mega 2560"
-              required
-              maxLength={80}
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm">Valor estimado (XLM)</span>
-            <input
+              className="form-field"
               type="number"
               min={0.01}
               step={0.01}
-              value={itemValue}
-              onChange={(e) => setItemValue(e.target.value)}
-              className="w-full border rounded px-3 py-2 mt-1"
+              value={xlmAmount}
+              onChange={(e) => setXlmAmount(e.target.value)}
+              placeholder="300"
               required
             />
           </label>
-        </>
-      )}
-
-      {(type === 'barter' || type === 'hybrid') &&
-        itemValue && (
-          <p className="text-xs text-amber-700">
-            ⚠️ Aviso de brecha: tu oferta cubre ≈ {(totalCents() / 100).toFixed(2)} XLM
-            ({deltaPct >= 0 ? '+' : ''}
-            {deltaPct}% del precio). El servidor no rechaza — el vendedor decide.
-          </p>
         )}
 
-      <label className="block">
-        <span className="text-sm">Mensaje al vendedor (opcional)</span>
-        <textarea
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          maxLength={280}
-          rows={3}
-          className="w-full border rounded px-3 py-2 mt-1"
-        />
-      </label>
+        {(type === 'barter' || type === 'hybrid') && (
+          <>
+            <label className="form-label">
+              <span>Objeto que ofreces</span>
+              <input
+                className="form-field"
+                value={itemTitle}
+                onChange={(e) => setItemTitle(e.target.value)}
+                placeholder="Arduino Mega 2560"
+                required
+                maxLength={80}
+              />
+            </label>
+            <label className="form-label">
+              <span>Valor estimado (XLM)</span>
+              <input
+                className="form-field"
+                type="number"
+                min={0.01}
+                step={0.01}
+                value={itemValue}
+                onChange={(e) => setItemValue(e.target.value)}
+                required
+              />
+            </label>
+          </>
+        )}
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+        {(type === 'barter' || type === 'hybrid') && itemValue && (
+          <div
+            className="detail-trust"
+            style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}
+          >
+            <AlertCircle />
+            <span>
+              <strong>Aviso de brecha</strong>
+              <small>
+                Tu oferta cubre ≈ {(totalCents() / 100).toFixed(2)} XLM (
+                {deltaPct >= 0 ? '+' : ''}
+                {deltaPct}% del precio). El servidor no rechaza — el vendedor
+                decide.
+              </small>
+            </span>
+          </div>
+        )}
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="bg-blue-600 text-white py-2 px-4 rounded disabled:opacity-50"
-      >
-        {busy ? 'Enviando...' : 'Enviar oferta'}
-      </button>
+        <label className="form-label">
+          <span>Mensaje al vendedor</span>
+          <span className="form-hint">Opcional</span>
+          <textarea
+            className="form-field"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            maxLength={280}
+            rows={3}
+            placeholder="Hola, te interesa porque…"
+          />
+        </label>
+      </div>
+
+      {error && (
+        <div className="form-error">
+          <AlertCircle />
+          {error}
+        </div>
+      )}
+
+      <div className="submit-row">
+        <button
+          type="submit"
+          className="sell-button"
+          disabled={busy}
+          style={{ opacity: busy ? 0.5 : 1 }}
+        >
+          {busy ? 'Enviando…' : 'Enviar oferta'}
+        </button>
+      </div>
     </form>
   );
 }
