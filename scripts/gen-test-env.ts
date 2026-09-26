@@ -20,7 +20,7 @@ import {
   Operation,
   TransactionBuilder,
 } from '@stellar/stellar-sdk';
-import { writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
 const HORIZON = 'https://horizon-testnet.stellar.org';
 const FRIENDBOT = 'https://friendbot.stellar.org';
@@ -39,6 +39,29 @@ function generateAppSecretKey(): string {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+/**
+ * Lee el `.env.local` actual si existe (para NO pisar keys reales de Pollar
+ * al re-correr este script). Devuelve un mapa KEY → valor.
+ */
+function readExistingEnvLocal(): Record<string, string> {
+  if (!existsSync('.env.local')) return {};
+  const out: Record<string, string> = {};
+  for (const line of readFileSync('.env.local', 'utf8').split('\n')) {
+    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    if (m) out[m[1]!] = (m[2] ?? '').trim().replace(/^['"]|['"]$/g, '');
+  }
+  return out;
+}
+
+/** Una key de Pollar es real si viene del dashboard (prefijo pub_/sec_) y no
+ *  es placeholder (xxxx…). Las fake generadas aquí usan prefijo pk_/sk_. */
+function isRealPollarKey(v: string | undefined, prefix: 'pub' | 'sec'): boolean {
+  if (!v) return false;
+  if (!v.startsWith(`${prefix}_`)) return false;
+  if (/xxxx/i.test(v)) return false;
+  return true;
 }
 
 async function main(): Promise<void> {
@@ -62,11 +85,28 @@ async function main(): Promise<void> {
   await friendbotFund(platformOps.publicKey());
   console.log(`   ${platformOps.publicKey()} → friendbot ✅`);
 
-  // Genera los publishable + secret keys para mockear Pollar.
-  // No son reales (no se validan contra Pollar dashboard), solo pasan la validación Zod.
-  const pollarUsersPublishable = 'pk_test_pollar_users_' + appSecretKey.slice(0, 32);
-  const pollarUsersSecret = 'sk_test_pollar_users_' + appSecretKey.slice(0, 32);
-  const pollarOpsSecret = 'sk_test_pollar_ops_' + appSecretKey.slice(0, 32);
+  // Keys de Pollar: SOLO se escriben reales (dashboard.pollar.xyz). Si el
+  // .env.local actual ya trae keys válidas (pub_*/sec_), se PRESERVAN — nunca
+  // las pisamos con placeholders. Si no existen, escribimos marcadores y
+  // avisamos alto y claro: el login no funcionará hasta pegarlas.
+  const prev = readExistingEnvLocal();
+  const pollarUsersPublishable = isRealPollarKey(
+    prev.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY,
+    'pub',
+  )
+    ? prev.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY!
+    : 'pk_test_pollar_users_' + appSecretKey.slice(0, 32);
+  const pollarUsersSecret = isRealPollarKey(prev.POLLAR_USERS_SECRET_KEY, 'sec')
+    ? prev.POLLAR_USERS_SECRET_KEY!
+    : 'sk_test_pollar_users_' + appSecretKey.slice(0, 32);
+  const pollarOpsSecret = isRealPollarKey(prev.POLLAR_OPS_SECRET_KEY, 'sec')
+    ? prev.POLLAR_OPS_SECRET_KEY!
+    : 'sk_test_pollar_ops_' + appSecretKey.slice(0, 32);
+
+  const pollarKeysAreFake =
+    !isRealPollarKey(pollarUsersPublishable, 'pub') ||
+    !isRealPollarKey(pollarUsersSecret, 'sec') ||
+    !isRealPollarKey(pollarOpsSecret, 'sec');
 
   // Email admin is arbitrary but must be a valid email.
   const adminEmail = 'admin@pumatrade.local';
@@ -84,6 +124,10 @@ async function main(): Promise<void> {
 # ⚠️ NO USAR EN PRODUCCIÓN. Las keys de Stellar son de testnet (gratis).
 
 # === Pollar ===
+# ⚠️ El login NO funciona hasta pegar las keys reales del dashboard
+# dashboard.pollar.xyz (app "PumaTrade Usuarios" → pub_testnet_users_… /
+# sec_testnet_users_…; app "Operacional" → sec_testnet_ops_…). Estas son
+# marcadores generados por setup:env.
 NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=${pollarUsersPublishable}
 POLLAR_USERS_SECRET_KEY=${pollarUsersSecret}
 POLLAR_OPS_SECRET_KEY=${pollarOpsSecret}
@@ -121,6 +165,18 @@ CRON_SECRET=${appSecretKey.slice(0, 32)}
   console.log('   - PLATFORM_SECRET_KEY con checksum Stellar válido');
   console.log('   - APP_SECRET_KEY de 64 hex chars');
   console.log('   - 2 cuentas en testnet fondeadas (10 000 XLM cada una)');
+  if (pollarKeysAreFake) {
+    console.log(
+      '\n⚠️  POLLAR KEYS SON MARCARES — el LOGIN NO FUNCIONA todavía.\n' +
+        '   Crea las 2 apps en dashboard.pollar.xyz y pega las keys reales ' +
+        '(pub_*/sec_*) en .env.local:\n' +
+        '   - NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY | POLLAR_USERS_SECRET_KEY  (app Usuarios)\n' +
+        '   - POLLAR_OPS_SECRET_KEY                                             (app Operacional)\n' +
+        '   Re-correr este script YA NO las pisa (se preservan).',
+    );
+  } else {
+    console.log('   - Keys reales de Pollar preservadas ✅');
+  }
 }
 
 main().catch((e) => {

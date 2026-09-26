@@ -1,162 +1,160 @@
-// components/auth/LoginButton.tsx — Login completo (Google + Email OTP para seeds).
+// components/auth/LoginButton.tsx — Login 100% vía UI nativa de Pollar.
 //
 // Flujo (§9.4):
-//   1. Click "Continuar con Google" o envío de OTP por email.
-//   2. Pollar hace login → devuelve wallet.address + (si la sesión lo trae) email/displayName.
-//   3. Si falta email (versión sin user en wallet), fallback a client.getUserProfile().
-//   4. POST /api/auth/sync { pollarWalletId, email, displayName } → crea/actualiza User
-//      + fundea la wallet con saldo seed (solo en primer login del seed) + setea cookie.
-//   5. router.refresh() → el server component re-renderiza con sesión activa.
+//   1. El usuario toca "Iniciar sesión" → abre el MODAL nativo de Pollar
+//      (`openLoginModal()`): Google y email-OTP, estilizado desde el
+//      dashboard (theme/accentColor/logo personalizados en dashboard.pollar.xyz).
+//   2. Pollar autentica → `isAuthenticated` + `wallet` disponibles.
+//   3. POST /api/auth/sync { pollarWalletId, email, displayName } → crea/actualiza
+//      User + fundea wallet seed + setea cookie de sesión.
+//   4. Tras sincronizar, se muestra el `WalletButton` de Pollar (saldo, send,
+//      historial, logout) en vez de un botón custom.
+//
+// NUNCA re-implementamos botones de login a mano — la UI la da Pollar.
+// Esta pantalla solo orquesta: abrir el modal y sincronizar al backend.
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { usePollar } from '@pollar/react';
+import { usePollar, WalletButton } from '@pollar/react';
 
 type AuthState =
   | { kind: 'idle' }
-  | { kind: 'loading' }
+  | { kind: 'syncing' }
   | { kind: 'authenticated'; email: string; address: string }
   | { kind: 'error'; message: string };
 
+/** Una key de Pollar real viene del dashboard (prefijo pub_ y sin xxxx). */
+function pollarKeyIsReal(): boolean {
+  const k = process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY ?? '';
+  return k.startsWith('pub_') && !/xxxx/i.test(k);
+}
+
 export function LoginButton() {
   const router = useRouter();
-  const { login, logout, isAuthenticated, wallet, getClient } = usePollar();
-  const [otpEmail, setOtpEmail] = useState('');
+  const { wallet, isAuthenticated, openLoginModal, configStatus, getClient } = usePollar();
   const [state, setState] = useState<AuthState>({ kind: 'idle' });
+  const syncedAddress = useRef<string | null>(null);
 
-  // Logout (cliente limpia; backend debe invalidar cookie via /api/auth/logout).
+  const keyIsReal = useMemo(pollarKeyIsReal, []);
+
+  // Sincroniza al backend cuando Pollar confirma la sesión.
   useEffect(() => {
-    if (isAuthenticated && wallet) {
-      void runSync();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, wallet?.address]);
+    if (!isAuthenticated || !wallet) return;
+    if (syncedAddress.current === wallet.address) return;
+    syncedAddress.current = wallet.address;
 
-  async function runSync() {
-    if (!wallet) return;
-    setState({ kind: 'loading' });
-    try {
-      // ⚠️ @pollar/react 0.11.3: wallet no expone `user` (la shape es
-      // { custody, address, provider, chain, ... }). Hay que llamar
-      // getUserProfile() directamente en el cliente Pollar.
-      let email = '';
-      let displayName = '';
+    let cancelled = false;
+    setState({ kind: 'syncing' });
+    (async () => {
       try {
-        const profile: unknown = await getClient().getUserProfile();
-        const p = (profile ?? {}) as { email?: string; name?: string };
-        email = p.email ?? '';
-        displayName = p.name ?? p.email ?? '';
-      } catch {
-        // Pollar no expone user → reintento en el próximo render
-        setState({ kind: 'idle' });
-        return;
+        // ⚠️ @pollar/react 0.11.3: wallet no expone `user`; el perfil se lee
+        // con getUserProfile() en el cliente de Pollar.
+        const profile = (await getClient().getUserProfile()) as
+          | { email?: string; name?: string }
+          | null
+          | undefined;
+        const email = profile?.email ?? '';
+        const displayName = profile?.name ?? profile?.email ?? '';
+
+        if (!email) {
+          if (!cancelled) setState({ kind: 'idle' });
+          return;
+        }
+
+        const res = await fetch('/api/auth/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pollarWalletId: wallet.address,
+            email,
+            displayName: displayName || email,
+          }),
+        });
+        if (!res.ok) {
+          const err: { message?: string } = await res.json().catch(() => ({}));
+          throw new Error(err.message ?? 'Sync failed');
+        }
+        if (!cancelled) {
+          setState({ kind: 'authenticated', email, address: wallet.address });
+          router.refresh();
+        }
+      } catch (e) {
+        syncedAddress.current = null; // permitir reintento si falla
+        if (!cancelled) {
+          setState({ kind: 'error', message: (e as Error).message });
+        }
       }
+    })();
 
-      if (!email) {
-        setState({ kind: 'idle' });
-        return;
-      }
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, wallet, router]);
 
-      const res = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pollarWalletId: wallet.address,
-          email,
-          displayName: displayName || email,
-        }),
-      });
-      if (!res.ok) {
-        const err: { message?: string } = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? 'Sync failed');
-      }
-      setState({ kind: 'authenticated', email, address: wallet.address });
-      router.refresh();
-    } catch (e) {
-      setState({ kind: 'error', message: (e as Error).message });
-    }
-  }
-
-  async function handleGoogle() {
-    try {
-      setState({ kind: 'loading' });
-      await login({ provider: 'google' });
-    } catch (e) {
-      setState({ kind: 'error', message: (e as Error).message });
-    }
-  }
-
-  async function handleEmailOtp() {
-    if (!otpEmail) return;
-    try {
-      setState({ kind: 'loading' });
-      await login({ provider: 'email', email: otpEmail });
-    } catch (e) {
-      setState({ kind: 'error', message: (e as Error).message });
-    }
-  }
-
-  async function handleLogout() {
-    try {
-      await logout();
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setState({ kind: 'idle' });
-      router.refresh();
-    } catch (e) {
-      setState({ kind: 'error', message: (e as Error).message });
-    }
-  }
-
-  if (state.kind === 'authenticated') {
+  // ── Keys de Pollar no configuradas ───────────────────────────────────
+  if (!keyIsReal) {
     return (
-      <div className="space-y-3 text-center">
-        <p className="text-sm text-gray-700">
-          Sesión activa — <span className="font-mono text-xs">{state.email}</span>
+      <div
+        data-testid="login-button"
+        className="w-full max-w-sm rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900"
+      >
+        <p className="font-semibold">⚠️ Pollar no está configurado todavía</p>
+        <p className="mt-2 leading-relaxed">
+          El login usa las wallets de <strong>Pollar</strong>, pero las keys del
+          dashboard no están en <code className="rounded bg-amber-100 px-1">.env.local</code>.
         </p>
-        <p className="text-xs text-gray-500 font-mono">
-          {state.address.slice(0, 8)}…{state.address.slice(-4)}
-        </p>
-        <button
-          onClick={handleLogout}
-          className="bg-gray-700 text-white px-4 py-2 rounded-xl"
-        >
-          Cerrar sesión
-        </button>
+        <ol className="mt-3 list-decimal space-y-1 pl-5 text-xs leading-relaxed">
+          <li>
+            Crea las 2 apps en{' '}
+            <span className="font-mono">dashboard.pollar.xyz</span> (Usuarios:
+            Google + email OTP; Operacional: server-only).
+          </li>
+          <li>
+            Pega en <code className="rounded bg-amber-100 px-1">.env.local</code>:
+            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
+              NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_…
+            </code>
+            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
+              POLLAR_USERS_SECRET_KEY=sec_testnet_users_…
+            </code>
+            <code className="mt-1 block rounded bg-amber-100 px-1 font-mono text-[11px]">
+              POLLAR_OPS_SECRET_KEY=sec_testnet_ops_…
+            </code>
+          </li>
+          <li>Reinicia <code className="rounded bg-amber-100 px-1">npm run dev</code>.</li>
+        </ol>
       </div>
     );
   }
 
-  return (
-    <div className="flex flex-col gap-3 w-full max-w-sm" data-testid="login-button">
-      <button
-        onClick={handleGoogle}
-        disabled={state.kind === 'loading'}
-        className="bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
-      >
-        🔵 Continuar con Google
-      </button>
-
-      <div className="border-t pt-3 space-y-2">
-        <p className="text-xs text-gray-500">¿Eres usuario seed? Entra con tu email:</p>
-        <input
-          type="email"
-          inputMode="email"
-          autoComplete="email"
-          placeholder="maria.pumatrade+seed1@mail.tm"
-          value={otpEmail}
-          onChange={(e) => setOtpEmail(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        />
-        <button
-          onClick={handleEmailOtp}
-          disabled={state.kind === 'loading' || !otpEmail}
-          className="w-full bg-gray-700 text-white py-2 rounded disabled:opacity-50"
-        >
-          ✉️ Enviar código por email
-        </button>
+  // ── Sesión activa: wallet nativa de Pollar ───────────────────────────
+  if (state.kind === 'authenticated') {
+    return (
+      <div data-testid="login-button" className="flex flex-col items-center gap-3 w-full max-w-sm">
+        <p className="text-sm text-gray-600">
+          Sesión activa — <span className="font-mono text-xs">{state.email}</span>
+        </p>
+        <WalletButton />
       </div>
+    );
+  }
+
+  // ── Idle / syncing ───────────────────────────────────────────────────
+  const busy = state.kind === 'syncing' || configStatus === 'loading';
+  return (
+    <div data-testid="login-button" className="flex flex-col items-center gap-2 w-full max-w-sm">
+      <button
+        onClick={openLoginModal}
+        disabled={busy}
+        className="w-full rounded-xl bg-[var(--color-primary)] px-6 py-3.5 text-base font-semibold text-[var(--color-primary-foreground)] shadow-sm transition hover:opacity-90 disabled:opacity-50"
+      >
+        {state.kind === 'syncing' ? 'Conectando tu wallet…' : configStatus === 'loading' ? 'Cargando Pollar…' : 'Iniciar sesión con Pollar'}
+      </button>
+      <p className="text-xs text-gray-500">
+        Google o código por email · Wallet Stellar segura, sin seed phrases
+      </p>
 
       {state.kind === 'error' && (
         <p className="text-xs text-red-600 text-center">{state.message}</p>

@@ -493,7 +493,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │   que pruebes el artículo.          │
 │                                     │
 │   ┌─────────────────────────────┐   │
-│   │  🔵  Continuar con Google   │   │
+│   │   Iniciar sesión con Pollar │   │  ← modal nativo (Google + email OTP)
 │   └─────────────────────────────┘   │
 │                                     │
 │   Tu primera wallet se crea         │

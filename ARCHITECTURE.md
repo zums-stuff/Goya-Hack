@@ -7,6 +7,7 @@
 **Relacionado:** [`PRD.md`](PRD.md) v3.4 define QUÉ construimos. Este doc define CÓMO.
 
 **Changelog v1.3 (2026-09-25):**
+- **Decisión 13 — UI de login nativa de Pollar:** se eliminaron los botones custom ("Continuar con Google", input OTP) — ahora `LoginButton` abre el **modal nativo** (`openLoginModal()`) y la sesión activa muestra el **`WalletButton`** de Pollar (saldo/send/logout). Si la publishable key es placeholder (`pk_…`), la pantalla muestra una tarjeta con el paso a paso para pegar las keys reales del dashboard — jamás un widget roto. `gen-test-env.ts` ya NO pisa keys reales de Pollar (preserva `pub_*`/`sec_*` existentes).
 - **Decisión 12 — Postgres local con Docker (dev) / serverless (prod):** el driver adapter pasa de `@prisma/adapter-neon` a **`@prisma/adapter-pg`** (driver `pg` estándar) — funciona con CUALQUIER Postgres (localhost, Neon, Supabase, Railway). Solo cambia `DATABASE_URL`. Dev: `npm run db:up` levanta `pumatrade-db` en `localhost:5433` (evita chocar con un Postgres 5432 existente). `lib/load-env.ts` es el cargador compartido de `.env.local` para CLI/seed/Prisma config. Vitest: los 18 tests del state machine corren contra el Postgres real (`DB_AVAILABLE` probe); `setup.ts` ya no importa lib/db estáticamente (ESM hoisting rompía el orden de `process.env`).
 - **Decisión 9 — escrow 2-de-2 plataforma + árbitro:** verificado en docs.pollar.xyz que la llave del comprador vive en el AWS KMS de Pollar y su SDK solo firma txs que él mismo construye — el comprador NO puede firmar la release/refund del escrow. El escrow pasa a signers = PLATFORM + ÁRBITRO por-escrow (secret encriptada en DB con AES-256-GCM, §6.4). UI/estados no cambian.
 - **Decisión 10 — ventana de confirmación:** `awaiting-exchange` expira por cron (`CONFIRM_WINDOW_MINUTES`) → auto-cancel → refund completo al buyer. También se permite `cancel` manual en ese estado. Ya no existe ningún estado congelado para siempre.
@@ -544,7 +545,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 | Pieza | Dónde la usamos | Notas |
 |---|---|---|
 | `usePollar()` | En todos los componentes que necesitan login/balances | Hook principal. Expone `login`, `logout`, `isAuthenticated`, `wallet`, `getClient()` (headless). |
-| `usePollar().login({ provider: 'google' })` | Auth para usuarios reales | Crea la wallet embebida automáticamente. |
+| `openLoginModal()` | **Login (LoginButton)** | Abre el **modal nativo de Pollar** (Google + email OTP según providers del dashboard). NO re-implementar botones. |
+| `usePollar().login({ provider: 'google' })` | Fallback headless (solo si el modal no aplica) | Crea la wallet embebida automáticamente. |
 | `usePollar().login({ provider: 'email' })` | Auth para los 5 seed users con emails temporales (ej. `maria.pumatrade+seed1@mail.tm`) | Email OTP — mismo flujo de creación de wallet. |
 | `usePollar().logout()` | Settings | Cierra sesión Pollar. |
 | `usePollar().wallet` | Identificar al usuario | `wallet.address` es el **G-address** que guardamos en `User.pollarWalletId`. El email/displayName: usar la sesión de Pollar — en el demo app oficial se lee del objeto de sesión; si `wallet.user` no existe en 0.11.3, usar `client.getUserProfile()` (server/client según disponibilidad). **Verificar en Bloque 1 con el demo app.** |
@@ -1499,66 +1501,48 @@ export function useCountdown(target: Date | null) {
 Pollar maneja la auth en el cliente, pero para identificar al usuario en el backend necesitamos nuestra propia cookie. El patrón:
 
 ```typescript
-// components/LoginButton.tsx
+// components/LoginButton.tsx — NUNCA re-implementamos la UI de login a mano.
+// Pollar trae el modal nativo (openLoginModal) + WalletButton ya hechos.
 'use client';
-import { usePollar } from '@pollar/react';
-import { useState } from 'react';
-import { useEffect } from 'react';
+import { usePollar, WalletButton } from '@pollar/react';
+import { useRouter } from 'next/navigation';
 
 export function LoginButton() {
-  const { login, wallet, isAuthenticated, getClient } = usePollar();
-  const [email, setEmail] = useState('');
+  const router = useRouter();
+  const { openLoginModal, isAuthenticated, wallet, getClient, configStatus } = usePollar();
 
   useEffect(() => {
     if (!isAuthenticated || !wallet) return;
     (async () => {
-      let email = wallet.user?.email;
-      let displayName = wallet.user?.name ?? wallet.user?.email;
-      // ⚠️ @pollar/react 0.11.3: `wallet.user` puede venir vacío. Fallback: perfil
-      // desde la sesión de Pollar vía client.getUserProfile() (shape en §5.4).
-      if (!email) {
-        const profile = await getClient().getUserProfile();
-        email = profile?.email;
-        displayName = profile?.name ?? profile?.email;
-      }
-      if (!email) return;   // Pollar aún no expone el email; el próximo render reintenta
+      // ⚠️ @pollar/react 0.11.3: `wallet.user` puede venir vacío. El email se
+      // lee de la sesión de Pollar vía client.getUserProfile() (shape en §5.4).
+      const profile = await getClient().getUserProfile();
+      const email = profile?.email;
+      const displayName = profile?.name ?? profile?.email;
+      if (!email) return;
       await fetch('/api/auth/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pollarWalletId: wallet.address, email, displayName }),
-      }).catch(() => {});   // no romper el login si el sync falla
+      }).catch(() => {});
+      router.refresh();
     })();
   }, [isAuthenticated, wallet]);
 
-  return (
-    <div className="space-y-3">
-      {/* Opción 1: Google (usuarios reales) */}
-      <button onClick={() => login({ provider: 'google' })} className="w-full bg-blue-600 text-white py-3 rounded-xl">
-        🔵 Continuar con Google
-      </button>
+  if (isAuthenticated && wallet) return <WalletButton />; // saldo/send/logout nativo
 
-      {/* Opción 2: Email OTP (seed users con correos temporales) */}
-      <div className="border-t pt-3">
-        <p className="text-xs text-gray-500 mb-2">¿Eres usuario seed? Entra con tu email:</p>
-        <input
-          type="email"
-          placeholder="maria.pumatrade+seed1@mail.tm"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-2 border rounded"
-        />
-        <button
-          disabled={!email}
-          onClick={() => login({ provider: 'email', email })}
-          className="w-full mt-2 bg-gray-700 text-white py-2 rounded disabled:opacity-50"
-        >
-          ✉️ Enviar código por email
-        </button>
-      </div>
-    </div>
+  return (
+    <button onClick={openLoginModal} disabled={configStatus === 'loading'}>
+      Iniciar sesión con Pollar
+    </button>
   );
 }
 ```
+
+> El modal de Pollar (`openLoginModal`) provee Google **y** email-OTP desde el
+> dashboard (providers configurados en la app "Usuarios"). Si la publishable key
+> no existe o es placeholder (`pk_…`), `LoginButton` muestra una tarjeta con el
+> paso a paso para pegar las keys reales en `.env.local` — jamás un widget roto.
 
 **Sobre los correos temporales:** usamos servicios como `mail.tm` (que genera inboxes temporales sin signup). El implementador pre-crea 5 cuentas:
 - `maria.pumatrade+seed1@mail.tm` → María

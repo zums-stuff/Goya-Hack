@@ -4,6 +4,7 @@ import { tryGetUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { AuthSyncToStore } from '@/components/auth/AuthSyncToStore';
+import { WalletHeader } from '@/components/auth/WalletHeader';
 import type { Listing, Escrow } from '@/generated/prisma/client';
 
 export default async function HomePage() {
@@ -36,11 +37,14 @@ export default async function HomePage() {
         }}
       />
       <main className="max-w-4xl mx-auto p-6 space-y-8">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-bold">Hola, {user.displayName}</h1>
-          <div className="text-right">
-            <div className="text-sm text-gray-500">Saldo</div>
-            <div className="text-xl font-mono">{(user.balanceXlm / 100).toFixed(2)} XLM</div>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <div className="text-sm text-gray-500">Saldo</div>
+              <div className="text-xl font-mono">{(user.balanceXlm / 100).toFixed(2)} XLM</div>
+            </div>
+            <WalletHeader />
           </div>
         </header>
 
