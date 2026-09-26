@@ -1,14 +1,17 @@
-// app/page.tsx — Pantalla de login / selección de identidad.
+// app/page.tsx — Wallapop/MercadoLibre style: yellow market band + listing grid.
 //
-// 3 zonas (NO 7): barra superior · hero · panel de acceso.
-// Sujeto: marketplace universitario UNAM. Acento único: oro UNAM en wordmark.
+// Esta pantalla comunica "ESTO ES UN MERCADO" antes que cualquier otra cosa:
+// amarillo de marca, productos reales del seed visibles, CTA grande, copy
+// directo de venta (no poético). El login de seed users está integrado como
+// una sección dentro del flujo de entrada.
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { tryGetUser } from '@/lib/auth';
 import { isDevLoginAvailable } from '@/lib/auth-env';
 import { computePollarSetupStatus } from '@/lib/pollar-status';
-import { seedUsers } from '@/lib/seed-data';
+import { seedUsers, seedListings } from '@/lib/seed-data';
 import { DemoLoginPanel, type SeedUserRow } from '@/components/auth/DemoLoginPanel';
+import { ListingCard } from '@/components/marketplace/ListingCard';
 
 export default async function HomePage() {
   const user = await tryGetUser();
@@ -28,70 +31,122 @@ export default async function HomePage() {
         .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'))
     : [];
 
+  const sellersById = Object.fromEntries(
+    seedUsers.map((u) => [u.id, u.displayName]),
+  );
+
+  const listings = seedListings.slice(0, 8);
+
   return (
-    <main className="min-h-screen bg-white text-[#0f1a2e]">
-      {/* ── 1. Barra superior ────────────────────────────────── */}
-      <header className="border-b border-black/10">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-extrabold tracking-tight text-[#f4a100]">
-              puma
+    <main className="min-h-screen bg-white text-black">
+      {/* ── Header amarillo MercadoLibre-style ─────────────── */}
+      <header className="bg-[#FFE600]">
+        <div className="mx-auto flex max-w-7xl items-center gap-6 px-6 py-3.5">
+          <Link href="/" className="flex-none">
+            <span className="text-[26px] font-black leading-none tracking-tight">
+              PumaTrade
             </span>
-            <span className="text-xl font-extrabold tracking-tight">trade</span>
+          </Link>
+          <div className="hidden flex-1 md:block">
+            <div className="flex items-center gap-2 rounded bg-white px-3 py-2 shadow-sm">
+              <span className="text-sm text-black/40">🔍</span>
+              <span className="text-sm text-black/45">
+                Buscar calculadoras, libros, electrónica…
+              </span>
+            </div>
           </div>
-          <span className="font-mono text-[11px] uppercase tracking-wider text-black/45">
-            goya-hack · 2026
-          </span>
+          <nav className="flex-none">
+            <Link
+              href="/setup"
+              className="text-sm font-medium text-black/70 hover:text-black"
+            >
+              Iniciar sesión
+            </Link>
+          </nav>
         </div>
       </header>
 
-      {/* ── 2. Hero ────────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 pt-16 pb-10 sm:pt-24 sm:pb-14">
-        <h1 className="max-w-4xl text-balance text-[clamp(2.75rem,7vw,5.5rem)] font-black tracking-[-0.04em] leading-[0.95]">
-          Vende, cambia o truequea{' '}
-          <span className="text-[#f4a100]">en tu comunidad universitaria</span>.
+      {/* ── Stats strip negra con números reales ───────────── */}
+      <div className="bg-black text-[#FFE600]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-1 px-6 py-1.5 font-mono text-[11px]">
+          <span>
+            <strong>5</strong> estudiantes
+          </span>
+          <span className="text-[#FFE600]/50">·</span>
+          <span>
+            <strong>10</strong> productos publicados
+          </span>
+          <span className="text-[#FFE600]/50">·</span>
+          <span>
+            <strong>4</strong> trueques activos
+          </span>
+          <span className="text-[#FFE600]/50">·</span>
+          <span>Stellar testnet</span>
+          <span className="ml-auto hidden text-[#FFE600]/70 sm:inline">
+            Goya-Hack · 2026
+          </span>
+        </div>
+      </div>
+
+      {/* ── Hero — copy directo de venta ───────────────────── */}
+      <section className="mx-auto max-w-7xl px-6 pt-8 pb-6 sm:pt-12 sm:pb-8">
+        <h1 className="max-w-3xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl md:text-5xl">
+          Vende lo que ya no usas.{' '}
+          <span className="block">Truequea con tu comunidad.</span>
         </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-black/65 sm:text-xl">
-          Marketplace P2P entre estudiantes. Tu dinero queda protegido en
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-black/70 sm:text-base">
+          Marketplace P2P entre estudiantes de la UNAM. Tu dinero queda en
           escrow Stellar hasta que recibas el artículo.
         </p>
       </section>
 
-      {/* ── 3. Acceso ──────────────────────────────────────── */}
-      <section className="mx-auto max-w-6xl px-6 pb-24 sm:pb-32">
-        {devLogin ? (
-          <DemoLoginPanel users={seedRows} />
-        ) : (
-          !pollar.needsSetup && (
-            <div className="border-y border-black/10 py-12 text-center">
-              <p className="text-sm text-black/55">
-                Para entrar con tu cuenta, abre{' '}
-                <Link
-                  href="/setup"
-                  className="text-black underline decoration-2 underline-offset-4 hover:bg-[#f4a100]"
-                >
-                  la configuración de Pollar
-                </Link>
-                .
-              </p>
-            </div>
-          )
-        )}
+      {/* ── Login principal ───────────────────────────────── */}
+      <section className="mx-auto max-w-7xl px-6 pb-10">
+        {devLogin && <DemoLoginPanel users={seedRows} />}
 
-        {/* Pollar path pendiente — solo un enlace small al setup */}
-        {devLogin && pollar.needsSetup && (
-          <p className="mt-8 text-center text-sm text-black/45">
-            ¿Aún no tienes cuenta?{' '}
-            <Link
-              href="/setup"
-              className="text-black underline decoration-2 underline-offset-4 hover:bg-[#f4a100]"
-            >
-              Crear con Pollar
-            </Link>
-            .
-          </p>
+        {!devLogin && pollar.needsSetup && (
+          <div className="border-y-2 border-black bg-[#FAFAFA] p-6 text-center">
+            <p className="text-sm text-black/70">
+              Para entrar con tu cuenta, completa{' '}
+              <Link
+                href="/setup"
+                className="font-semibold underline decoration-2 underline-offset-2"
+              >
+                la configuración de Pollar
+              </Link>
+              .
+            </p>
+          </div>
         )}
       </section>
+
+      {/* ── Grid de productos (PRUEBA VIVA de marketplace) ── */}
+      <section className="mx-auto max-w-7xl px-6 pb-12">
+        <div className="mb-4 flex items-baseline justify-between">
+          <h2 className="text-lg font-bold sm:text-xl">Productos publicados</h2>
+          <span className="text-xs text-black/55">
+            Sembrados para el demo · clic para ver
+          </span>
+        </div>
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          {listings.map((l) => (
+            <li key={l.id}>
+              <ListingCard
+                listing={l}
+                sellerName={sellersById[l.sellerId] ?? '—'}
+              />
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* ── Footer ────────────────────────────────────────── */}
+      <footer className="border-t border-black/10 bg-[#FAFAFA]">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4 text-xs text-black/55">
+          <span>PumaTrade · marketplace P2P entre estudiantes UNAM.</span>
+          <span className="font-mono">Goya-Hack · 2026 · Stellar testnet</span>
+        </div>
+      </footer>
     </main>
   );
 }
