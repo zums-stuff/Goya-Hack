@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { parseApiError, type FormattedError } from '@/lib/api-errors';
 
 type Props = {
   escrowId: string;
@@ -41,6 +42,7 @@ export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
   const [photo, setPhoto] = useState<File | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FormattedError[]>([]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -61,13 +63,21 @@ export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
         body: formData,
       });
       if (!res.ok) {
-        const err: { message?: string } = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? 'Error abriendo disputa');
+        const errors = await parseApiError(res);
+        if (errors.length > 0) {
+          setFieldErrors(errors);
+          setError(null);
+        } else {
+          const err: { message?: string } = await res.json().catch(() => ({}));
+          setError(err.message ?? 'Error abriendo disputa');
+        }
+        return;
       }
       router.refresh();
       router.push(`/escrow/${escrowId}`);
     } catch (e) {
       setError((e as Error).message);
+      setFieldErrors([]);
     } finally {
       setBusy(false);
     }
@@ -174,12 +184,41 @@ export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
         </div>
       )}
 
+      {fieldErrors.length > 0 && (
+        <div>
+          <p
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#c45f4e',
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
+              marginTop: 12,
+              marginBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <AlertCircle />
+            Corrige estos campos:
+          </p>
+          <ul className="error-list">
+            {fieldErrors.map((e, i) => (
+              <li key={`${e.raw.path}-${i}`}>
+                <strong>{e.label}</strong> — {e.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="submit-row">
         <button
           type="submit"
           className="sell-button"
           disabled={busy}
-          style={{ opacity: busy ? 0.5 : 1 }}
+          style={{ opacity: busy ? 0.5 : 1, cursor: busy ? 'wait' : 'pointer' }}
         >
           {busy ? 'Enviando…' : 'Enviar evidencia'}
         </button>

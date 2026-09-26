@@ -1,12 +1,15 @@
 // components/listings/ListingForm.tsx — Form con feedback explícito.
 // UX: indica estado (Enviando → escrito), navega a detalle al éxito.
 // Majors se preseleccionan con la major del usuario como mejor guess.
+// Errores del server (zod validation) se muestran campo por campo desde
+// `details[]`, no como mensaje opaco.
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import { ListingTypeSchema, MajorSchema, ConditionSchema } from '@/lib/schemas';
+import { parseApiError, type FormattedError } from '@/lib/api-errors';
 
 const LISTING_TYPES = ListingTypeSchema.options;
 const MAJORS = MajorSchema.options;
@@ -27,6 +30,7 @@ export function ListingForm({ defaultMajor }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FormattedError[]>([]);
 
   // majors prechecked: la major del usuario (si la tiene) como forecast mínimo.
   const initialMajors = defaultMajor && MAJORS.includes(defaultMajor as never)
@@ -54,6 +58,7 @@ export function ListingForm({ defaultMajor }: Props) {
     const priceNum = Number(priceStr);
     if (!Number.isFinite(priceNum) || priceNum <= 0) {
       setBusy(false);
+      setFieldErrors([]);
       setError('Precio debe ser un número mayor a 0.');
       return;
     }
@@ -64,6 +69,7 @@ export function ListingForm({ defaultMajor }: Props) {
       new URL(photoUrl);
     } catch {
       setBusy(false);
+      setFieldErrors([]);
       setError('URL de foto inválida (debe empezar por http:// o https://).');
       return;
     }
@@ -86,8 +92,18 @@ export function ListingForm({ defaultMajor }: Props) {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const err: { message?: string } = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? 'Error creando listing');
+        const errors = await parseApiError(res);
+        if (errors.length > 0) {
+          setFieldErrors(errors);
+          setError(null);
+        } else {
+          setFieldErrors([]);
+          const err: { message?: string } = await res
+            .json()
+            .catch(() => ({}));
+          setError(err.message ?? 'Error creando listing');
+        }
+        return;
       }
       const { listing } = (await res.json()) as { listing: { id: string } };
       // Navegamos directo al detalle — sin refresh intermedio para evitar
@@ -95,6 +111,8 @@ export function ListingForm({ defaultMajor }: Props) {
       router.push(`/marketplace/${listing.id}`);
     } catch (e) {
       setError((e as Error).message);
+      setFieldErrors([]);
+    } finally {
       setBusy(false);
     }
   }
@@ -209,6 +227,35 @@ export function ListingForm({ defaultMajor }: Props) {
         <div className="form-error">
           <AlertCircle />
           {error}
+        </div>
+      )}
+
+      {fieldErrors.length > 0 && (
+        <div>
+          <p
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#c45f4e',
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
+              marginTop: 12,
+              marginBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <AlertCircle />
+            Corrige estos campos para publicar:
+          </p>
+          <ul className="error-list">
+            {fieldErrors.map((e, i) => (
+              <li key={`${e.raw.path}-${i}`}>
+                <strong>{e.label}</strong> — {e.message}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 

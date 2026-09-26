@@ -798,3 +798,131 @@ input[type="file"].form-field::file-selector-button {
   font-family: inherit;
 }
 .cancel-button:hover { color: #c45f4e; }
+
+.error-list {
+  list-style: none;
+  padding: 12px 14px;
+  margin: 8px 0 0 0;
+  background: rgba(255, 240, 237, 0.7);
+  border: 1px solid #f3c8bf;
+  border-radius: 8px;
+  font-size: 11px;
+  color: #c45f4e;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.error-list li {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.error-list li::before {
+  content: "•";
+  color: var(--primary);
+  font-weight: 800;
+  flex-shrink: 0;
+}
+.error-list strong {
+  color: #18222f;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+
+.success-card {
+  background: var(--mint);
+  border: 1px solid #d8f0e7;
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: #2c6b56;
+}
+.success-card-header { display: flex; gap: 14px; align-items: flex-start; }
+.success-card-header > span strong { color: #18222f; display: block; font-size: 14px; font-weight: 800; }
+.success-card-header > span small { color: #4f8a7a; font-size: 11px; display: block; margin-top: 4px; line-height: 1.5; }
+.success-card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.chat-bubble.user-bubble { background: #fff0ed; color: #7e554e; }
+.chat-messages { padding: 22px; display: flex; flex-direction: column; gap: 12px; background: #fbfcfe; }
+.chat-input-row { display: flex; align-items: center; gap: 10px; padding: 13px; border-top: 1px solid var(--line); }
+.chat-input-row .form-field { flex: 1; background: #f8fafc; border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: #516174; }
+.chat-input-row .form-field:focus { outline: none; border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px #ee705d22; }
+.chat-send-btn {
+  width: 36px;
+  height: 36px;
+  background: var(--primary);
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background .15s ease;
+}
+.chat-send-btn:hover { background: var(--primary-dark); }
+.chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.account-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.account-row:last-child { border-bottom: 0; }
+.account-row > .kv-key { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.4px; }
+.account-row > .kv-val { color: var(--ink); font-weight: 600; text-align: right; max-width: 60%; word-break: break-word; }
+
+.map-pin-label {
+  position: absolute;
+  top: 20px;
+  left: 22px;
+  color: #7c9a95;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  background: rgba(255,255,255,0.7);
+  padding: 4px 7px;
+  border-radius: 5px;
+}
+.map-pin-tooltip {
+  position: absolute;
+  background: #fff;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #617184;
+  box-shadow: 0 2px 7px #26364c18;
+  white-space: nowrap;
+  transform: translate(-50%, 4px);
+}
+.shop-info-row {
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  background: #fff;
+  border-radius: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: border-color 0.15s ease;
+  cursor: pointer;
+  width: 100%;
+}
+.shop-info-row:hover { border-color: #f0b1a6; }
+.shop-info-row > strong { font-size: 13px; }
+.shop-info-row > small { color: var(--muted); font-size: 10px; }
+.shop-info-row > .shop-meta { display: flex; gap: 8px; justify-content: space-between; align-items: center; margin-top: 6px; }
+.shop-info-row > .shop-meta b { color: #4a9d7a; font-size: 10px; font-weight: 700; }
+.shop-info-row > .shop-meta span { background: var(--mint); color: #369671; padding: 2px 7px; border-radius: 999px; font-size: 9px; font-weight: 800; }
+
+.lucide-inline { display: inline-block; vertical-align: text-bottom; margin-right: 4px; flex-shrink: 0; }
+
+/* errors visual emphasis */
+.error-list li strong { display: inline-block; min-width: 110px; }
+.error-list li strong::after { content: ":"; margin-left: 1px; }

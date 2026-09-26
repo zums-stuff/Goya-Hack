@@ -1,0 +1,52 @@
+// lib/format-errors.ts — Convierte la `details[]` del server en texto por campo.
+//
+// El server (handleApiError) devuelve:
+//   { error, message, details: [{ path: "title", message: "Too small..." }, ...] }
+// Para los formularios, mapeamos `path` -> etiqueta humana y agrupamos.
+
+type Field = { path: string; message: string };
+
+const LABELS: Record<string, string> = {
+  title: 'título',
+  description: 'descripción',
+  priceXlm: 'precio',
+  type: 'tipo',
+  condition: 'condición',
+  majors: 'carreras aceptadas',
+  photoUrl: 'URL de foto',
+  videoVerified: 'video verificado',
+  name: 'nombre',
+  major: 'carrera',
+  displayName: 'nombre visible',
+  email: 'correo',
+  xlmAmount: 'monto XLM',
+  offeredItems: 'objetos ofrecidos',
+  message: 'mensaje',
+  reason: 'motivo',
+  escrowId: 'ID de escrow',
+  offerId: 'ID de oferta',
+  listingId: 'ID de listing',
+};
+
+/** Devuelve un objeto con campos amigables + mensaje del server. */
+export function formatFieldErrors(fields: Field[]): Array<{ label: string; message: string }> {
+  return fields.map((f) => ({
+    label: LABELS[f.path] ?? f.path,
+    message: translateServerMessage(f.message),
+  }));
+}
+
+/** Traduce frases Zod comunes a español plano. */
+function translateServerMessage(msg: string): string {
+  const m = msg.toLowerCase();
+  if (m.includes('too small')) return 'muy corto / insuficiente';
+  if (m.includes('too big')) return 'demasiado largo';
+  if (m.includes('expected string')) return 'formato inválido';
+  if (m.includes('expected number')) return 'debe ser un número';
+  if (m.includes('expected boolean')) return 'debe ser sí o no';
+  if (m.includes('invalid email')) return 'correo inválido';
+  if (m.includes('invalid url')) return 'URL inválida (debe empezar por https://)';
+  if (m.includes('invalid enum value')) return 'valor fuera de las opciones';
+  if (m.includes('required')) return 'falta este campo';
+  return msg;
+}

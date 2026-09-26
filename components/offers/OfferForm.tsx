@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { parseApiError, type FormattedError } from '@/lib/api-errors';
 
 type Props = {
   listingId: string;
@@ -26,6 +27,7 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
   const [itemValue, setItemValue] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FormattedError[]>([]);
 
   function totalCents(): number {
     const val = Number(itemValue || '0');
@@ -80,8 +82,16 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err: { message?: string } = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? 'Error creando oferta');
+        const errors = await parseApiError(res);
+        if (errors.length > 0) {
+          setFieldErrors(errors);
+          setError(null);
+        } else {
+          setFieldErrors([]);
+          const err: { message?: string } = await res.json().catch(() => ({}));
+          setError(err.message ?? 'Error creando oferta');
+        }
+        return;
       }
       setPhase('success');
       // Refresh en background para que el tablero del vendedor vea la nueva
@@ -89,6 +99,7 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
       setTimeout(() => router.refresh(), 0);
     } catch (e) {
       setError((e as Error).message);
+      setFieldErrors([]);
       setPhase('error');
     }
   }
@@ -231,7 +242,36 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
         </div>
       )}
 
-      {!busy && phase === 'error' && (
+      {fieldErrors.length > 0 && (
+        <div>
+          <p
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#c45f4e',
+              textTransform: 'uppercase',
+              letterSpacing: 0.4,
+              marginTop: 12,
+              marginBottom: 4,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <AlertCircle />
+            Corrige estos campos:
+          </p>
+          <ul className="error-list">
+            {fieldErrors.map((e, i) => (
+              <li key={`${e.raw.path}-${i}`}>
+                <strong>{e.label}</strong> — {e.message}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!busy && phase === 'error' && fieldErrors.length === 0 && (
         <p className="subcopy" style={{ fontSize: 11, color: '#c45f4e' }}>
           No pudimos enviar la oferta. Revisa los datos y vuelve a
           intentar.
