@@ -15,7 +15,7 @@
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
 import { FundSchema } from '@/lib/schemas';
-import { horizon } from '@/lib/stellar';
+import { horizon, fundEscrowFromTreasury } from '@/lib/stellar';
 import { centsToXlm } from '@/lib/fees';
 import { handleApiError, ApiError } from '@/lib/errors';
 
@@ -52,24 +52,74 @@ export async function POST(req: Request) {
       return Response.json({ escrow, funded: true, paymentParams: null });
     }
 
-    // Demo bypass: marcar funded sin pedir tx Stellar.
+    // Demo bypass: en demo, el platform treasury paga al escrow POR el
+    // buyer (los seed users tienen placeholders `G_PLACEHOLDER_*`). Esta
+    // rama ejecuta una transacción REAL en Stellar testnet, captura el
+    // hash en DB, debita el balance interno del buyer, y avanza el state
+    // machine a `funded`. No es un no-op: el dinero sale de la tesorería
+    // (custodia) y se mueve en testnet, quedando visible en stellar.expert.
     if (demoBypass) {
-      const lock = await prisma.escrow.updateMany({
-        where: { id: escrowId, status: 'awaiting-funding' },
-        data: { status: 'funded' },
+      // Verificar saldo interno antes de avanzar (en demo, el saldo del
+      // buyer vive en nuestra DB; en prod es el balance real en Stellar).
+      const buyerRow = await prisma.user.findUniqueOrThrow({
+        where: { id: user.id },
+        select: { balanceXlm: true },
       });
-      if (lock.count === 1) {
-        await prisma.transactionLog.create({
-          data: { escrowId, actorId: user.id, action: 'escrow-funded-demo' },
-        });
+      if (buyerRow.balanceXlm < escrow.amountXlm) {
+        return handleApiError(
+          new ApiError(
+            409,
+            'insufficient_demo_balance',
+            `Saldo insuficiente: tienes ${buyerRow.balanceXlm / 100} XLM, necesitas ${escrow.amountXlm / 100} XLM.`,
+          ),
+        );
       }
-      const updated = await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } });
-      return Response.json({
-        escrow: updated,
-        funded: true,
-        paymentParams: null,
-        demoBypass: true,
-      });
+
+      try {
+        const { hash } = await fundEscrowFromTreasury({
+          escrowAccount: escrow.stellarEscrowAccount,
+          buyerId: user.id,
+          amountCents: escrow.amountXlm,
+        });
+        const lock = await prisma.escrow.updateMany({
+          where: { id: escrowId, status: 'awaiting-funding' },
+          data: {
+            status: 'funded',
+            stellarTxHashFunding: hash,
+            stellarMemoReceipt: `PT-FUND-${user.id.slice(0, 8)}-${escrow.stellarEscrowAccount.slice(-7)}`,
+          },
+        });
+        if (lock.count === 1) {
+          await prisma.transactionLog.create({
+            data: {
+              escrowId,
+              actorId: user.id,
+              action: 'escrow-funded-demo-treasury',
+              metadata: JSON.stringify({ txHash: hash }),
+            },
+          });
+          // Debita el balance interno del buyer (la tesorería custodia
+          // los fondos en nombre de seller/buyer; en producción sería
+          // saldo real en la wallet del buyer).
+          await prisma.user.update({
+            where: { id: user.id },
+            data: { balanceXlm: { decrement: escrow.amountXlm } },
+          });
+        }
+        const updated = await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } });
+        return Response.json({
+          escrow: updated,
+          funded: true,
+          paymentParams: null,
+          demoBypass: true,
+          stellarTxHash: hash,
+        });
+      } catch (e) {
+        // Si Horizon falla (rate-limit, red caída, etc.), devolvemos el
+        // error original — NO avanzamos a `funded`. El cliente verá
+        // "Error al fondear vía tesorería".
+        return handleApiError(e);
+      }
     }
 
     // Verificar balance en Horizon para confirmar que el pago llegó.

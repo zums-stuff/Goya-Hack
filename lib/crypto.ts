@@ -91,12 +91,20 @@ function sniffMime(buf: Buffer): string | null {
 
 export type ValidEvidence = { buffer: Buffer; mime: string };
 
-export function validateEvidenceFile(file: File): ValidEvidence {
+/**
+ * Valida un File subido (multipart). Async porque `file.arrayBuffer()` es
+ * un Promise. Llama `validateEvidenceBuffer` con el resultado.
+ *
+ * Bug histórico: un commit anterior dejó `Buffer.from(file.arrayBuffer())`
+ * síncrono, pero `arrayBuffer()` es async — `Buffer.from(Promise)` tira
+ * TypeError y rompe completamente el flujo de disputas.
+ */
+export async function validateEvidenceFile(file: File): Promise<ValidEvidence> {
   if (file.size > EVIDENCE_MAX_BYTES) {
     throw new ApiError(413, 'evidence_too_large', `Máx ${EVIDENCE_MAX_BYTES} bytes`);
   }
-  // @ts-expect-error — ArrayBufferLike vs Buffer<ArrayBufferLike> mismatch; runtime funciona.
-  return validateEvidenceBuffer(Buffer.from(file.arrayBuffer()));
+  const ab = await file.arrayBuffer();
+  return validateEvidenceBuffer(Buffer.from(ab));
 }
 
 // Validación sincrónica cuando ya tenemos el buffer (e.g. tests, scripts CLI).

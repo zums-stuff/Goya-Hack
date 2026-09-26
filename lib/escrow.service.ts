@@ -12,10 +12,19 @@
 import { prisma } from './db';
 import { env } from './config';
 import { feeCents, centsToXlm } from './fees';
-import { buildMemoText, releaseEscrowWithBarterGuard, refundEscrowWithBarterGuard } from './stellar';
+import {
+  buildMemoText,
+  releaseEscrowWithBarterGuard,
+  refundEscrowWithBarterGuard,
+  runReleaseOnTreasury,
+  runRefundOnTreasury,
+} from './stellar';
 import { EscrowForbidden, EscrowInvalidTransition, ApiError } from './errors';
 import { addMinutes } from 'date-fns';
 import type { Prisma } from '@/generated/prisma/client';
+
+export const DEMO_MODE =
+  process.env.DEMO_FUNDING_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
 
 const confirmWindowMinutes = () => env.CONFIRM_WINDOW_MINUTES;
 const ttlMinutes = () => env.DEMO_TTL_MINUTES ?? 48 * 60;
@@ -158,14 +167,28 @@ export class EscrowService {
       //    En realidad esta firma se hace dentro de un bloque try/catch que en
       //    caso de error revierte el puto (lo vemos en el route handler).
       // Aquí el caller controla el try/catch; nosotros solo orquestamos.
-      const stellarHash = await releaseEscrowWithBarterGuard({
-        escrowAccount: escrow.stellarEscrowAccount,
-        arbiterSecretEnc: escrow.arbiterSecretEnc!,
-        sellerPublic: escrow.seller.pollarWalletId,
-        amountCents: escrow.amountXlm,
-        feeCents: fee,
-        memo,
-      });
+      //
+      // En DEMO_MODE (D8: seed users con wallet placeholder), paga al platform
+      // treasury y reconcilia los balances locales. En producción paga a la
+      // wallet real del seller (Pollar).
+      let stellarHash: { hash: string };
+      if (DEMO_MODE) {
+        stellarHash = await runReleaseOnTreasury({
+          escrowAccount: escrow.stellarEscrowAccount,
+          arbiterSecretEnc: escrow.arbiterSecretEnc!,
+          amountCents: escrow.amountXlm,
+          memo,
+        });
+      } else {
+        stellarHash = await releaseEscrowWithBarterGuard({
+          escrowAccount: escrow.stellarEscrowAccount,
+          arbiterSecretEnc: escrow.arbiterSecretEnc!,
+          sellerPublic: escrow.seller.pollarWalletId,
+          amountCents: escrow.amountXlm,
+          feeCents: fee,
+          memo,
+        });
+      }
 
       await tx.escrow.update({
         where: { id: escrowId },
@@ -183,6 +206,20 @@ export class EscrowService {
         where: { id: escrow.offerId },
         data: { status: 'completed' },
       });
+
+      // DEMO: reconcilia balances internos (la tesorería custodia los fondos
+      // en nombre del seller; debitamos al buyer para cerrar la simetría).
+      if (DEMO_MODE) {
+        const netToSellerCents = escrow.amountXlm - fee;
+        await tx.user.update({
+          where: { id: escrow.sellerId },
+          data: { balanceXlm: { increment: netToSellerCents } },
+        });
+        await tx.user.update({
+          where: { id: escrow.buyerId },
+          data: { balanceXlm: { decrement: escrow.amountXlm } },
+        });
+      }
       await tx.transactionLog.create({
         data: { escrowId, actorId: buyerId, action: 'accepted' },
       });
@@ -274,19 +311,35 @@ export class EscrowService {
         throw new EscrowInvalidTransition('Cancel ya procesado (carrera o estado roto).');
       }
 
-      const stellarHash = await refundEscrowWithBarterGuard({
-        escrowAccount: escrow.stellarEscrowAccount,
-        arbiterSecretEnc: escrow.arbiterSecretEnc!,
-        buyerPublic: escrow.buyer.pollarWalletId,
-        amountCents: escrow.amountXlm,
-        memo,
-      });
+      const stellarHash = DEMO_MODE
+        ? await runRefundOnTreasury({
+            escrowAccount: escrow.stellarEscrowAccount,
+            arbiterSecretEnc: escrow.arbiterSecretEnc!,
+            amountCents: escrow.amountXlm,
+            memo,
+          })
+        : await refundEscrowWithBarterGuard({
+            escrowAccount: escrow.stellarEscrowAccount,
+            arbiterSecretEnc: escrow.arbiterSecretEnc!,
+            buyerPublic: escrow.buyer.pollarWalletId,
+            amountCents: escrow.amountXlm,
+            memo,
+          });
       await tx.escrow.update({
         where: { id: escrowId },
         data: { stellarTxHashRelease: stellarHash.hash },
       });
       await tx.listing.update({ where: { id: escrow.listingId }, data: { status: 'active' } });
       await tx.offer.update({ where: { id: escrow.offerId }, data: { status: 'pending' } });
+
+      // DEMO: reconcilia balances — al refund, el seller recibe 0 y el
+      // buyer recupera los fondos en su internal balance (custodia tesorería).
+      if (DEMO_MODE) {
+        await tx.user.update({
+          where: { id: escrow.buyerId },
+          data: { balanceXlm: { increment: escrow.amountXlm } },
+        });
+      }
       await tx.transactionLog.create({
         data: { escrowId, actorId: actorId ?? escrow.buyerId, action: 'refunded' },
       });

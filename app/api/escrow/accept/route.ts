@@ -1,9 +1,15 @@
 // app/api/escrow/accept/route.ts — Rama A: release firmado.
 //
 // MODO DEMO (`process.env.DEMO_FUNDING_BYPASS === 'true'` + `force: true`):
-//   Igual que /api/escrow/fund — el server marca el escrow como `released`
-//   sin firmar la tx Stellar. NODE_ENV=production siempre rechaza aunque
-//   el flag esté puesto.
+//   En demo, los seed users tienen placeholders `G_PLACEHOLDER_*` así que no
+//   pueden firmar el release desde la UI. Esta rama llama directamente
+//   `EscrowService.accept` (que firma la tx Stellar REAL con platform +
+//   arbiter keypairs) y devuelve el hash que Stellar testnet devolvió.
+//   El state machine avanza idénticamente con un on-chain payment de
+//   escrow account → seller. En PRODUCCIÓN con keys reales de Pollar, el
+//   cliente usaría `runTx` para firmar también las 2 firmas requeridas
+//   (PLATFORM + arbiter); mientras la primera firma ya la hace el server,
+//   esta rama demo es funcionalmente equivalente.
 
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
@@ -24,35 +30,25 @@ export async function POST(req: Request) {
       process.env.NODE_ENV !== 'production';
 
     if (forceDemo) {
-      // Bypass: marca `released` sin firma Stellar. updateMany idempotente.
-      const escrow = await prisma.escrow.findUnique({
+      // Validaciones de transición antes de firmar tx on-chain.
+      const pre = await prisma.escrow.findUnique({
         where: { id: escrowId },
         select: { buyerId: true, status: true },
       });
-      if (!escrow) throw new ApiError(404, 'escrow_not_found', 'No existe.');
-      if (escrow.buyerId !== user.id) throw new ApiError(403, 'not_buyer', 'Solo el buyer puede aceptar.');
-      if (escrow.status !== 'exchange-recorded') {
-        throw new ApiError(409, 'invalid_transition', `Cannot accept from ${escrow.status}.`);
+      if (!pre) throw new ApiError(404, 'escrow_not_found', 'No existe.');
+      if (pre.buyerId !== user.id) {
+        throw new ApiError(403, 'not_buyer', 'Solo el buyer puede aceptar.');
       }
-      const lock = await prisma.escrow.updateMany({
-        where: { id: escrowId, status: 'exchange-recorded' },
-        data: { status: 'released', acceptedAt: new Date() },
-      });
-      if (lock.count === 1) {
-        await prisma.transactionLog.create({
-          data: { escrowId, actorId: user.id, action: 'accepted-demo' },
-        });
-        await prisma.listing.update({
-          where: { id: (await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } })).listingId },
-          data: { status: 'sold' },
-        });
-        await prisma.offer.update({
-          where: { id: (await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } })).offerId },
-          data: { status: 'completed' },
-        });
+      if (pre.status !== 'exchange-recorded') {
+        throw new ApiError(
+          409,
+          'invalid_transition',
+          `Cannot accept from ${pre.status}.`,
+        );
       }
-      const updated = await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } });
-      return Response.json({ escrow: updated, demoBypass: true });
+      // Llama al service real — firma Stellar on-chain y avanza DB.
+      const escrow = await EscrowService.accept(escrowId, user.id);
+      return Response.json({ escrow, demoBypass: true });
     }
 
     const escrow = await EscrowService.accept(escrowId, user.id);

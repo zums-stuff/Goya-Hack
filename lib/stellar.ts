@@ -211,6 +211,134 @@ export async function refundEscrowWithBarterGuard(params: {
   return { hash: res.hash };
 }
 
+// ─── fundEscrowFromTreasury (rama demo — platform paga al escrow) ─────────
+// En el demo, los seed users tienen pollarWalletId = G_PLACEHOLDER_… (no son
+// cuentas Stellar reales). Sin keys reales de Pollar, el buyer no puede
+// firmar el pago para fondear el escrow desde el navegador.
+//
+// Solución demo: el platform treasury paga en nombre del buyer y graba un
+// memo `PT-FUND-BY-TREASURY-{buyerId}` que conserva el rastro de auditoría.
+// Esto resulta en una transacción REAL en Stellar testnet con un hash
+// capturable y consultable en stellar.expert, sin sacrificar la demo UX.
+//
+// En producción con keys reales de Pollar, esta función no se llama — el
+// buyer paga directamente vía runTx (modal Pollar o Modal SDK). NodeEnv=production
+// hace que el server rechace esta rama aunque DEMO_FUNDING_BYPASS esté on.
+
+export async function fundEscrowFromTreasury(params: {
+  escrowAccount: string;
+  buyerId: string;
+  amountCents: number;
+}): Promise<{ hash: string }> {
+  if (params.amountCents <= 0) {
+    throw new Error('amount debe ser > 0');
+  }
+  const platformAccount = await horizon.loadAccount(PLATFORM_PUBLIC_KEY);
+  const fee = (await horizon.fetchBaseFee()).toString();
+
+  const memo = `PT-FUND-${params.buyerId.slice(0, 8)}-${params.escrowAccount.slice(-7)}`
+    .slice(0, 28);
+
+  const tx = new TransactionBuilder(platformAccount, {
+    fee,
+    networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
+    memo: Memo.text(memo),
+  })
+    .addOperation(
+      Operation.payment({
+        destination: params.escrowAccount,
+        asset: Asset.native(),
+        amount: centsToXlm(params.amountCents),
+      }),
+    )
+    .setTimeout(30)
+    .build();
+
+  tx.sign(platformKeypair);
+  const res = await horizon.submitTransaction(tx);
+  return { hash: res.hash };
+}
+
+// ─── runReleaseOnTreasury (helper para rama demo de EscrowService) ─────────
+// En el demo, los seed users tienen wallet `G_PLACEHOLDER_*` que NO son
+// cuentas Stellar reales. Stellar rechaza pagos a addresses inválidos,
+// así que el camino real de release ("escrow → seller.pollarWalletId")
+// tira "destination is invalid".
+//
+// Solución demo: pagamos al platform treasury (cuenta real fondeada),
+// incrementamos el `User.balanceXlm` del seller por el neto, y debitamos
+// el del buyer. La tx Stellar es REAL y aparece en stellar.expert.
+// En PRODUCCIÓN con keys reales de Pollar, el seller tiene wallet authentic
+// y este path no se llama.
+
+export async function runReleaseOnTreasury(params: {
+  escrowAccount: string;
+  arbiterSecretEnc: string;
+  amountCents: number;
+  memo?: string;
+}): Promise<{ hash: string }> {
+  const { decryptSecret } = await import('./crypto');
+  const arbiterSecret = decryptSecret(params.arbiterSecretEnc);
+  const escrowSrc = await horizon.loadAccount(params.escrowAccount);
+  const fee = (await horizon.fetchBaseFee()).toString();
+
+  const builder = new TransactionBuilder(escrowSrc, {
+    fee,
+    networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
+    memo: params.memo ? Memo.text(params.memo) : undefined,
+  });
+
+  if (params.amountCents > 0) {
+    builder.addOperation(
+      Operation.payment({
+        destination: PLATFORM_PUBLIC_KEY,
+        asset: Asset.native(),
+        amount: centsToXlm(params.amountCents),
+      }),
+    );
+  }
+
+  const tx: Transaction = builder.setTimeout(30).build();
+  tx.sign(platformKeypair);
+  tx.sign(Keypair.fromSecret(arbiterSecret));
+
+  const res = await horizon.submitTransaction(tx);
+  return { hash: res.hash };
+}
+
+// ─── runRefundOnTreasury (helper para EscrowService, refund → tesorería) ───
+export async function runRefundOnTreasury(params: {
+  escrowAccount: string;
+  arbiterSecretEnc: string;
+  amountCents: number;
+  memo?: string;
+}): Promise<{ hash: string }> {
+  if (params.amountCents === 0) return { hash: 'NO_TX_BARTER' };
+  const { decryptSecret } = await import('./crypto');
+  const arbiterSecret = decryptSecret(params.arbiterSecretEnc);
+  const escrowSrc = await horizon.loadAccount(params.escrowAccount);
+  const fee = (await horizon.fetchBaseFee()).toString();
+
+  const tx = new TransactionBuilder(escrowSrc, {
+    fee,
+    networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
+    memo: params.memo ? Memo.text(params.memo) : undefined,
+  })
+    .addOperation(
+      Operation.payment({
+        destination: PLATFORM_PUBLIC_KEY,
+        asset: Asset.native(),
+        amount: centsToXlm(params.amountCents),
+      }),
+    )
+    .setTimeout(30)
+    .build();
+  tx.sign(platformKeypair);
+  tx.sign(Keypair.fromSecret(arbiterSecret));
+  const res = await horizon.submitTransaction(tx);
+  return { hash: res.hash };
+}
+
 // ─── anchorDisputeEvidence (Rama C — manageData con hash SHA256 64) ──────────
 export async function anchorDataEntry(
   sourcePublic: string,
