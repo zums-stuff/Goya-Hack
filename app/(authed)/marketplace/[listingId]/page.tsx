@@ -1,0 +1,181 @@
+// app/(authed)/marketplace/[listingId]/page.tsx — Detalle con tablero.
+// Estilo: .detail-layout del frontend example (foto izquierda, info+ofertas derecha).
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import {
+  ArrowLeft,
+  Bot,
+  CheckCircle2,
+  ChevronRight,
+  ShieldCheck,
+  Tag,
+} from 'lucide-react';
+import { prisma } from '@/lib/db';
+import { tryGetUser } from '@/lib/auth';
+import { OfferBoard, type OfferLite } from '@/components/offers/OfferBoard';
+import { OfferForm } from '@/components/offers/OfferForm';
+import { PriceAlertCallout } from '@/components/listings/PriceAlertCallout';
+import { fmtPrice } from '@/lib/format';
+import type { ListingType } from '@/lib/schemas';
+
+const VISUALS = ['visual-coral', 'visual-blue', 'visual-yellow', 'visual-purple'];
+function pickVisual(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return VISUALS[Math.abs(h) % VISUALS.length];
+}
+
+export default async function ListingDetailPage(props: {
+  params: Promise<{ listingId: string }>;
+}) {
+  const { listingId } = await props.params;
+  const listing = await prisma.listing.findUnique({
+    where: { id: listingId },
+    include: { seller: { select: { id: true, displayName: true, major: true } } },
+  });
+  if (!listing) notFound();
+
+  const me = await tryGetUser();
+  const isOwner = me?.id === listing.sellerId;
+  const isPending = listing.status === 'pending';
+  const listingType = listing.type as ListingType;
+
+  const rawOffers = isOwner && !isPending
+    ? await prisma.offer.findMany({
+        where: { listingId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        include: { offerer: { select: { id: true, displayName: true, major: true } } },
+      })
+    : [];
+  const offers: OfferLite[] = rawOffers.map((o) => ({
+    id: o.id,
+    type: o.type as 'saldo-only' | 'barter' | 'hybrid',
+    xlmAmount: o.xlmAmount,
+    message: o.message,
+    offerer: {
+      id: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.id,
+      displayName: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.displayName,
+      major: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.major,
+    },
+  }));
+
+  return (
+    <section className="detail-view">
+      <Link href="/marketplace" className="back-button">
+        <ArrowLeft />
+        Volver al marketplace
+      </Link>
+
+      <div className="detail-layout">
+        {/* Columna izquierda — foto + precio */}
+        <div>
+          <div className={`detail-visual ${pickVisual(listing.id)}`}>
+            {listing.photoUrl ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img src={listing.photoUrl} alt={listing.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 15 }} />
+            ) : null}
+            {listing.videoVerified && (
+              <span>
+                <CheckCircle2 />
+                Video verificado
+              </span>
+            )}
+          </div>
+          <span className="product-type" style={{ marginTop: 14, fontSize: 9 }}>
+            {listingType.toUpperCase().replace('-', ' ')}
+          </span>
+          <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px' }}>
+            {listing.title}
+          </h1>
+          <p className="subcopy">
+            Publicado por {listing.seller.displayName} · {listing.seller.major}
+          </p>
+          <div className="detail-price">
+            <strong>P$ {fmtPrice(listing.priceXlm)}</strong>
+            <span className="ai-price-signal market">
+              <Bot /> IA: Precio de mercado
+            </span>
+          </div>
+          <div className="detail-trust">
+            <ShieldCheck />
+            <span>
+              <strong>Intercambio protegido</strong>
+              <small>
+                Tu pago queda retenido hasta que confirmes recibir el artículo.
+              </small>
+            </span>
+          </div>
+          {listing.description && (
+            <p style={{ fontSize: 12, color: '#68778a', lineHeight: 1.55, marginTop: 16 }}>
+              {listing.description}
+            </p>
+          )}
+          <PriceAlertCallout
+            title={listing.title}
+            type={listingType}
+            priceCents={listing.priceXlm}
+          />
+          {isPending && (
+            <div
+              style={{
+                marginTop: 18,
+                borderLeft: '3px solid var(--primary)',
+                background: '#fff0ed',
+                borderRadius: 8,
+                padding: '12px 14px',
+                color: '#d95d4b',
+                fontSize: 12,
+              }}
+            >
+              ⏳ <strong>Pendiente</strong> — transacción en curso. El vendedor no
+              acepta nuevas ofertas hasta que el escrow concluya.
+            </div>
+          )}
+        </div>
+
+        {/* Columna derecha — ofertas / form */}
+        <div className="offers-board">
+          {me && !isOwner && listing.status === 'active' ? (
+            <>
+              <div className="section-heading">
+                <div>
+                  <h2>Hacer una oferta</h2>
+                  <p>Ofrece saldo, trueque o una combinación de ambos.</p>
+                </div>
+                <Tag />
+              </div>
+              <OfferForm listingId={listing.id} maxXlmCents={listing.priceXlm} />
+            </>
+          ) : isOwner && !isPending ? (
+            <>
+              <div className="section-heading">
+                <div>
+                  <h2>Tablero de ofertas ({offers.length})</h2>
+                  <p>Elige la propuesta que más te convenga.</p>
+                </div>
+                <Tag />
+              </div>
+              <OfferBoard offers={offers} />
+              <div style={{ height: 10 }} />
+              <Link href="/marketplace" className="sell-button offer-button">
+                Volver a tu publicación <ChevronRight />
+              </Link>
+            </>
+          ) : (
+            <>
+              <div className="section-heading">
+                <div>
+                  <h2>Inicia sesión para ofertar</h2>
+                  <p>Necesitas una cuenta activa para enviar una propuesta.</p>
+                </div>
+              </div>
+              <Link href="/" className="sell-button offer-button">
+                Iniciar sesión <ChevronRight />
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}

@@ -1,0 +1,172 @@
+// app/(authed)/escrow/[escrowId]/page.tsx — Detalle del escrow.
+// Estado + participantes + acciones. Estilo del example: .wallet-panel + .detail-trust.
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import {
+  ArrowLeft,
+  ChevronRight,
+  ShieldCheck,
+  ShieldAlert,
+  Wallet,
+} from 'lucide-react';
+import { prisma } from '@/lib/db';
+import { EscrowActions } from '@/components/escrow/EscrowActions';
+import { CountdownTimer } from '@/components/escrow/CountdownTimer';
+import { fmtPrice } from '@/lib/format';
+
+function statusLabel(s: string): { label: string; tone: 'positive' | 'soon' | 'alert' | 'muted' } {
+  switch (s) {
+    case 'awaiting-funding':
+      return { label: 'Esperando fondeo', tone: 'soon' };
+    case 'funded':
+      return { label: 'Fondeado', tone: 'positive' };
+    case 'exchange-pending':
+      return { label: 'Intercambio pendiente', tone: 'soon' };
+    case 'exchange-confirmed':
+      return { label: 'Intercambio confirmado', tone: 'soon' };
+    case 'disputed':
+      return { label: 'En disputa', tone: 'alert' };
+    case 'completed':
+    case 'released':
+    case 'auto-released':
+      return { label: 'Liberado', tone: 'positive' };
+    case 'refunded':
+      return { label: 'Reembolsado', tone: 'muted' };
+    default:
+      return { label: s, tone: 'muted' };
+  }
+}
+
+export default async function EscrowDetailPage(props: {
+  params: Promise<{ escrowId: string }>;
+}) {
+  const { escrowId } = await props.params;
+  const escrow = await prisma.escrow.findUnique({
+    where: { id: escrowId },
+    include: {
+      buyer: { select: { id: true, displayName: true, pollarWalletId: true } },
+      seller: { select: { id: true, displayName: true, pollarWalletId: true } },
+      listing: { select: { id: true, title: true, type: true } },
+    },
+  });
+  if (!escrow) notFound();
+
+  const st = statusLabel(escrow.status);
+  const toneClass =
+    st.tone === 'positive'
+      ? 'verified'
+      : st.tone === 'alert'
+        ? 'warning-text'
+        : 'ai-price-signal market';
+
+  return (
+    <section style={{ maxWidth: 760 }}>
+      <Link href="/home" className="back-button" style={{ marginBottom: 20 }}>
+        <ArrowLeft />
+        Volver al dashboard
+      </Link>
+
+      <p className="eyebrow">ESCROW · PUMATRADE</p>
+      <h1
+        style={{
+          fontSize: 29,
+          letterSpacing: '-1px',
+          margin: '0 0 10px',
+          color: '#26364c',
+        }}
+      >
+        {escrow.listing.title}
+      </h1>
+
+      <div className="balance-card" style={{ minHeight: 160 }}>
+        <div className="balance-top">
+          <span>Monto del intercambio</span>
+          <Wallet />
+        </div>
+        <div className="balance-amount">P$ {fmtPrice(escrow.amountXlm)}</div>
+        <div className="balance-footer">
+          <span className={toneClass}>
+            {st.tone === 'alert' ? <ShieldAlert /> : <ShieldCheck />}
+            {st.label}
+          </span>
+          <CountdownTimer
+            targetDate={
+              escrow.confirmWindowExpiresAt ?? escrow.ttlExpiresAt ?? null
+            }
+            status={escrow.status}
+          />
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: 14,
+          margin: '20px 0',
+        }}
+      >
+        <div className="wallet-panel" style={{ marginTop: 0 }}>
+          <span>
+            <ShieldCheck />
+            <strong>{escrow.buyer.displayName}</strong>
+            <small>Comprador · {escrow.buyer.pollarWalletId.slice(0, 10)}…</small>
+          </span>
+          <span className="verified">
+            <ShieldCheck />
+            Verificado
+          </span>
+        </div>
+        <div className="wallet-panel" style={{ marginTop: 0 }}>
+          <span>
+            <ShieldCheck />
+            <strong>{escrow.seller.displayName}</strong>
+            <small>Vendedor · {escrow.seller.pollarWalletId.slice(0, 10)}…</small>
+          </span>
+          <span className="verified">
+            <ShieldCheck />
+            Verificado
+          </span>
+        </div>
+      </div>
+
+      {escrow.status === 'disputed' && (
+        <div className="detail-trust" style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}>
+          <ShieldAlert />
+          <span>
+            <strong>Disputa abierta</strong>
+            <small>
+              Un administrador revisará las evidencias de ambas partes antes
+              de resolver el escrow.
+            </small>
+          </span>
+          <Link href={`/escrow/${escrow.id}/report`}>
+            Ver reporte <ChevronRight />
+          </Link>
+        </div>
+      )}
+
+      <div style={{ marginTop: 24 }}>
+        <EscrowActions
+          escrow={{
+            id: escrow.id,
+            status: escrow.status,
+            amountXlm: escrow.amountXlm,
+            exchangeInitiatorId: escrow.exchangeInitiatorId,
+            buyerId: escrow.buyerId,
+            sellerId: escrow.sellerId,
+          }}
+        />
+      </div>
+
+      <p className="subcopy" style={{ marginTop: 24, fontSize: 11 }}>
+        ID: <code className="font-mono">{escrow.id}</code>
+        {escrow.listing.type && (
+          <>
+            {' '}• Tipo: <code className="font-mono">{escrow.listing.type}</code>
+          </>
+        )}
+      </p>
+    </section>
+  );
+}
