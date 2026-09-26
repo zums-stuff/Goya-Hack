@@ -42,20 +42,24 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Si type es calculadoras/laptops/etc.: ofrecer los top-N de ese tipo.
-    // Si no, top-N recientes.
+    // 2. Si el usuario mencionó tipo (calculadoras, libros…), NO aplicamos
+    //    búsqueda de "contains" porque el keyword ya es la palabra completa;
+    //    un contains extra haría fallar casos como "calculadoras" vs título
+    //    "Calculadora TI-89" (singular sin 's'). Si NO hay typeHint,
+    //    buscamos el texto libre contra title/description.
     const listings = await prisma.listing.findMany({
       where: {
         status: 'active',
-        ...(typeHint ? { type: typeHint } : {}),
-        ...(q.length >= 3
-          ? {
-              OR: [
-                { title: { contains: q, mode: 'insensitive' } },
-                { description: { contains: q, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
+        ...(typeHint
+          ? { type: typeHint }
+          : q.length >= 3
+            ? {
+                OR: [
+                  { title: { contains: q, mode: 'insensitive' } },
+                  { description: { contains: q, mode: 'insensitive' } },
+                ],
+              }
+            : {}),
       },
       take: 4,
       orderBy: { createdAt: 'desc' },
