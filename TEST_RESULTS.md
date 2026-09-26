@@ -89,8 +89,9 @@ DATABASE_URL='postgresql://...' npm run test
 - Vitest: 21 tests puros pasan (cifrado, fees, valuación)
 - Stellar testnet: roundtrip 1 XLM verificado on-chain
 - Next.js 16 build: compila y resuelve páginas
+- Next dev arranca en <500ms y sirve endpoints puros (`/api/price-alert` 200)
 
 **Lo que requiere las credenciales externas (Pollar dashboard, Neon DB) para validar end-to-end:**
 - 18 tests del state machine (regla #2, M5/V1, barter-puro, A5) — pendientes en cuanto el operador asigne DATABASE_URL.
-- HTTP e2e de las 20+ route handlers con auth real.
-- Multi-sig 2-de-2 release/refund firmado por platform + árbitro.
+- HTTP e2e de las 20+ route handlers con auth real (Pollar login + cookies firmadas).
+- Multi-sig 2-de-2 release/refund firmado por platform + árbitro con treasury real.
