@@ -21,7 +21,8 @@
     "demo:check": "tsx scripts/demo-check.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e:demo": "tsx scripts/e2e-demo.ts"
+    "e2e:demo": "tsx scripts/e2e-demo.ts",
+    "test:stellar": "tsx scripts/test-stellar-real.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",
