@@ -359,7 +359,7 @@ El TTL no arranca por un QR, una cámara o un gesto técnico. Arranca porque **l
 - **Plataforma + llave de arbitraje firman** (2-de-2, §4.1) → tx Stellar: escrow → vendedor (− comisión) + escrow → treasury (comisión)
 - Estado: `released`
 
-**Rama B — Auto-resolve (`GET /api/escrow/timeout-check`, llamado por cron cada 30s):**
+**Rama B — Auto-resolve (`GET /api/cron/timeout-check`, llamado por cron cada 30s):**
 - Encuentra escrows donde `ttlExpiresAt < NOW()` y status = `exchange-recorded`
 - **Plataforma + llave de arbitraje firman** con timestamp (verificable en el ledger de Stellar)
 - Tx Stellar: igual a Rama A
@@ -404,7 +404,7 @@ Visible en stellar.expert en el historial de ambas wallets.
 // app/api/escrow/record-exchange/route.ts POST — una parte registra el intercambio → awaiting-exchange
 // app/api/escrow/confirm-exchange/route.ts POST — la otra parte confirma → exchange-recorded + TTL
 // app/api/escrow/accept/route.ts         POST — Rama A: liberar al vendedor (resta comisión)
-// app/api/escrow/timeout-check/route.ts  GET  — cron: auto-resolve TTL vencidos
+// app/api/cron/timeout-check/route.ts   GET  — cron: auto-resolve TTL vencidos
 // app/api/escrow/dispute/route.ts        POST — Rama C: evidencia + congelar
 // app/api/escrow/cancel/route.ts         POST — reembolso antes del intercambio
 // app/api/disputes/route.ts              GET  — cola de disputas para admin
@@ -938,7 +938,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │   ├── home/page.tsx
 │   ├── marketplace/page.tsx
 │   ├── marketplace/[listingId]/page.tsx
-│   ├── offer/[listingId]/page.tsx
+│   ├── marketplace/[listingId]/offer/page.tsx
 │   ├── escrow/[escrowId]/page.tsx
 │   ├── escrow/[escrowId]/report/page.tsx
 │   ├── receipt/[escrowId]/page.tsx
@@ -946,7 +946,8 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │   ├── settings/page.tsx
 │   ├── admin/disputes/page.tsx
 │   └── api/
-│       ├── escrow/{accept-offer,fund,record-exchange,confirm-exchange,accept,timeout-check,dispute,cancel}/route.ts
+│       ├── escrow/{accept-offer,fund,record-exchange,confirm-exchange,accept,dispute,cancel}/route.ts
+│       └── cron/timeout-check/route.ts
 │       ├── disputes/route.ts
 │       ├── offers/route.ts
 │       ├── listings/route.ts
@@ -955,7 +956,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ├── components/{ListingCard,OfferCard,EscrowTimeline,FilterBar,WalletBadge,CountdownTimer,DisputeReasonPicker}.tsx
 ├── lib/
 │   ├── db.ts  pollar.ts  stellar.ts  fees.ts  validation.ts
-│   ├── escrow.ts
+│   ├── escrow.service.ts
 │   ├── cron.ts
 │   └── priceAlert/{referencePrices,engine}.ts
 ├── prisma/schema.prisma

@@ -35,7 +35,7 @@ Cada semestre los estudiantes gastan miles de pesos en activos académicos tempo
 | Frontend / App | Next.js **16.2.9** (App Router) + React **19.3.0** + TypeScript ^5.9 + Tailwind **4.3.3** |
 | Wallets embebidas | [`@pollar/react`](https://github.com/pollar-xyz/pollar) **0.11.3** + [`@pollar/core`](https://www.npmjs.com/package/@pollar/core) **0.11.3** |
 | Blockchain | Stellar (testnet) SDK **17.1.0** — escrow multi-sig 2-de-2 (plataforma + llave de arbitraje). Moneda nativa XLM (sin tokens). |
-| Estado local | Zustand 0.5.0 |
+| Estado local | Zustand 5.0.15 |
 | ORM | Prisma **7.10.0** + Neon Postgres (serverless) |
 | Validación | Zod 4 |
 

@@ -1,0 +1,157 @@
+// prisma/schema.prisma — PumaTrade
+// Fuente del QUÉ persistimos. Spec completa en ARCHITECTURE.md §4.
+// Prisma 7: provider="prisma-client", output a src/generated/prisma,
+// datasource via prisma.config.ts (no inline url). Driver adapter
+// PrismaNeon vive en src/generated/prisma/client.ts (generado).
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  displayName     String
+  major           String
+  bio             String
+  pollarWalletId  String   @unique
+  balanceXlm      Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  listings            Listing[]
+  offersMade          Offer[]           @relation("OffererOffers")
+  escrowsAsBuyer      Escrow[]          @relation("BuyerEscrows")
+  escrowsAsSeller     Escrow[]          @relation("SellerEscrows")
+  exchangeInitiated   Escrow[]          @relation("ExchangeInitiator")
+  exchangeConfirmed   Escrow[]          @relation("ExchangeConfirmer")
+  txLogs              TransactionLog[]
+  disputeReports      DisputeEvidence[]
+}
+
+model Listing {
+  id              String   @id @default(cuid())
+  sellerId        String
+  seller          User     @relation(fields: [sellerId], references: [id])
+  title           String
+  description     String
+  priceXlm        Int
+  type            String
+  majors          String
+  condition       String
+  photoUrl        String
+  videoVerified   Boolean  @default(false)
+  status          String   @default("active")
+  createdAt       DateTime @default(now())
+
+  offers          Offer[]
+  escrows         Escrow[]
+
+  @@index([status, type])
+  @@index([sellerId])
+}
+
+model Offer {
+  id              String   @id @default(cuid())
+  listingId       String
+  listing         Listing  @relation(fields: [listingId], references: [id])
+  offererId       String
+  offerer         User     @relation("OffererOffers", fields: [offererId], references: [id])
+  type            String
+  offeredItems    String?
+  xlmAmount       Int?
+  message         String?
+  status          String   @default("pending")
+  createdAt       DateTime @default(now())
+
+  escrow          Escrow?
+
+  @@index([listingId, status])
+}
+
+model Escrow {
+  id                      String   @id @default(cuid())
+  offerId                 String   @unique
+  offer                   Offer    @relation(fields: [offerId], references: [id])
+  listingId               String
+  listing                 Listing  @relation(fields: [listingId], references: [id])
+  buyerId                 String
+  buyer                   User     @relation("BuyerEscrows", fields: [buyerId], references: [id])
+  sellerId                String
+  seller                  User     @relation("SellerEscrows", fields: [sellerId], references: [id])
+  amountXlm               Int
+  barterValueXlm          Int?
+
+  stellarEscrowAccount    String
+  arbiterSecretEnc        String?
+  stellarTxHashFunding    String?
+  stellarTxHashRelease    String?
+  stellarMemoReceipt      String?
+
+  status                  String   @default("awaiting-funding")
+
+  exchangeInitiatorId     String?
+  exchangeInitiator       User?    @relation("ExchangeInitiator", fields: [exchangeInitiatorId], references: [id])
+  exchangeInitiatedAt     DateTime?
+  exchangeConfirmerId     String?
+  exchangeConfirmer       User?    @relation("ExchangeConfirmer", fields: [exchangeConfirmerId], references: [id])
+  exchangeConfirmedAt     DateTime?
+  confirmWindowExpiresAt  DateTime?
+  ttlExpiresAt            DateTime?
+
+  acceptedAt              DateTime?
+  autoReleasedAt          DateTime?
+  refundedAt              DateTime?
+  platformFeeXlm          Int      @default(0)
+
+  disputedAt              DateTime?
+  disputeReason           String?
+  disputeEvidenceHash     String?
+  disputePhotoUrl         String?
+
+  platformFeeBps          Int      @default(200)
+
+  createdAt               DateTime @default(now())
+
+  txLogs                  TransactionLog[]
+  disputes                DisputeEvidence[]
+
+  @@index([status])
+  @@index([status, ttlExpiresAt])
+  @@index([status, confirmWindowExpiresAt])
+  @@index([buyerId])
+  @@index([sellerId])
+}
+
+model DisputeEvidence {
+  id          String   @id @default(cuid())
+  escrowId    String
+  escrow      Escrow   @relation(fields: [escrowId], references: [id])
+  reporterId  String
+  reporter    User     @relation(fields: [reporterId], references: [id])
+  reason      String
+  description String
+  photoUrl    String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+
+  @@index([escrowId])
+}
+
+model TransactionLog {
+  id          String   @id @default(cuid())
+  escrowId    String
+  escrow      Escrow   @relation(fields: [escrowId], references: [id])
+  actorId     String
+  actor       User     @relation(fields: [actorId], references: [id])
+  action      String
+  metadata    String?
+  createdAt   DateTime @default(now())
+
+  @@index([escrowId, createdAt])
+}

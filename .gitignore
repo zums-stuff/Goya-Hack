@@ -40,3 +40,12 @@ Thumbs.db
 
 # --- Cobertura de tests ---
 coverage/
+
+# --- Prisma generado (se regenera con `prisma generate`) ---
+src/generated/
+
+# --- Disputas locales (dev; prod usa Vercel Blob) ---
+public/disputes/
+
+# --- Vercel ---
+.vercel/

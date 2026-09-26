@@ -16,6 +16,9 @@
 - **Pasada R1 (auditoría Spec/Estándares contra PRD v3.4):** PRD §4.5 firma 2-de-2 (Ramas A/B ahora plataforma+árbitro, no "+comprador"); §4.6 `feeCents` en centavos (floor); §10.3 env vars alineadas con ARCH §14; §10.4 quitado `network:'stellar'`, `SendModal` → `runTx` global; footer v3.4 + bloque de changelog v3.4; nuevo riesgo "suplantación vía sync" en §14 PRD. ARCH §6.4 deriva `KEY_ENC` (AES) y `KEY_COOKIE` (HMAC) del master con **HKDF-SHA256** (modos separados, mismo secret en env); §6.3 con nota de **reserva + residual** (~3 XLM quedan varados por escrow, `accountMerge` post-MVP) y memo `PT-{escrowIdShort}-{hash16}`; §6.5 wording fix (la cuenta "se queda con saldo mínimo", no "se cierra al refund"); §8.4 `accept-offer` con **`updateMany` condicional dentro del `$transaction`** + trueque puro (`amountXlm=0`) **nace en `funded`** (no muestra "Fondear 0 XLM"); §9.4 `/api/auth/sync` rechaza re-bind de wallet (409) si ya hay wallet ligada (cierra toma de cuenta por email); §12.1 tabla añade `pollarWalletId`; §7.2 trueque puro documentado; regla explícita `awaiting-funding` sin TTL (cero riesgo de dinero, cierre manual/reset-demo).
 - **Pasada R2 (consistencia interna):** cruces §X.Y todos resuelven (88 secciones); env vars PRD §10.3 vs ARCH §14 mismo set (18 vars); schema §4.1 ↔ código §8.4 fields consistentes; sin paths huérfanos. Cambios: composite indexes (`status, ttlExpiresAt` + `status, confirmWindowExpiresAt`) en `Escrow` para las 2 pasadas del cron §11.1.
 - **Pasada R3 (auditoría adversarial de seguridad):** 4 hallazgos Alta y 5 Media. Mitigaciones aplicadas: (1) `accept-offer` ahora re-ordenado — el create Stellar sigue ANTES de la tx con updateMany condicional (la alternativa “dentro de tx” no es posible por la naturaleza de Stellar), documentado como decisión; el reset-demo limpia huérfanos. (2) §12.1 tabla con matriz de vulnerabilidades (mail.tm injection, dev-login guard, cookie revocation, Stellar orphan, rate-limit, MIME server-side, IDOR /api/escrow/[id], idempotencia release, CORS LAN, validación `NEXT_PUBLIC_PLATFORM_FEE_BPS` al arrancar). (3) §12.2 Zod refine — `barter` rechaza `xlmAmount` distinto de `undefined` (cierra `barter con xlmAmount=0` inválido). (4) §12.5 CORS-LAN bajo `if (NODE_ENV !== 'production')`. (5) §12.6 `validateEvidenceFile()` con magic byte sniffing (no `File.type` del cliente). (6) §8.3 dev-login con DOBLE GUARDA: `DEV_LOGIN_ENABLED !== 'true'` **o** `NODE_ENV === 'production'` → 404. (7) §6.3 idempotencia de release con `updateMany({ id, stellarTxHashRelease: null })` antes de firmar. (8) §8.4 ejemplo de código con guards DENTRO del `$transaction` + trueque puro. Razonamientos explícitos: cookie sin revocación server-side y rate-limit son **aceptados como riesgo demo MVP** con nota §12.1 + TODO post-MVP.
+- **Hotfix post-verificadores (V1 + V2):** (V2-A5) estado `disputed` ya NO está frozen — §8.3 PATCH `/api/disputes/[id]` se implementa dentro del MVP con guard por `ADMIN_EMAILS` (admin decide release o refund). (V2-M2b) `lib/config.ts` arranco con fail-fast si `NODE_ENV=production && ALLOW_RESET_DEMO=true` o `DEV_LOGIN_ENABLED=true`. (V1-M1) Idempotencia de REFUND en §6.3 (mismo updateMany que release). (V1-M2) `record-exchange` reescrito en §7.3 con `updateMany` condicional a `status='funded'` + `count===1`. (V1-M3) `releaseEscrow` y `refundEscrow` en §6.3 ramifican explícitamente: si `amountCents === 0` (trueque puro) NO se incluyen ops de pago (sería inválido en Stellar). (V2-B1b) Dispute endpoint con guard `409 dispute_already_open` si ya hay DisputeEvidence; foto inmutable. (V2-B2) Memo on-chain explicado: 16 hex chars cabe en `Memo.text` 28-byte max; `Memo.hash` con 32 bytes es post-MVP. (V1-B4/5/6/7/8) Path drift corregido: timeout-check ahora en PRD §4.8 = `/api/cron/timeout-check`; offer page = `app/marketplace/[listingId]/offer/page.tsx`; service file = `lib/escrow.service.ts`. README zustand 0.5.0 → 5.0.15.
+- **Bloque 0 — Scaffolding (1h inicial):** package.json con versiones pinned (§3.1) + tsconfig + next.config + .env.example + .nvmrc + prisma/schema + prisma.config + lib/{db,crypto,config,server-keypair,stellar,fees,errors,schemas,seed-data,pollar,escrow.service,cron,cron-dev,evidence-storage} + prisma/seed + scripts/capture-wallets + instrumentation + app/{layout,page,globals.css} + components/auth/LoginButton.
+
 
 **Changelog v1.2 (2026-09-25):**
 - **Decisión 8 — el dinero es XLM nativo** (no PumaDolar/USDC): sin emisor, sin trustlines, sin distribución de tokens. En DB todo es `Int` centavos de XLM (1 XLM = 100 centavos), doctrina de dinero en §4.2. Fondeo de seed vía `POST /v1/wallets/fund` con XLM. Enum `pollar-only` → `saldo-only`.
@@ -735,6 +738,10 @@ const releaseOp2 = Operation.payment({
 
 // 5. REFUND (cancelación antes de intercambio confirmado)
 // Multi-sig con 2 firmas (platform + árbitro): escrow → buyer (monto completo, centsToXlm(amountXlm))
+// ⚠️ **Idempotencia del refund (cierre M2b/V1):** antes de firmar Stellar, el caller debe
+// ejecutar `tx.escrow.updateMany({ where: { id, status: { in: ['awaiting-funding','funded','awaiting-exchange'] }, stellarTxHashRelease: null }, data: { stellarTxHashRelease: hash, status: 'refunded' }})` DENTRO de la misma `$transaction`.
+// Si el primer write ya puso el hash, count=0 → abort sin firmar. Misma regla #2 de §7.3
+// aplicada a refund — evita que dos cancelaciones concurrentes firmen 2 refunds dobles.
 
 // 6. ANCLAJE DE EVIDENCIA DE DISPUTA (Rama C)
 // Server-side: firman PLATFORM + ÁRBITRO (§6.2) — ya congelado, solo la app decide el desenlace.
@@ -795,7 +802,23 @@ export async function releaseEscrow(params: {
   return { hash: response.hash };
 }
 
+// ⚠️ **⚠️ Trueque puro (amountXlm = 0 → amountCents = 0):** NO incluir ops de pago
+// en la release. Un `Operation.payment({ amount: '0.0000000' })` es **inválido** en
+// Stellar y la tx falla en Horizon. La función `releaseEscrow()` debe ramificar:
+//   if (amountCents === 0) {
+//     // skip operations; la tx queda con cero ops (solo seteamos el source si hace falta)
+//     // útil: anclar un memo de "released-via-barter" para audit
+//   } else { /* ops originales */ }
+// Ver implementación esperada en `lib/stellar.ts` `releaseEscrowWithBarterGuard`.
+// Lo mismo aplica al refund (`refundEscrow()`): barter puro no fondea nada, refund
+// tampoco.
+
 // ⚠️ **Idempotencia de release (mitigación M5 de §12.7):** antes de firmar, el caller
+// DEBE ejecutar `EscrowService` con un `tx.escrow.updateMany({ where: { id, stellarTxHashRelease: null }, data: { stellarTxHashRelease: hash, status: 'released' } })`.
+// Si el primer write ya puso el hash (otro request ya firmó), count=0 → abort sin
+// firmar Stellar. Sin esta regla, dos clicks concurrentes del boton "Aceptar artículo"
+// firmarían dos release y enviarían dos tx a Horizon — la segunda falla con fees perdidos.
+// (Regla #2 de §7.3 aplicada al caso concreto del release.)
 // DEBE ejecutar `EscrowService` con un `tx.escrow.updateMany({ where: { id, stellarTxHashRelease: null }, data: { stellarTxHashRelease: hash, status: 'released' } })`.
 // Si el primer write ya puso el hash (otro request ya firmó), count=0 → abort sin
 // firmar Stellar. Sin esta regla, dos clicks concurrentes del boton "Aceptar artículo"
@@ -994,39 +1017,38 @@ import { prisma } from './db';
 export class EscrowService {
   static async recordExchange(escrowId: string, actorId: string) {
     return prisma.$transaction(async (tx) => {
-      const escrow = await tx.escrow.findUniqueOrThrow({
+      // ⚠️ Regla #2 (§7.3): el updateMany condicional serializa contra el cron y
+      // contra otro record-exchange concurrente. El update "sin condición" del
+      // ejemplo anterior perdía: dos requests pasaban ambos el `status !== 'funded'`
+      // y el segundo sobreescribía `exchangeInitiatorId` con un id equivocado.
+      const lookup = await tx.escrow.findUniqueOrThrow({
         where: { id: escrowId },
-        include: { buyer: true, seller: true },
+        include: { buyer: { select: { id: true } }, seller: { select: { id: true } } },
       });
-
-      if (escrow.status !== 'funded') {
-        throw new EscrowInvalidTransition(
-          `Cannot record exchange from status ${escrow.status}`
-        );
-      }
-
-      const isBuyer = actorId === escrow.buyerId;
-      const isSeller = actorId === escrow.sellerId;
-      if (!isBuyer && !isSeller) {
+      if (lookup.buyer.id !== actorId && lookup.seller.id !== actorId) {
         throw new EscrowForbidden('Solo buyer o seller pueden registrar el intercambio');
       }
 
-      const updated = await tx.escrow.update({
-        where: { id: escrowId },
+      const lock = await tx.escrow.updateMany({
+        where: { id: escrowId, status: 'funded' },
         data: {
           status: 'awaiting-exchange',
           exchangeInitiatorId: actorId,
           exchangeInitiatedAt: new Date(),
           // Ventana de confirmación (CONFIRM_WINDOW_MINUTES: demo 10 / prod 8h).
-          // Si expira sin confirm ni dispute → cron autoCancela → refund al buyer.
           confirmWindowExpiresAt: addMinutes(new Date(), confirmWindowMinutes()),
         },
       });
+      if (lock.count !== 1) {
+        throw new EscrowInvalidTransition(
+          `Cannot record exchange: ya está en estado no-fundable (otro request ganó la carrera)`
+        );
+      }
 
+      const updated = await tx.escrow.findUniqueOrThrow({ where: { id: escrowId } });
       await tx.transactionLog.create({
         data: { escrowId, actorId, action: 'exchange-initiated' },
       });
-
       return updated;
     });
   }
@@ -1180,7 +1202,7 @@ export async function requireUser() {
 | Método | Path | Input | Output |
 |---|---|---|---|
 | `GET` | `/api/disputes` | — | `{ disputes: DisputeEvidence[] }` |
-| `PATCH` | `/api/disputes/[id]` | `{ status: 'resolved' \| 'rejected' }` | `{ dispute }` (fuera de scope MVP, documentado) |
+| `PATCH` | `/api/disputes/[id]` | `{ status: 'resolved' \| 'rejected' }` | `{ dispute }` (admin manual — ver §11.5). En MVP se usa para **resolver una disputa que el reporter disparó por error** (Rama C de §7.2): el admin fir­ma refund o release manualmente con platform+árbitro. |
 
 #### Valoration (price alert)
 
@@ -2287,15 +2309,18 @@ Resultado de la pasada R3 (auditoría adversarial contra el blueprint). Severida
 |---|---|---|---|
 | A1 | **Suplantación de seed user vía mail.tm.** Las direcciones `maria.pumatrade+seed1@mail.tm` etc. son impersonables — un atacante externo puede crear las mismas en mail.tm y robar el OTP de email si los inboxes no están pre-creados y aislados antes del demo. | Alta | **Procedimiento pre-demo (§15 paso 10):** el implementador Crea LOS 5 INBOXES EN MAIL.TM en T-2h y conserva las credenciales de cada uno. El primer login de cada seed es la **ventana de bind** — el `pollarWalletId` se vincula por el bind de §9.4 (si un atacante externo entra después, recibe 409 al re-bind porque su wallet ≠ la del seed). Razonamiento: el seed está protegido por wallet binding; pero la OTP inicial es lo único que roba el atacante externo antes del bind. **No automatizable.** |
 | A2 | **`/api/auth/dev-login` se vuelve bypass en prod** si Vercel no setea `NODE_ENV=production` o un middleware lo sobreescribe. | Alta | **Doble guarda (§8.3):** el handler responde 404 si `DEV_LOGIN_ENABLED !== 'true'` **o** si `NODE_ENV === 'production'`. Solo la combinación las dos negaciones (config explícita Y entorno de dev) lo habilita. |
+| A5_nuevo | **`disputed` frozen forever.** Si durante el demo (o un run de prueba) alguien dispara Rama C, el escrow queda en `disputed` sin ninguna ruta de salida en el MVP — buyer no recupera, seller no cobra, listing no vuelve a `active`. El subagente V2 flageó esto como Alta. | Alta | **Mitigación (Bloque 7):** se implementa `/api/admin/disputes/[id]` PATCH (admin guard por `ADMIN_EMAILS`) que permite al admin decidir `release` o `refund` y firmar la tx correspondiente con platform+árbitro. **Esta endpoint estaba listada en §8.3 como "fuera de scope MVP" — se trae al MVP por ser la única ruta de escape (§11.5 §sub-doc).**|
 | A3 | **Cuenta Stellar huérfana** si la DB tx post-create falla entre `createEscrowAccount()` y el `$transaction` en §8.4. | Alta | **Documentado y aceptado (§6.3, §7.2, §11.5):** testnet es gratis; el `reset-demo` limpia huérfanos. En prod cada huérfano deja ~3 XLM varados; mitigación `accountMerge` post-MVP. Razonamiento: la alternativa "crear Stellar DENTRO del Prisma `$transaction`" no es posible porque Stellar `submitTransaction()` espera confirmación sincrónica de Horizon (≈3–5 s) que excede el timeout de una Prisma tx serverless, y porque el create del Escrow row necesita el `publicKey` devuelto. |
 | A4 | **Cookie sin revocación server-side.** Si un atacante la copia (XSS, LAN sniffer), la usa hasta 7d. No hay DB de sesiones. | Alta | **Aceptado demo:** HMAC firmado (§6.4 con HKDF), maxAge 7d, `httpOnly` + `Secure` en prod. **Post-MVP:** tabla `Session` con `expiresAt` + `revokedAt`. El implementador puede agregar el modelo en una migración futura. |
 | M1 | **Bypass semántico en ofertas:** un atacante postea `{type:'barter', xlmAmount:0}` (en vez de `undefined`) — el server antes lo aceptaba y generaba escrow en barter puro disfrazado de saldo. | Media | **Cerrado (§12.2):** Zod `refine()` exige `tipo → xlmAmount` correcto: barter ⇒ `undefined`; saldo-only/hybrid ⇒ `> 0`. |
 | M2 | **Sin rate-limit en auth/sync/dev-login.** Permite brute-force de emails. | Media | **Aceptado demo.** Vercel Edge Config con limit de ~10 req/min/IP es la opción post-MVP (Bloque 2). |
+| M2b | **`ALLOW_RESET_DEMO=true` en prod + `CRON_SECRET` filtrado** permite borrar toda la DB. | Media | **Fail-fast al arrancar (`lib/config.ts`):** si `NODE_ENV === 'production' && ALLOW_RESET_DEMO === 'true'` → throw con mensaje `"remove ALLOW_RESET_DEMO in production"`. El endpoint sigue presente en prod (con CRON_SECRET) pero la flag lo apaga explícitamente. Doble negación: `ALLOW_RESET_DEMO !== 'true'` para activar. |
 | M3 | **MIME de evidencia falsificable** (`File.type` viene del cliente, un atacante puede setear `image/jpeg` a un `.exe`). | Media | **Cerrado (§12.6):** `validateEvidenceFile()` usa **sniffing de magic bytes** del buffer (FF D8 FF / 89 50 4E 47 / RIFF…WEBP), no el header del File. Magic bytes son robustos a renombre. |
 | M4 | **IDOR en `GET /api/escrow/[id]`** — si el implementador olvida el guard, cualquier usuario autenticado ve el detalle de un escrow ajeno. | Media | **Guard documentado (§8.3 + §8.4 patrón):** `if (escrow.buyerId !== user.id && escrow.sellerId !== user.id) throw new ApiError(403, ...)`. El mismo patrón aplica a `receipt/[id]` (§10.4) y `escrow/[id]/report`. |
 | M5 | **Doble firma de release (replay).** Si dos requests accept llegan exactamente al mismo tiempo, ambos firman y envían release. La segunda tx falla en Horizon (cuenta vaciada), pero pierde fees y deja estado inconsistente. | Media | **Cerrado (§6.3):** `EscrowService.accept`/`autoResolve` usan `tx.escrow.updateMany({ where: { id, stellarTxHashRelease: null }, data: { stellarTxHashRelease: <hash>, status: 'released/auto-released' } })` DENTRO del `$transaction` antes de firmar Stellar. Si el primer write ya puso el hash, el segundo updateMany tiene count=0 → abort sin firmar. **Regla #2 de §7.3** en acción. |
 | M6 | **CORS-LAN IP filtrada a producción.** Si por error queda, cualquier dispositivo LAN accede a la API. | Media | **Guard (§12.5):** la IP solo se agrega al array de allowed origins si `NODE_ENV !== 'production'`. Documentado en línea explícita. |
 | B1 | **`NEXT_PUBLIC_PLATFORM_FEE_BPS` malformado** → `Number()` retorna NaN → `feeCents()` calcula mal → fee flotante roto. | Baja | **TODO en `lib/config.ts` (Bloque 0):** validar al arrancar que sea entero positivo entre 0 y 10000 (100%). Fail-fast si no. Aceptado no implementarlo en el commit del MVP — pero el bloque debe quedar listo antes de cualquier release del MVP. |
+| B1b | **Re-submit de foto de disputa** después de haber anclado el hash en Stellar deja inconsistencia: hash en DB ≠ hash on-chain. | Baja | **Regla en rama C (§7.3 + Bloque 7):** el endpoint `/api/escrow/dispute` rechaza con 409 si `Escrow.status === 'disputed'` (o si ya existe `DisputeEvidence` para ese escrow). Una vez ancla­do en Stellar, la foto es inmutable off-chain. |
 | B2 | **Vercel Blob URLs públicas.** Las fotos de disputa quedan en `/disputes/{escrowId}.jpg` accesibles sin auth. | Baja | **Aceptado demo:** la URL no es enumerable públicamente en flujo normal (escrowId es cuíd, 25 chars). En prod, usar signed URLs con expiración corta (post-MVP); el `put()` ya soporta `{ access: 'private' }`. |
 | B3 | **Memorias de memo on-chain** (`PT-{escrowIdShort}-{hash16}`) no son únicas por diseño — un replay manual es bloqueado por el tx hash guard (M5), pero dos escrows con mismo id teóricamente podrían chocar. | Baja | `escrowId` es `cuid()` (25 chars random, 36^25 espacio) — colisión astronómicamente improbable. Documentado. |
 
