@@ -3,7 +3,9 @@
 // al login del usuario); solo verifica que la captura dev-helper hizo bien su
 // trabajo.
 
-import 'dotenv/config';
+import { loadEnvOnce } from '../lib/load-env';
+loadEnvOnce();
+
 import { Horizon } from '@stellar/stellar-sdk';
 
 const HORIZON = 'https://horizon-testnet.stellar.org';

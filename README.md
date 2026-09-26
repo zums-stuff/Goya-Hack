@@ -20,7 +20,8 @@ Todo se mueve en **Lumens (XLM)**, la moneda nativa de la red **Stellar** (testn
 # 1. Setup
 nvm use                                # Node 22 LTS
 npm install
-cp .env.example .env.local             # rellenar vars (ver §14 de ARCHITECTURE.md)
+npm run setup:env                      # genera .env.local + fondea treasury testnet (2 cuentas friendbot)
+npm run db:up                          # levanta Postgres local en Docker (puerto 5433)
 npx prisma migrate dev --name init     # crea tablas
 npm run db:seed                        # siembra 5 users + 10 listings + 4 offers
 
@@ -47,7 +48,7 @@ npm run capture:wallets                # valida las 5 wallets seed en Horizon
 | Wallets embebidas | [`@pollar/react`](https://github.com/pollar-xyz/pollar) **0.11.3** + [`@pollar/core`](https://www.npmjs.com/package/@pollar/core) **0.11.3** |
 | Blockchain | Stellar (testnet) SDK **17.1.0** — escrow multi-sig 2-de-2 (plataforma + llave de arbitraje). Moneda nativa XLM (sin tokens). |
 | Estado local | Zustand 5.0.15 |
-| ORM | Prisma **7.10.0** + Neon Postgres (serverless) |
+| ORM | Prisma **7.10.0** + Postgres (local Docker en dev · serverless en prod) |
 | Validación | Zod 4.6.5 |
 | Cron | `setInterval` 30s en dev (`instrumentation.ts`) · Vercel Cron 1 min en prod |
 

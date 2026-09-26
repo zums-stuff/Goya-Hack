@@ -12,11 +12,12 @@ Todas las versiones fijadas en `package.json` existen en npm:
 
 ### 2. Instalación limpia (`npm install`)
 - 932 MB node_modules, 0 errores, 0 vulnerabilidades críticas
+- Driver adapter: `@prisma/adapter-neon` + `@neondatabase/serverless` **removidos** → `@prisma/adapter-pg` + `pg` (funciona con cualquier Postgres)
 - RESULTADO: ✅
 
 ### 3. Prisma generate (`npx prisma generate`)
 - Cliente generado en `src/generated/prisma/client`
-- Schema válido para Prisma 7 (sin PrismaNeon adapter en schema; url en prisma.config.ts para Migrate)
+- Schema válido para Prisma 7 (sin adapter en schema; url en prisma.config.ts para Migrate)
 - RESULTADO: ✅
 
 ### 4. TypeScript strict (`npx tsc --noEmit`)
@@ -25,73 +26,75 @@ Todas las versiones fijadas en `package.json` existen en npm:
 - RESULTADO: ✅
 
 ### 5. Next.js production build (`next build`, Turbopack)
-- Compiled successfully in 8.0s
-- TypeScript en 6.4s
-- Recolección de páginas: éxito para `/` y rutas estáticas. Las rutas que importan `lib/server-keypair.ts` fallan con mock secret (SAAAA…), pero pasan con secret real de fundbot (checksum Stellar correcto).
+- Compiled successfully en 8.0s; TypeScript en 6.4s
+- Las rutas que importan `lib/server-keypair.ts` pasan con secret real de friendbot (checksum Stellar correcto)
 - RESULTADO: ✅ (con secret real)
 
-### 6. Vitest — tests puros sin DB (21/21 passed)
-- `lib/crypto.test.ts` (7): AES-GCM roundtrip + IVs no colisionan + tag manipulación detectada + cookie forgery rechazado
-- `lib/fees.test.ts` (9): floor + HACKATHON_FREE_FEES + edge cases + roundtrip cents↔XLM
-- `lib/priceAlert.test.ts` (5): fair/overpriced/underpriced/no_reference
-- Bug encontrado y fix: `lib/fees.ts` leía `env.HACKATHON_FREE_FEES` const al init del módulo. Refactor a leer `process.env` por llamada → permite toggling limpio en tests (y en runtime si hace falta).
-- RESULTADO: ✅ `npm run test`
+### 6. Postgres local en Docker (`npm run db:up`)
+- Contenedor `pumatrade-db` (postgres:16) en `localhost:5433` (evita chocar con un Postgres existente en 5432)
+- `npx prisma migrate dev --name init` → migration `20260926035051_init` aplicada ✅
+- `npm run db:seed` → 5 users · 10 listings · 4 offers ✅; `npm run demo:check` → saldos exactos (1,250/2,000/800/500/1,800 XLM) ✅
+- RESULTADO: ✅ — el seed y el demo-check corren en el Postgres real
 
-### 7. Vitest — tests DB-dependent (0/18 ejecutados, infraestructura lista)
-- `lib/__tests__/escrow-service.test.ts`: 18 tests que cubren regla #2 updateMany+count===1 en TODA transición + idempotencia M5/V1 + barter-puro skip ops + foto inmutable B1b + admin resolve A5.
-- Mocks: lib/stellar stub completo (sin server-keypair init invalid checksum).
-- DB_AVAILABLE detection: `lib/__tests__/setup.ts:isDbReachable` hace `prisma.$queryRaw SELECT 1`. Si falla, describe.skipIf reactiva salta todos los 18 describes.
-- RESULTADO: ⏸️ **Requiere `DATABASE_URL` apuntando a Postgres real** (Neon test branch o local). Correr con: `DATABASE_URL='postgresql://...' npx prisma migrate deploy && npm run test` cuando el operador lo setea.
-- Lo que se rompe sin DB: nada — describe.skipIf los marca pending.
+### 7. Vitest — suite completa (39/39 passed)
+- **21 puros** — `lib/crypto.test.ts` (7): AES-GCM roundtrip + IVs no colisionan + tag manipulación detectada + cookie forgery rechazado; `lib/fees.test.ts` (9): floor + `HACKATHON_FREE_FEES` per-call + edge cases + roundtrip cents↔XLM; `lib/priceAlert.test.ts` (5): fair/overpriced/underpriced/no_reference.
+- **18 DB-dependent** (`lib/__tests__/escrow-service.test.ts`) — **ahora corren contra el Postgres real** (`DB_AVAILABLE` = próbe `SELECT 1` contra la DB local):
+  - Regla #2: `updateMany` condicional + `count === 1` en TODA transición (aceptar, cancel, recordExchange, confirmExchange, autoResolve, dispute, adminResolve) + carrera doble-solicitud → exactamente 1 gana.
+  - Idempotencia M5/V1: release/refund repetidos con `stellarTxHash` ya set → no re-firma en Stellar (spy del stub).
+  - Trueque puro (`amountXlm=0`): `accept` no llama a `releaseEscrowWithBarterGuard` (skip ops de pago).
+  - B1b: foto de evidencia inmutable tras subir la disputa. A5: admin resolve release/refund con listing → sold/active.
+  - Fees: `HACKATHON_FREE_FEES=false` + `FEE_BPS=200` → `platformFeeXlm=600` en 30,000 cents (2%).
+- Fixes aplicados durante la pasada: `setup.ts` ya no importa lib/db estáticamente (ESM hoisting rompía el orden de `process.env` — ahora `loadEnvOnce()` + imports dinámicos); tests A5 abren la disputa vía `EscrowService.dispute()` real (antes insertaban DisputeEvidence a mano y el escrow nunca llegaba a `disputed`).
+- RESULTADO: ✅ `npm run test` → **39 passed, 0 failed**
 
 ### 8. Stellar cycle end-to-end (`npm run test:stellar`)
 - Sin CLI de Stellar — usa `@stellar/stellar-sdk 17.1.0` directo + friendbot HTTP.
-- Pasos verificados (corre real en Horizon testnet ahora):
-  1. `Keypair.random()` → Alice/Bob
-  2. `friendbot fund` cada uno → 10000 XLM
-  3. `Horizon.loadAccount` → balance verificado
-  4. `TransactionBuilder.build().sign().submitTransaction` con `Operation.payment` 1 XLM
-  5. Verificación por deltas de balance: Bob +1, Alice −1.00001 (= 1 + fee ~0.00001)
-- RESULTADO: ✅ — el mismo patrón que `lib/stellar.ts.releaseEscrow` ejecuta en producción funciona end-to-end.
+- 1. `Keypair.random()` → Alice/Bob; 2. `friendbot fund` → 10000 XLM; 3. `loadAccount` balance verificado; 4. `TransactionBuilder` + `Operation.payment` 1 XLM; 5. Deltas: Bob +1, Alice −1.00001.
+- RESULTADO: ✅ — mismo patrón que `lib/stellar.ts.releaseEscrow` ejecuta en producción.
+
+### 9. HTTP live (`next dev` + curl con DB real)
+- `npm run dev` → Ready in 546ms, carga `.env.local` (incluida `DATABASE_URL` real).
+- `POST /api/price-alert` → 200 `{"verdict":"underpriced","fairPriceCents":80000,"actualCents":200,"deltaPct":-100}` (catálogo de referencia real).
+- `GET /api/listings` → 200 con los **10 listings del seed** (Bata blanca, TI-89, …) leídos del Postgres local.
+- `GET /api/cron/timeout-check` con `Authorization: Bearer $CRON_SECRET` → 200 `{"released":0,"autoCancelled":0}` (cron corrió contra la DB real).
+- `GET /api/auth/dev-login` → 405 (POST-only); `POST` → 404 (doble guard: `DEV_LOGIN_ENABLED !== 'true'`); `GET /api/auth/me` sin cookie → 200 `{"user":null}`.
+- RESULTADO: ✅
 
 ## ⏸️ Diferido (depende del usuario)
 
-### 9. Suite DB completa
-- Los 18 tests del state machine (lib/__tests__/escrow-service.test.ts) requieren Postgres real.
-- Acción del usuario: setear DATABASE_URL apuntando a Neon test branch y correr `npm run test`.
-
-### 10. Suite HTTP end-to-end
-- Verificado parcialmente (2026-09-26): next dev arranca en 489ms; los endpoints puros (`/api/price-alert` 200 con JSON correcto) responden. Los que tocan DB (`/api/auth/me` con cookie, `/api/listings`, etc.) muestran la validación de env fallando por mi mock `G-address` de 58 chars (regex pide 56). Con un G-address real de friendbot, todos pasan.
-- Acción del usuario: tras crear Pollar dashboard + Neon + treasury real, levantar `npm run dev` y curl los endpoints clave.
+### 10. HTTP e2e con auth real (Pollar + cookies)
+- Se probó el shape de endpoints puros y DB-backed. El flujo completo de login (mail.tm OTP → wallet Pollar → session cookie) requiere los 5 inboxes de mail.tm + apps en dashboard.pollar.xyz (Usuarios + Operacional).
+- Acción del usuario: crear Pollar dashboard + 5 mail.tm inboxes, loguearse, correr `npm run capture:wallets`.
 
 ### 11. Bills reales de release/refund en escrow multi-sig 2-de-2
 - `lib/stellar.ts:releaseEscrowWithBarterGuard` ejecuta el mismo patrón probado en (8) pero con 2 firmantes multi-sig + cuenta escrow pre-creada. No probado con una cuenta multi-sig real.
-- Acción del usuario: tras crear treasury real, correr `npm run test:stellar:escrow` (a crear) que crea una cuenta 2-de-2 con createAccount + setOptions + submitea 2 firmas.
+- Acción del usuario: tras fondear treasury real (ya fondeada por `npm run setup:env`), correr `npm run test:stellar:escrow` (a crear) que crea una cuenta 2-de-2 con createAccount + setOptions + submitea 2 firmas.
 
 ## Comandos que el usuario puede correr
 
 ```bash
-# 1. Verificaciones instantáneas (sin credenciales externas):
-npm run test          # 21 vitest pasa
-npm run test:stellar  # 1 roundtrip Stellar real ✓
-npx tsc --noEmit      # 0 errores TS ✓
-npx next build        # 0 errores ✓
+# 1. Infra DB local (Docker) + semilla
+npm run db:up          # levanta pumatrade-db en localhost:5433
+npx prisma migrate dev # idempotente una vez aplicado
+npm run db:seed        # 5 users + 10 listings + 4 offers
 
-# 2. Postgres-backed tests:
-DATABASE_URL='postgresql://...' npx prisma migrate deploy
-DATABASE_URL='postgresql://...' npm run test
+# 2. Verificaciones completas
+npm run test           # 39 vitest pasa (21 puros + 18 DB contra Postgres local)
+npm run demo:check     # valida seed + saldos exactos
+npm run test:stellar   # 1 roundtrip Stellar real
+npx tsc --noEmit       # 0 errores TS
+npx next build         # 0 errores
 ```
 
 ## Resumen ejecutivo
 
-**Lo que compila y corre sin intervención del usuario:**
-- TypeScript strict 100%
-- Vitest: 21 tests puros pasan (cifrado, fees, valuación)
-- Stellar testnet: roundtrip 1 XLM verificado on-chain
-- Next.js 16 build: compila y resuelve páginas
-- Next dev arranca en <500ms y sirve endpoints puros (`/api/price-alert` 200)
+**Lo que compila y corre sin cuentas externas:**
+- TypeScript strict 100% + build Next 16 OK
+- Vitest **39/39**: cifrado, fees, valuación + el state machine completo del escrow contra Postgres local en Docker (regla #2, idempotencia M5/V1, trueque puro, disputa A3/A5)
+- Stellar testnet: roundtrip 1 XLM verificado on-chain + treasury fondeada
+- HTTP live con DB real: listings del seed, price-alert, cron timeout-check
+- `npm run setup:env` autogenera `.env.local` (pares checksum-válidos + treasury fondeada + `DATABASE_URL` local)
 
-**Lo que requiere las credenciales externas (Pollar dashboard, Neon DB) para validar end-to-end:**
-- 18 tests del state machine (regla #2, M5/V1, barter-puro, A5) — pendientes en cuanto el operador asigne DATABASE_URL.
-- HTTP e2e de las 20+ route handlers con auth real (Pollar login + cookies firmadas).
-- Multi-sig 2-de-2 release/refund firmado por platform + árbitro con treasury real.
+**Lo que requiere el usuario (dashboard Pollar + mail.tm):**
+- Login end-to-end de los 5 seed users (OTP mail.tm) → captura de `SEED_WALLET_IDS`
+- Multi-sig 2-de-2 release/refund firmado por platform + árbitro con treasury real

@@ -915,8 +915,8 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
     "@stellar/stellar-sdk": "17.1.0",
     "tailwindcss": "4.3.3", "@tailwindcss/postcss": "4.3.3", "postcss": "8.5.6",
     "zustand": "5.0.15", "zod": "4.6.5",
-    "@prisma/client": "7.10.0", "@prisma/adapter-neon": "7.10.0",
-    "@neondatabase/serverless": "1.1.0", "@vercel/blob": "2.8.0",
+    "@prisma/client": "7.10.0", "@prisma/adapter-pg": "^7.10.0",
+    "pg": "^8.23.0", "@vercel/blob": "2.8.0",
     "lucide-react": "1.48.0", "date-fns": "4.4.0"
   },
   "devDependencies": {
@@ -978,8 +978,8 @@ PLATFORM_PUBLIC_KEY=G...
 PLATFORM_SECRET_KEY=S...
 # === Cifrado llave árbitro + firma cookies (openssl rand -hex 32) ===
 APP_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-# === DB (Neon Postgres; misma string en dev y prod) ===
-DATABASE_URL=postgresql://...
+# === DB (Postgres: local Docker dev / serverless prod) ===
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
 DEMO_TTL_MINUTES=3                  # demo: 3 min; producción: omitir (default 2880)

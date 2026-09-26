@@ -7,6 +7,7 @@
 **Relacionado:** [`PRD.md`](PRD.md) v3.4 define QUÉ construimos. Este doc define CÓMO.
 
 **Changelog v1.3 (2026-09-25):**
+- **Decisión 12 — Postgres local con Docker (dev) / serverless (prod):** el driver adapter pasa de `@prisma/adapter-neon` a **`@prisma/adapter-pg`** (driver `pg` estándar) — funciona con CUALQUIER Postgres (localhost, Neon, Supabase, Railway). Solo cambia `DATABASE_URL`. Dev: `npm run db:up` levanta `pumatrade-db` en `localhost:5433` (evita chocar con un Postgres 5432 existente). `lib/load-env.ts` es el cargador compartido de `.env.local` para CLI/seed/Prisma config. Vitest: los 18 tests del state machine corren contra el Postgres real (`DB_AVAILABLE` probe); `setup.ts` ya no importa lib/db estáticamente (ESM hoisting rompía el orden de `process.env`).
 - **Decisión 9 — escrow 2-de-2 plataforma + árbitro:** verificado en docs.pollar.xyz que la llave del comprador vive en el AWS KMS de Pollar y su SDK solo firma txs que él mismo construye — el comprador NO puede firmar la release/refund del escrow. El escrow pasa a signers = PLATFORM + ÁRBITRO por-escrow (secret encriptada en DB con AES-256-GCM, §6.4). UI/estados no cambian.
 - **Decisión 10 — ventana de confirmación:** `awaiting-exchange` expira por cron (`CONFIRM_WINDOW_MINUTES`) → auto-cancel → refund completo al buyer. También se permite `cancel` manual en ese estado. Ya no existe ningún estado congelado para siempre.
 - **Decisión 11 — 1 escrow por listing + estado `Pendiente`:** aceptar oferta pone el listing en `pending` (no acepta más ofertas, 409 si intentan); al release → `sold`; al refund → `active` y la oferta vuelve a `pending`.
@@ -26,7 +27,7 @@
 
 **Changelog v1.1 (2026-09-25):**
 - **Decisión 6 — pila actualizada:** Next 16 + React 19 + Tailwind 4 + Prisma 7 + Stellar SDK 17 + Zod 4 (TS 5.x). Todos los ejemplos de código re-verificados contra APIs reales (verificadas 2026-09-25 en npm, context7 y docs oficiales).
-- **Decisión 7 — deploy a Vercel:** Neon Postgres (adiós SQLite), Vercel Cron (1 min) + setInterval dev, fotos de evidencia en Vercel Blob (+ hash en Stellar).
+- **Decisión 7 — deploy a Vercel:** Postgres (local Docker en dev, serverless en prod), Vercel Cron (1 min) + setInterval dev, fotos de evidencia en Vercel Blob (+ hash en Stellar).
 - **Correcciones:** numeración duplicada §6.4/§6.5; `cookies()` async; `Horizon.Server`; distribución reclamable de Pollar en lugar de fundeo manual; dispute = multipart, no base64.
 
 ---
@@ -57,7 +58,7 @@ PumaTrade es una app Next.js con tres roles principales:
 **Tres capas físicas:**
 1. **Frontend (Next.js + React)** — corre en el teléfono/navegador del estudiante. Usa `@pollar/react` para login, send, history.
 2. **Backend (Next.js API routes)** — corre en Node. Usa `@pollar/core` (server-side) + Stellar SDK directo para operaciones que Pollar no expone (crear cuentas multi-sig, multi-sig release, cron de auto-resolve).
-3. **Persistencia (Prisma + Postgres serverless / Neon)** — misma DB en dev y prod. Solo guarda el estado de la app (listings, offers, escrows, logs); los fondos viven en Stellar.
+3. **Persistencia (Prisma + Postgres)** — local Docker en dev (`npm run db:up`), serverless en prod. Misma DB en dev y prod. Solo guarda el estado de la app (listings, offers, escrows, logs); los fondos viven en Stellar.
 
 **Tres redes:**
 - **Stellar testnet** — donde realmente se mueven los fondos: **Lumens (XLM) nativos de testnet**. Sin emisor, sin trustlines.
@@ -114,15 +115,15 @@ PumaTrade es una app Next.js con tres roles principales:
          │                               │
          ▼                               ▼
    ┌──────────────┐             ┌────────────────────────────────┐
-   │  Neon        │             │  External services:            │
-   │  Postgres    │             │  ├─ Pollar Server API (/v2)    │
-   │  (serverless)│             │  ├─ Stellar testnet Horizon    │
+   │  Postgres    │             │  External services:            │
+   │  (local      │             │  ├─ Pollar Server API (/v2)    │
+   │  Docker 5433)│             │  ├─ Stellar testnet Horizon    │
    └──────────────┘             │  ├─ Vercel Blob (fotos eviden.) │
                                 │  └─ Vercel Cron (timeout, 1min)│
                                 └────────────────────────────────┘
 ```
 
-> **v1.1:** `dev.db (SQLite)` → **Neon Postgres**; el cron pasa de "runs every 30s (in-process)" a dev 30s / prod 1 min (Vercel Cron); se agrega **Vercel Blob** para evidencia en prod.
+> **v1.1:** `dev.db (SQLite)` → **Postgres** (local Docker en dev via `npm run db:up`, serverless en prod); el cron pasa de "runs every 30s (in-process)" a dev 30s / prod 1 min (Vercel Cron); se agrega **Vercel Blob** para evidencia en prod.
 
 > **v1.2 (2026-09-25, pasada 2 — decisiones del equipo):** la moneda pasa de **PumaDolar (P$, respaldado por USDC testnet) a Lumens (XLM) nativos de testnet** — sin emisor, sin trustlines, sin token distribution. Todas las cantidades en DB son `Int` **centavos de XLM** (conversión exacta a stroops en la frontera). El tipo de oferta `pollar-only` se renombra a `saldo-only` ("solo saldo"). Se unifica el esquema de IDs en **`cuid()`** (fuera `nanoid`). Las ofertas por listing son **públicas y no reservan el listing**: al cancelar un escrow, la oferta vinculada vuelve a `pending`. El fundeo seed usa la **Server API `POST /v1/wallets/fund`** (XLM) en vez de distribution rules.
 
@@ -162,10 +163,10 @@ Verificadas contra npm registry el 2026-09-25:
     "date-fns": "4.4.0",
     "lucide-react": "1.48.0",
 
-    // DB (Postgres serverless)
+    // DB (Postgres — local Docker en dev, serverless en prod)
     "@prisma/client": "7.10.0",
-    "@prisma/adapter-neon": "7.10.0",
-    "@neondatabase/serverless": "1.1.0",
+    "@prisma/adapter-pg": "^7.10.0",  // driver pg estándar: cualquier Postgres
+    "pg": "^8.23.0",
 
     // Almacenamiento de evidencia en prod
     "@vercel/blob": "2.8.0"
@@ -176,6 +177,7 @@ Verificadas contra npm registry el 2026-09-25:
     // TS 6/7 existen pero Next 16 aún las soporta con fricción — NO subir.
     "typescript": "^5.9",
     "@types/node": "^22",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
@@ -192,7 +194,7 @@ Verificadas contra npm registry el 2026-09-25:
 | **`next@16.2.9` es la última estable** | `cookies()` y `params` de Route Handlers son **async** (`await cookies()`, `await params`). Nada de Next 14. |
 | **React 19 + `@pollar/react@0.11.3`** | Peer dep `react >=18` ✅. No hay conflictos. |
 | **Stellar SDK 17** | Las operaciones `Operation.payment/setOptions/manageData/createAccount` **conservan la API** que este doc usa; cambia el namespace: `StellarSdk.Server` → `Horizon.Server`, `loadAccount()` es async, importa `BASE_FEE` y `Networks.TESTNET` (sigue existiendo). |
-| **Prisma 7** | Ya no hay `datasource url = "file:..."` en el schema con SQLite-first: ahora `provider = "postgresql"` + `url = env("DATABASE_URL")`, configuración en `prisma.config.ts`, generator `provider = "prisma-client"` con `output` a carpeta local (`src/generated/prisma`), y **driver adapter** (`PrismaNeon`) para serverless. No usar `@prisma/client` directo con engineType Rust si deployas en Vercel. |
+| **Prisma 7** | Ya no hay `datasource url = "file:..."` en el schema con SQLite-first: ahora `provider = "postgresql"` + `url = env("DATABASE_URL")`, configuración en `prisma.config.ts`, generator `provider = "prisma-client"` con `output` a carpeta local (`src/generated/prisma`), y **driver adapter** `@prisma/adapter-pg` (driver `pg` estándar — cualquier Postgres: local Docker, Neon, Supabase, Railway). No usar `@prisma/client` directo con engineType Rust si deployas en Vercel. |
 | **Tailwind 4** | CSS-first: `@import "tailwindcss"` en `app/globals.css`, **sin** `tailwind.config.js`. `create-next-app` con `--tailwind` ya lo scaffoldea. |
 | **Zod 4** | API mayormente compatible con 3.x para lo que usamos. `z.enum`, `z.object`, `z.string()` sin cambios. |
 | **TypeScript** | Usar 5.x (la de create-next-app). TS 6/7 existen (7.0.2 hoy) pero no vale el riesgo en 24h. |
@@ -200,7 +202,7 @@ Verificadas contra npm registry el 2026-09-25:
 ### 3.2 Lo que NO usamos (y por qué)
 
 - ❌ **Soroban / smart contracts reales** — para un MVP de 24h no vale la pena. Multi-sig nativo de Stellar cumple el rol con menos código.
-- ❌ **SQLite** — con deploy a Vercel usamos **Postgres serverless (Neon)** desde el día 1. Mismo desarrollo local, misma DB en prod: cero migración sorpresa el día del demo.
+- ❌ **SQLite** — el resto del stack (Vercel serverless) necesita una DB de red. Usamos **Postgres** desde el día 1: local Docker en dev (`npm run db:up`) y serverless en prod. Mismo desarrollo local, misma DB en prod: cero migración sorpresa el día del demo.
 - ❌ **NextAuth / Clerk** — Pollar ya da auth social via OAuth + email OTP.
 - ❌ **TanStack Query / SWR** — Zustand + `refreshBalance()` cubren el caso. El estado es chico.
 - ❌ **Storybook / Vitest / Playwright** — fuera del scope de 24h. Tests son nice-to-have, no bloqueantes para el demo.
@@ -213,8 +215,8 @@ Verificadas contra npm registry el 2026-09-25:
 - **Node 22 LTS** (Next 16 requiere ≥ 20.9; la máquina de dev ya tiene Node 26 y funciona, pero Vercel usa 22 — alinear). `.nvmrc` con `"22"`.
 - **Package manager:** npm (Pollar SDK lo publica en npm; sin yarn/pnpm complexities).
 - **Entornos:**
-  - **Dev local:** `npm run dev` — mismo código que prod, contra la misma Neon DB (rama `dev` de Neon).
-  - **Prod:** Vercel (Next standard). DB → Neon Postgres. Cron → Vercel Cron. Fotos → Vercel Blob.
+  - **Dev local:** `npm run db:up` (Postgres Docker en `localhost:5433`) + `npm run dev` — mismo código que prod, contra el mismo esquema.
+  - **Prod:** Vercel (Next standard). DB → Postgres serverless (Neon/Supabase/Railway). Cron → Vercel Cron. Fotos → Vercel Blob.
   - **Alternativa Railway:** Railway Postgres + Railway Cron (mismo `DATABASE_URL`, mismo endpoint de cron). El código no cambia.
 - **Sistema de archivos:** todo bajo `/home/zum/Documents/GOYAHACK/`. Seed data en módulo compartido `lib/seed-data.ts` (ver §13.1).
 
@@ -414,7 +416,7 @@ model TransactionLog {
 **Por qué `majors` y `offeredItems` son JSON strings y no relaciones:**
 - Las majors del catálogo son un set fijo (8 valores). Si fueran relación, añadir una nueva major requeriría migración + seed + UI.
 - Los items ofertados en trueques son **títulos libres** ("Mi laptop vieja"), no listings del catálogo. No tiene sentido referenciarlos.
-- Postgres (Neon) sí tiene tipo JSON nativo, pero lo mantenemos como **string serializado** para que `createMany` del seed y los helpers sean idénticos en dev/prod y sin conversiones implícitas de Prisma. Si sobra tiempo, migrar a `Json` es trivial.
+- Postgres sí tiene tipo JSON nativo, pero lo mantenemos como **string serializado** para que `createMany` del seed y los helpers sean idénticos en dev/prod y sin conversiones implícitas de Prisma. Si sobra tiempo, migrar a `Json` es trivial.
 
 **Por qué `platformFeeBps` está snapshot en el escrow:**
 - Si mañana cambiamos `PLATFORM_FEE_BPS` de 200 a 250, los escrows viejos siguen cobrando el fee original.
@@ -2075,7 +2077,7 @@ export async function GET(req: NextRequest) {
 ### 11.4 Alternativa Railway (si el equipo prefiere Railway sobre Vercel)
 
 - Railway hace deploy del mismo repo (Next standalone). Un segundo servicio "cron" ejecuta `node scripts/schedule-cron.mjs` que hace `fetch('http://localhost:3000/api/cron/timeout-check')` cada 30s, o se usa Railway Cron (misma granularidad de 1 min).
-- Postgres de Railway reemplaza a Neon con el mismo `DATABASE_URL`.
+- Postgres de Railway reemplaza al hosting local/serverless con el mismo `DATABASE_URL`.
 
 ### 11.5 Reset demo
 
@@ -2347,17 +2349,13 @@ export default defineConfig({
 ```
 
 ```typescript
-// lib/db.ts — cliente compartido con driver adapter (Neon, serverless-friendly)
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { PrismaNeon } from '@prisma/adapter-neon';
+// lib/db.ts — cliente compartido con driver adapter (pg estándar: cualquier Postgres)
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@/generated/prisma/client';
 
-neonConfig.poolConnectionTimeoutMillis = 30000;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
-const adapter = new PrismaNeon(pool);
-
-export const prisma = new PrismaClient({ adapter });
+export const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
+});
 ```
 
 ```typescript
@@ -2433,7 +2431,7 @@ main().catch((e) => { console.error(e); process.exit(1); }).finally(() => prisma
 
 ## 14. Variables de entorno
 
-> **v1.1:** `DATABASE_URL` es Postgres (Neon), se agregaron `CRON_SECRET` y `BLOB_READ_WRITE_TOKEN` para el deploy. Nada de SQLite.
+> **v1.1:** `DATABASE_URL` es Postgres (local Docker en dev / serverless en prod), se agregaron `CRON_SECRET` y `BLOB_READ_WRITE_TOKEN` para el deploy. Nada de SQLite.
 
 ```bash
 # .env.local — ejemplo
@@ -2451,8 +2449,10 @@ PLATFORM_SECRET_KEY=SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # === Cifrado del árbitro (AES-256-GCM; openssl rand -hex 32) ===
 APP_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
-# === Base de datos (Neon Postgres; misma string en dev y prod) ===
-DATABASE_URL=postgresql://user:pass@ep-xxxx-pooler.us-east-1.aws.neon.tech/pumatrade?sslmode=require
+# === Base de datos (Postgres — local Docker dev; cualquier serverless en prod) ===
+# Dev: npm run db:up (scripts/db-up.sh, contenedor pumatrade-db, puerto 5433).
+# Prod: Neon/Supabase/Railway — solo cambia esta línea.
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable
 
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
@@ -2510,7 +2510,7 @@ Una sola persona hace esto ANTES de que el equipo empiece a codear. Tiempo estim
 4. [ ] Generar API keys app Operacional (`sec_testnet_ops_…`; la publishable no se usa)
 5. [ ] Crear **treasury manual** (fuera de Pollar): `stellar keys generate platform-treasury --network testnet --fund` (o laboratorio.stellar.org) → guardar secret en `.env.local` como `PLATFORM_SECRET_KEY`, nunca al repo
 6. [ ] Fondear treasury con XLM testnet vía friendbot (`https://friendbot.stellar.org/?addr=G…`) → confirmar saldo XLM en stellar.expert
-7. [ ] Crear **Neon Postgres** (neon.tech, free tier) → branch main; copiar `DATABASE_URL` (pooler) a `.env.local`
+7. [ ] Postgres local: `npm run db:up` (Docker, `localhost:5433`, contenedor `pumatrade-db`); `DATABASE_URL` ya viene en `.env.local` generado por `npm run setup:env`. En prod se apunta a un serverless (Neon/Supabase/Railway) con la misma línea
 8. [ ] (Opcional) Crear proyecto Vercel y conectar repo (deploy inicial automático en T+0)
 
 **T-2h (seed wallets + arranque):**
@@ -2533,9 +2533,9 @@ Cada bloque = ~2-4 horas de trabajo para 1 implementador. El bloque 1 y 2 son lo
 
 ### Bloque 0 — Scaffolding (1h)
 - `npm create next-app@latest . --typescript --tailwind --app` (Next 16 + React 19 + Tailwind 4 ya integrados)
-- Instalar dependencias del §3.1 (incluye `@prisma/adapter-neon`, `@neondatabase/serverless`, `@vercel/blob`)
+- Instalar dependencias del §3.1 (incluye `@prisma/adapter-pg`, `pg`, `@vercel/blob`)
 - Crear `.gitignore` (Next.js lo hace; agregar `.env.local`, `src/generated/`, `public/disputes/`)
-- Setup Prisma 7: `prisma.config.ts`, `schema.prisma` (`provider = "postgresql"`, generator `prisma-client` con `output = "../src/generated/prisma"`), `lib/db.ts` con `PrismaNeon`
+- Setup Prisma 7: `prisma.config.ts`, `schema.prisma` (`provider = "postgresql"`, generator `prisma-client` con `output = "../src/generated/prisma"`), `lib/db.ts` con `PrismaPg`; `lib/load-env.ts` para CLI/seed
 - Migración inicial: `npx prisma migrate dev --name init`
 - Clonar estructura de carpetas de §9.1 (app/, components/, lib/, stores/, hooks/)
 
@@ -2665,7 +2665,7 @@ Para que el implementador verifique que no nos dejamos nada:
 | 4 | **Foto de evidencia**: SHA256 anclado en Stellar `manageData` + foto en **Vercel Blob (prod) / disco local (dev)** | §4.1 (campos), §6.3 (op 6), §6.5, §12.6 (`lib/evidence-storage.ts`), §8.3 (dispute multipart) |
 | 5 | **Correos temporales** (mail.tm) para los 5 seed users; Google opcional para usuarios reales | §5.4 (provider dual), §9.4 (`LoginButton` con ambos flujos), §5.2 setup |
 | 6 | **Pila actualizada a la última generación**: Next 16 + React 19 + Tailwind 4 + Prisma 7 + Stellar SDK 17 + Zod 4 (TS 5.x) | §3.1 (matriz + tabla de compatibilidad), todos los ejemplos de código re-verificados |
-| 7 | **Deploy a Vercel** (Railway como alternativa): Neon Postgres, Vercel Cron (1 min), Vercel Blob | §3.2, §3.3, §11 (cron dev/prod), §12.6 (fotos), §14 (env vars), §15 (paso 17), §16 (Bloque 8) |
+| 7 | **Deploy a Vercel** (Railway como alternativa): Postgres serverless (dev: local Docker), Vercel Cron (1 min), Vercel Blob | §3.2, §3.3, §11 (cron dev/prod), §12.6 (fotos), §14 (env vars), §15 (paso 17), §16 (Bloque 8) |
 | 8 | **Moneda = Lumens (XLM) nativos de testnet; todas las cantidades en `Int` centavos** | §4.1 (schema), §4.2 (doctrina de dinero), §6.6, §8.3/§8.4, §12.2, §13.3, §15 |
 | 9 | **Escrow 2-de-2 PLATAFORMA + ÁRBITRO** (v3.4). El comprador NO es signer: su llave vive en el AWS KMS de Pollar, sin API de firma ajena (verificado 2026-09-25). Toda transición on-chain se firma con las 2 llaves server-side | §6.2, §6.3, §6.4 (`lib/crypto.ts`), §7.3, §8.4 |
 | 10 | **Ventana de confirmación** en `awaiting-exchange` (`CONFIRM_WINDOW_MINUTES`) → al expirar, cron auto-cancela → refund completo al buyer. `cancel` también permitido en ese estado | §4.1 (`confirmWindowExpiresAt`), §7.2, §11.1, §14, PRD §4.3/§4.4 |

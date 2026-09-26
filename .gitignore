@@ -49,3 +49,5 @@ public/disputes/
 
 # --- Vercel ---
 .vercel/
+# TypeScript build cache
+*.tsbuildinfo

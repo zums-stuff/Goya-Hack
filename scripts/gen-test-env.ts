@@ -71,18 +71,14 @@ async function main(): Promise<void> {
   // Email admin is arbitrary but must be a valid email.
   const adminEmail = 'admin@pumatrade.local';
 
-  // DATABASE_URL: NO la escribimos con un placeholder falso. Si la pusiera
-  // algo tipo `postgres:postgres@127.0.0.1`, Prisma tira P1000 (creds fake)
-  // al primer migrate/seed, y el operador pierde tiempo debuggeando.
-  //
-  // En lugar de eso, dejamos la línea comentada y el operador la pega de
-  // su fuente de verdad (Neon.tech console, Docker local, etc.).
-  const databasePlaceholder =
-    '# Reemplaza con tu DATABASE_URL real (Neon console → "Connection string"):\n' +
-    '#   postgres://user:pass@host/db?sslmode=require\n' +
-    '#   o local sin TLS:\n' +
-    '#   postgres://user:pass@localhost:5432/pumatrade\n' +
-    'DATABASE_URL=';
+  // DATABASE_URL: apunta al Postgres local de Docker que levanta
+  // `npm run db:up` (scripts/db-up.sh, puerto 5433 por defecto para no
+  // chocar con un Postgres existente en 5432). Si prefieres otro hosting
+  // (Neon/Supabase/Railway en la nube, o un local distinto), solo cambia
+  // esta línea — el resto del stack es idéntico.
+  const databaseUrl =
+    process.env.PT_DATABASE_URL ??
+    'postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable';
 
   const envContent = `# Generado por scripts/gen-test-env.ts — verificado ✅ friendbot funded 2 accounts.
 # ⚠️ NO USAR EN PRODUCCIÓN. Las keys de Stellar son de testnet (gratis).
@@ -99,8 +95,12 @@ PLATFORM_SECRET_KEY=${platformMaster.secret()}
 # === Crypto ===
 APP_SECRET_KEY=${appSecretKey}
 
-# === Postgres — PEGA TU URL ABAJO ===
-${databasePlaceholder}
+# === Postgres local (Docker) ===
+# Levanta la DB con:  npm run db:up
+# Para usar otro host (Neon/Supabase/Railway), cambia solo esta línea.
+DATABASE_URL=${databaseUrl}
+# Puerta del contenedor: 5433 (definida en scripts/db-up.sh, editable vía
+# PT_DB_PORT). Si tu máquina ya tiene algo en 5433, ajusta ambos.
 
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200

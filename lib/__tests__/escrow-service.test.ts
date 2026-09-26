@@ -59,6 +59,10 @@ beforeEach(async () => {
   await cleanDb();
   releaseSpy.mockClear();
   refundSpy.mockClear();
+  // Control explícito del entorno de fees: este archivo asume fees ACTIVOS
+  // (el .env.local generado trae HACKATHON_FREE_FEES=true para el demo).
+  process.env.HACKATHON_FREE_FEES = 'false';
+  process.env.NEXT_PUBLIC_PLATFORM_FEE_BPS = '200';
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -122,7 +126,9 @@ describe('recordExchange', () => {
     // Esperar a que esté awaiting-exchange primero
     await EscrowService.recordExchange(escrow.id, buyer.id);
 
-    await expect(EscrowService.recordExchange(escrow.id, buyer.id)).rejects.toThrow(/Cannot|invalid|transición/i);
+    await expect(EscrowService.recordExchange(escrow.id, buyer.id)).rejects.toThrow(
+      /no-fundable|estado|transición|carrera/i,
+    );
   });
 });
 
@@ -409,16 +415,8 @@ describe('adminResolve (A5)', () => {
     const listing = await seedListing(seller);
     const offer = await seedOffer(listing, buyer, { xlmAmount: 30_000, status: 'accepted' });
     const escrow = await seedExchangeRecorded({ buyer, seller, listing, offer });
-    const dispute = await prisma.disputeEvidence.create({
-      data: {
-        escrowId: escrow.id,
-        reporterId: buyer.id,
-        reason: 'item-damaged',
-        description: 'Defectuoso',
-        photoUrl: '/d/h.jpg',
-        status: 'pending',
-      },
-    });
+
+    // 1. Abrir la disputa de verdad (crea DisputeEvidence + pasa a disputed).
     await EscrowService.dispute({
       escrowId: escrow.id,
       reporterId: buyer.id,
@@ -429,9 +427,12 @@ describe('adminResolve (A5)', () => {
       photoUrl: '/d/photo.jpg',
       photoHash: 'hashX',
       stellarAnchorTxHash: 'anchorX',
-    }).catch(() => {}); // el primer dispute ya fue arriba con solar, así que esto será 409 — esperado.
-    // Re-construimos el state: sabemos que está disputed.
+    });
+    const dispute = await prisma.disputeEvidence.findFirstOrThrow({
+      where: { escrowId: escrow.id },
+    });
 
+    // 2. Admin resuelve → release.
     const r = await EscrowService.adminResolve({
       disputeId: dispute.id,
       adminId: seller.id, // cualquier admin
@@ -451,16 +452,8 @@ describe('adminResolve (A5)', () => {
     const listing = await seedListing(seller);
     const offer = await seedOffer(listing, buyer, { xlmAmount: 30_000, status: 'accepted' });
     const escrow = await seedExchangeRecorded({ buyer, seller, listing, offer });
-    const dispute = await prisma.disputeEvidence.create({
-      data: {
-        escrowId: escrow.id,
-        reporterId: buyer.id,
-        reason: 'item-damaged',
-        description: 'Defectuoso',
-        photoUrl: '/d/h.jpg',
-        status: 'pending',
-      },
-    });
+
+    // 1. Abrir la disputa de verdad.
     await EscrowService.dispute({
       escrowId: escrow.id,
       reporterId: buyer.id,
@@ -471,8 +464,12 @@ describe('adminResolve (A5)', () => {
       photoUrl: '/d/photo.jpg',
       photoHash: 'hashY',
       stellarAnchorTxHash: 'anchorY',
-    }).catch(() => {});
+    });
+    const dispute = await prisma.disputeEvidence.findFirstOrThrow({
+      where: { escrowId: escrow.id },
+    });
 
+    // 2. Admin resuelve → refund.
     const r = await EscrowService.adminResolve({
       disputeId: dispute.id,
       adminId: seller.id,
