@@ -22,7 +22,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e:demo": "tsx scripts/e2e-demo.ts",
-    "test:stellar": "tsx scripts/test-stellar-real.ts"
+    "test:stellar": "tsx scripts/test-stellar-real.ts",
+    "setup:env": "tsx scripts/gen-test-env.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "1.1.0",
