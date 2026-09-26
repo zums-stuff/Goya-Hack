@@ -5,7 +5,7 @@
 // Si DB_AVAILABLE es false (no hay Postgres alcanzable), los describe salta
 // con describe.skipIf — los tests puros (crypto/fees/priceAlert) corren igual.
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe as vitestDescribe, it, expect, beforeEach, vi } from 'vitest';
 import { DB_AVAILABLE, cleanDb } from './setup';
 
 // Mock lib/stellar SIN vi.importActual — si importáramos actual,
@@ -47,7 +47,7 @@ const {
 
 // `describe` se reasigna a `describe.skip` cuando la DB no está disponible.
 // Para evitar errores de conexión en CI sin Postgres.
-const describe = DB_AVAILABLE ? vitest.describe : (vitest.describe as typeof vitest.describe).skip;
+const describe = DB_AVAILABLE ? vitestDescribe : (vitestDescribe.skip as typeof vitestDescribe);
 
 // Re-import vitest namespace para los demás hooks.
 import * as vitest from 'vitest';

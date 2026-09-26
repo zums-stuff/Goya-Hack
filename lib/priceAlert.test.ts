@@ -7,7 +7,6 @@ describe('lib/priceAlert (sin DB)', () => {
 
   beforeAll(async () => {
     process.env.APP_SECRET_KEY = 'a'.repeat(64);
-    process.env.NODE_ENV = 'test';
     process.env.DATABASE_URL = 'postgresql://x:x@127.0.0.1/x?sslmode=disable';
     process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY = 'pk';
     process.env.POLLAR_USERS_SECRET_KEY = 'sk';

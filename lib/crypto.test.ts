@@ -15,7 +15,6 @@ describe('lib/crypto (sin DB)', () => {
 
   beforeAll(async () => {
     process.env.APP_SECRET_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-    process.env.NODE_ENV = 'test';
     process.env.HACKATHON_FREE_FEES = 'true';
     process.env.NEXT_PUBLIC_PLATFORM_FEE_BPS = '200';
     process.env.DATABASE_URL = 'postgresql://x:x@127.0.0.1/x?sslmode=disable';
@@ -55,7 +54,9 @@ describe('lib/crypto (sin DB)', () => {
     const ivs = new Set<string>();
     for (let i = 0; i < 100; i++) {
       const blob = encryptSecret(plain);
-      const iv = blob.split(':')[2];
+      const parts = blob.split(':');
+      const iv = parts[2];
+      if (typeof iv !== 'string') throw new Error(`Formato inválido: ${blob}`);
       ivs.add(iv);
     }
     expect(ivs.size).toBe(100);

@@ -105,12 +105,12 @@ async function main(): Promise<void> {
   }
 
   // 3. Alice envía 1 XLM a Bob.
-  const txHash = await step('Alice → Bob 1 XLM', async () =>
-    payment({ source: alice, destination: bob.publicKey(), amountXlm: '1' }).then((h) => {
-      console.log(`     tx hash: ${h}`);
-      return h;
-    }),
-  );
+  let txHash = '';
+  await step('Alice → Bob 1 XLM', async () => {
+    const h = await payment({ source: alice, destination: bob.publicKey(), amountXlm: '1' });
+    txHash = h;
+    console.log(`     tx hash: ${h}`);
+  });
 
   // 4. Verificar que Bob recibió 1 XLM de más y Alice 1 menos (aprox
   //    descontando fees).
