@@ -160,6 +160,18 @@ CRON_SECRET=${appSecretKey.slice(0, 32)}
 `;
 
   writeFileSync('.env.local', envContent);
+
+  // Dev-login 1-click para los 5 seed users — solo next dev. El archivo
+  // .env.development.local NO se carga en next build ni en Vercel, así que
+  // defensa-en-profundidad (§12.7 A2): si la flag llega a prod, el endpoint
+  // devuelve 404 (NODE_ENV check).
+  writeFileSync(
+    '.env.development.local',
+    '# Solo next dev. Habilita /api/auth/dev-login (1-click por seed user).\n' +
+      '# Defensa-en-profundidad: el endpoint también chequea NODE_ENV!==prod.\n' +
+      'DEV_LOGIN_ENABLED=true\n',
+  );
+
   console.log('\n✅ .env.local escrito con:');
   console.log('   - PLATFORM_PUBLIC_KEY válida (pasa regex /lib/config.ts)');
   console.log('   - PLATFORM_SECRET_KEY con checksum Stellar válido');

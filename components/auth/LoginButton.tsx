@@ -1,17 +1,8 @@
-// components/auth/LoginButton.tsx — Login 100% vía UI nativa de Pollar.
+// components/auth/LoginButton.tsx — CTA que abre el modal nativo de Pollar.
 //
-// Flujo (§9.4):
-//   1. El usuario toca "Iniciar sesión" → abre el MODAL nativo de Pollar
-//      (`openLoginModal()`): Google y email-OTP, estilizado desde el
-//      dashboard (theme/accentColor/logo personalizados en dashboard.pollar.xyz).
-//   2. Pollar autentica → `isAuthenticated` + `wallet` disponibles.
-//   3. POST /api/auth/sync { pollarWalletId, email, displayName } → crea/actualiza
-//      User + fundea wallet seed + setea cookie de sesión.
-//   4. Tras sincronizar, se muestra el `WalletButton` de Pollar (saldo, send,
-//      historial, logout) en vez de un botón custom.
-//
-// NUNCA re-implementamos botones de login a mano — la UI la da Pollar.
-// Esta pantalla solo orquesta: abrir el modal y sincronizar al backend.
+// Cuando está deshabilitado (por env faltante), muestra el motivo como texto
+// de ayuda. La sesión activa renderiza el WalletButton de Pollar (saldo/send/
+// logout). Sin sesión: dispara openLoginModal().
 
 'use client';
 
@@ -25,11 +16,14 @@ type AuthState =
   | { kind: 'authenticated'; email: string; address: string }
   | { kind: 'error'; message: string };
 
-export function LoginButton({ needsSetup }: { needsSetup: boolean }) {
+type Props = { disabledReason?: string };
+
+export function LoginButton({ disabledReason }: Props) {
   const router = useRouter();
   const { wallet, isAuthenticated, openLoginModal, configStatus, getClient } = usePollar();
   const [state, setState] = useState<AuthState>({ kind: 'idle' });
   const syncedAddress = useRef<string | null>(null);
+  const disabled = disabledReason != null;
 
   // Sincroniza al backend cuando Pollar confirma la sesión.
   useEffect(() => {
@@ -73,7 +67,7 @@ export function LoginButton({ needsSetup }: { needsSetup: boolean }) {
           router.refresh();
         }
       } catch (e) {
-        syncedAddress.current = null; // permitir reintento si falla
+        syncedAddress.current = null;
         if (!cancelled) {
           setState({ kind: 'error', message: (e as Error).message });
         }
@@ -85,55 +79,43 @@ export function LoginButton({ needsSetup }: { needsSetup: boolean }) {
     };
   }, [isAuthenticated, wallet, router]);
 
-  // ── Keys de Pollar sin configurar: CTA que lleva a la guía ──────────
-  if (needsSetup) {
-    return (
-      <div data-testid="login-button" className="flex flex-col items-center gap-3">
-        <button
-          onClick={() =>
-            document.getElementById('pollar-guide')?.scrollIntoView({ behavior: 'smooth' })
-          }
-          className="w-full rounded-xl bg-white/10 px-6 py-3.5 text-base font-semibold text-white ring-1 ring-inset ring-white/20 transition hover:bg-white/15"
-        >
-          Configura Pollar para entrar
-        </button>
-        <p className="text-xs text-slate-400 text-center">
-          Faltan las keys del dashboard. Mira la guía ⬇ — dice exactamente qué pegar
-          en <code className="font-mono text-sky-200">.env.local</code>.
-        </p>
-      </div>
-    );
-  }
-
-  // ── Sesión activa: wallet nativa de Pollar ───────────────────────────
+  // ── Sesión activa ───────────────────────────────────────────────────
   if (state.kind === 'authenticated') {
     return (
-      <div data-testid="login-button" className="flex flex-col items-center gap-3 w-full max-w-sm">
-        <p className="text-sm text-slate-300">
-          Sesión activa — <span className="font-mono text-xs">{state.email}</span>
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-xs text-slate-500">
+          Sesión activa — <span className="font-mono">{state.email}</span>
         </p>
         <WalletButton />
       </div>
     );
   }
 
-  // ── Idle / syncing ───────────────────────────────────────────────────
   const busy = state.kind === 'syncing' || configStatus === 'loading';
+
+  // ── Botón principal ─────────────────────────────────────────────────
   return (
-    <div data-testid="login-button" className="flex flex-col items-center gap-2 w-full max-w-sm">
+    <div className="flex flex-col items-center gap-2">
       <button
         onClick={openLoginModal}
-        disabled={busy}
-        className="w-full rounded-xl bg-[var(--color-primary)] px-6 py-3.5 text-base font-semibold text-[var(--color-primary-foreground)] shadow-[0_10px_30px_-10px_rgba(59,130,246,0.7)] transition hover:brightness-110 disabled:opacity-50"
+        disabled={disabled || busy}
+        className="w-full rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
       >
-        {state.kind === 'syncing' ? 'Conectando tu wallet…' : configStatus === 'loading' ? 'Cargando Pollar…' : 'Iniciar sesión con Pollar'}
+        {state.kind === 'syncing'
+          ? 'Conectando…'
+          : configStatus === 'loading'
+            ? 'Cargando Pollar…'
+            : 'Iniciar sesión con Pollar'}
       </button>
-      <p className="text-xs text-slate-400">
-        Google o código por email · Wallet Stellar segura, sin seed phrases
-      </p>
-
+      {disabledReason ? (
+        <p className="text-[11px] text-slate-500">{disabledReason}</p>
+      ) : (
+        <p className="text-[11px] text-slate-500">
+          Google o email · Wallet Stellar segura, sin seed phrases
+        </p>
+      )}
       {state.kind === 'error' && (
-        <p className="text-xs text-rose-400 text-center">{state.message}</p>
+        <p className="text-[11px] text-rose-600">{state.message}</p>
       )}
     </div>
   );
