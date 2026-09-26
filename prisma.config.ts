@@ -16,9 +16,12 @@ function readDotEnvLocal(): void {
   if (!fs.existsSync(file)) return;
   const text = fs.readFileSync(file, 'utf8');
   for (const line of text.split('\n')) {
-    const m = line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
+    const trimmed = line.replace(/^#.*$/, '').trim();
+    if (!trimmed) continue;
+    const m = trimmed.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);
     if (!m) continue;
-    const [, key, valueRaw] = m;
+    const key = m[1]!;
+    const valueRaw = m[2] ?? '';
     if (process.env[key] !== undefined) continue; // cuenta existente gana
     process.env[key] = valueRaw.trim().replace(/^['"]|['"]$/g, '');
   }
