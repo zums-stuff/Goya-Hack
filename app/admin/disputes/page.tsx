@@ -3,6 +3,12 @@ import { notFound, redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { getSessionEmail, tryGetUser } from '@/lib/auth';
 import { isAdmin } from '@/lib/config';
+import type { DisputeEvidence } from '@/generated/prisma/client';
+
+interface DisputeWithRelations extends DisputeEvidence {
+  disputePhotoUrl?: string | null;
+  escrow: { id: string; listingId: string; listing: { title: string } };
+}
 
 export default async function AdminDisputesPage() {
   const me = await tryGetUser();
@@ -19,12 +25,12 @@ export default async function AdminDisputesPage() {
     );
   }
 
-  const disputes = await prisma.disputeEvidence.findMany({
+  const disputes = (await prisma.disputeEvidence.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
       escrow: { include: { listing: { select: { title: true } } } },
     },
-  });
+  })) as DisputeWithRelations[];
 
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-4">
@@ -32,7 +38,7 @@ export default async function AdminDisputesPage() {
       {disputes.length === 0 && (
         <p className="text-sm text-gray-500">No hay disputas pendientes. 🎉</p>
       )}
-      {disputes.map((d) => (
+      {disputes.map((d: DisputeWithRelations) => (
         <article key={d.id} className="border rounded p-4 space-y-2">
           <header className="flex justify-between">
             <div>

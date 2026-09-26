@@ -13,6 +13,8 @@ type OfferLite = {
   offerer: { id: string; displayName: string; major: string };
 };
 
+export type { OfferLite };
+
 type Props = { offers: OfferLite[] };
 
 export function OfferBoard({ offers }: Props) {

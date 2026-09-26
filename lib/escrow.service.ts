@@ -15,6 +15,7 @@ import { feeCents, centsToXlm } from './fees';
 import { buildMemoText, releaseEscrowWithBarterGuard, refundEscrowWithBarterGuard } from './stellar';
 import { EscrowForbidden, EscrowInvalidTransition, ApiError } from './errors';
 import { addMinutes } from 'date-fns';
+import type { Prisma } from '@/generated/prisma/client';
 
 const confirmWindowMinutes = () => env.CONFIRM_WINDOW_MINUTES;
 const ttlMinutes = () => env.DEMO_TTL_MINUTES ?? 48 * 60;
@@ -33,7 +34,7 @@ function expectBuyerOrSeller(
 export class EscrowService {
   // record-exchange: funded → awaiting-exchange (cierra M1/V1 con updateMany).
   static async recordExchange(escrowId: string, actorId: string) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lookup = await tx.escrow.findUniqueOrThrow({
         where: { id: escrowId },
         select: { buyerId: true, sellerId: true, status: true },
@@ -64,7 +65,7 @@ export class EscrowService {
 
   // confirm-exchange: awaiting-exchange → exchange-recorded. Confirmer ≠ initiator.
   static async confirmExchange(escrowId: string, actorId: string) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lookup = await tx.escrow.findUniqueOrThrow({
         where: { id: escrowId },
         select: {
@@ -138,7 +139,7 @@ export class EscrowService {
     //    la firma falló — actually mejor: usamos updateMany que requiere status
     //    correcto, y al final sobrescribimos el hash si la firma succeed.
     //    Aquí simplificamos: transacción que marca `released` solo si stellarTxHashRelease IS NULL.
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lock = await tx.escrow.updateMany({
         where: { id: escrowId, status: 'exchange-recorded', stellarTxHashRelease: null },
         data: {
@@ -209,7 +210,7 @@ export class EscrowService {
       amountCents: escrow.amountXlm,
     });
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lock = await tx.escrow.updateMany({
         where: { id: escrowId, status: 'exchange-recorded', stellarTxHashRelease: null },
         data: { status: 'auto-released', autoReleasedAt: new Date() },
@@ -260,7 +261,7 @@ export class EscrowService {
 
     const memo = `PT-REFUND-${escrow.id.slice(0, 7)}-${escrow.amountXlm}`;
 
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const lock = await tx.escrow.updateMany({
         where: {
           id: escrowId,
@@ -306,7 +307,7 @@ export class EscrowService {
     photoHash: string;
     stellarAnchorTxHash: string;
   }) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const existing = await tx.disputeEvidence.findFirst({
         where: { escrowId: params.escrowId },
       });
@@ -372,7 +373,7 @@ export class EscrowService {
     adminId: string;
     decision: 'release' | 'refund';
   }) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const dispute = await tx.disputeEvidence.findUniqueOrThrow({
         where: { id: params.disputeId },
         include: { escrow: { include: { buyer: true, seller: true, offer: true, listing: true } } },

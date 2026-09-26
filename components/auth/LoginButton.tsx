@@ -38,22 +38,20 @@ export function LoginButton() {
     if (!wallet) return;
     setState({ kind: 'loading' });
     try {
-      let email = (wallet.user as { email?: string } | undefined)?.email;
-      let displayName =
-        (wallet.user as { name?: string; email?: string } | undefined)?.name ?? email;
-
-      // ⚠️ @pollar/react 0.11.3: wallet.user puede venir vacío. Fallback a client.
-      if (!email) {
-        try {
-          const profile = await getClient().getUserProfile();
-          email = (profile as { email?: string } | null)?.email;
-          displayName =
-            (profile as { name?: string; email?: string } | null)?.name ?? email;
-        } catch {
-          /* Pollar no expone user → reintento en el próximo render */
-          setState({ kind: 'idle' });
-          return;
-        }
+      // ⚠️ @pollar/react 0.11.3: wallet no expone `user` (la shape es
+      // { custody, address, provider, chain, ... }). Hay que llamar
+      // getUserProfile() directamente en el cliente Pollar.
+      let email = '';
+      let displayName = '';
+      try {
+        const profile: unknown = await getClient().getUserProfile();
+        const p = (profile ?? {}) as { email?: string; name?: string };
+        email = p.email ?? '';
+        displayName = p.name ?? p.email ?? '';
+      } catch {
+        // Pollar no expone user → reintento en el próximo render
+        setState({ kind: 'idle' });
+        return;
       }
 
       if (!email) {
@@ -67,7 +65,7 @@ export function LoginButton() {
         body: JSON.stringify({
           pollarWalletId: wallet.address,
           email,
-          displayName: displayName ?? email,
+          displayName: displayName || email,
         }),
       });
       if (!res.ok) {

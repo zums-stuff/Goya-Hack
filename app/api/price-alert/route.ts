@@ -11,7 +11,9 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const body = PriceAlertSchema.parse(await req.json());
-    return Response.json(checkPrice(body), { headers: { 'Cache-Control': 'no-store' } });
+    // Schema field `price` (lo que viene del cliente) → engine espera `priceCents`.
+    const result = checkPrice({ title: body.title, type: body.type, priceCents: body.price });
+    return Response.json(result, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
     return handleApiError(e);
   }

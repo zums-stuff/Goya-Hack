@@ -3,11 +3,14 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { tryGetUser } from '@/lib/auth';
-import { OfferBoard } from '@/components/offers/OfferBoard';
+import { OfferBoard, type OfferLite } from '@/components/offers/OfferBoard';
 import { OfferForm } from '@/components/offers/OfferForm';
 import { PriceAlertCallout } from '@/components/listings/PriceAlertCallout';
+import type { ListingType } from '@/lib/schemas';
 
-export default async function ListingDetailPage(props: { params: Promise<{ listingId: string }> }) {
+export default async function ListingDetailPage(props: {
+  params: Promise<{ listingId: string }>;
+}) {
   const { listingId } = await props.params;
   const listing = await prisma.listing.findUnique({
     where: { id: listingId },
@@ -19,15 +22,34 @@ export default async function ListingDetailPage(props: { params: Promise<{ listi
   const isOwner = me?.id === listing.sellerId;
   const isPending = listing.status === 'pending';
 
+  // `listing.type` viene como `string` desde DB; lo casteamos al enum
+  // (validado por Zod en la creación).
+  const listingType = listing.type as ListingType;
+
   // Tablero solo si eres el seller y NO hay escrow en vuelo.
-  let offers: Awaited<ReturnType<typeof prisma.offer.findMany>> = [];
-  if (isOwner && !isPending) {
-    offers = await prisma.offer.findMany({
-      where: { listingId, status: 'pending' },
-      orderBy: { createdAt: 'desc' },
-      include: { offerer: { select: { id: true, displayName: true, major: true } } },
-    });
-  }
+  type DBOfferRaw = Awaited<ReturnType<typeof prisma.offer.findFirst>>;
+  const rawOffers = isOwner && !isPending
+    ? await prisma.offer.findMany({
+        where: { listingId, status: 'pending' },
+        orderBy: { createdAt: 'desc' },
+        include: { offerer: { select: { id: true, displayName: true, major: true } } },
+      })
+    : [];
+
+  // Map raw → OfferLite (la shape que OfferBoard espera).
+  const offers: OfferLite[] = rawOffers.map(
+    (o): OfferLite => ({
+      id: o.id,
+      type: o.type as 'saldo-only' | 'barter' | 'hybrid',
+      xlmAmount: o.xlmAmount,
+      message: o.message,
+      offerer: {
+        id: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.id,
+        displayName: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.displayName,
+        major: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.major,
+      },
+    }),
+  );
 
   return (
     <main className="max-w-3xl mx-auto p-6 space-y-6">
@@ -57,14 +79,14 @@ export default async function ListingDetailPage(props: { params: Promise<{ listi
           )}
           <p className="text-gray-700 dark:text-gray-300 mt-4">{listing.description}</p>
           <div className="text-xs text-gray-500 capitalize">
-            Estado: {listing.condition} · Tipo: {listing.type}
+            Estado: {listing.condition} · Tipo: {listingType}
           </div>
         </div>
       </div>
 
       <PriceAlertCallout
         title={listing.title}
-        type={listing.type}
+        type={listingType}
         priceCents={listing.priceXlm}
       />
 

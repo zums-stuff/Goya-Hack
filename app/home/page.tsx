@@ -4,18 +4,20 @@ import { tryGetUser } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { AuthSyncToStore } from '@/components/auth/AuthSyncToStore';
+import type { Listing, Escrow } from '@/generated/prisma/client';
 
 export default async function HomePage() {
   const user = await tryGetUser();
   if (!user) redirect('/');
 
-  const recent = await prisma.listing.findMany({
-    orderBy: { createdAt: 'desc' },
-    take: 12,
-    include: { seller: { select: { displayName: true, major: true } } },
-  });
+  const recent: Array<Listing & { seller: { displayName: string; major: string } }> =
+    (await prisma.listing.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 12,
+      include: { seller: { select: { displayName: true, major: true } } },
+    })) as Array<Listing & { seller: { displayName: string; major: string } }>;
 
-  const myEscrows = await prisma.escrow.findMany({
+  const myEscrows: Escrow[] = await prisma.escrow.findMany({
     where: { OR: [{ buyerId: user.id }, { sellerId: user.id }] },
     orderBy: { createdAt: 'desc' },
     take: 5,
@@ -51,7 +53,7 @@ export default async function HomePage() {
         <section>
           <h2 className="text-xl font-semibold mb-4">Listings recientes</h2>
           <ul className="grid grid-cols-2 gap-4">
-            {recent.map((l) => (
+            {recent.map((l: Listing & { seller: { displayName: string; major: string } }) => (
               <li key={l.id} className="border rounded p-3">
                 <Link href={`/marketplace/${l.id}`}>
                   <div className="font-medium">{l.title}</div>
@@ -69,7 +71,7 @@ export default async function HomePage() {
             <p className="text-gray-500">Aún no participas en ningún escrow.</p>
           ) : (
             <ul className="space-y-2">
-              {myEscrows.map((e) => (
+              {myEscrows.map((e: Escrow) => (
                 <li key={e.id} className="border rounded p-3 flex justify-between">
                   <Link href={`/escrow/${e.id}`} className="font-mono text-sm underline">
                     {e.id}

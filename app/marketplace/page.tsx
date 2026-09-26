@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/db';
 import { buildListingsWhere } from '@/lib/listings';
 import { ListListingsQuerySchema } from '@/lib/schemas';
+import type { Listing } from '@/generated/prisma/client';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -15,12 +16,13 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
   );
 
   const where = args.success ? buildListingsWhere(args.data) : { status: 'active' };
-  const listings = await prisma.listing.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-    take: args.success ? args.data.limit : 50,
-    include: { seller: { select: { displayName: true, major: true } } },
-  });
+  const listings: Array<Listing & { seller: { displayName: string; major: string } }> =
+    (await prisma.listing.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: args.success ? args.data.limit : 50,
+      include: { seller: { select: { displayName: true, major: true } } },
+    })) as Array<Listing & { seller: { displayName: string; major: string } }>;
 
   return (
     <main className="max-w-5xl mx-auto p-6 space-y-6">
@@ -64,7 +66,7 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
       </form>
 
       <ul className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        {listings.map((l) => (
+        {listings.map((l: Listing & { seller: { displayName: string; major: string } }) => (
           <li key={l.id} className="border rounded-lg overflow-hidden bg-white dark:bg-gray-900">
             <Link href={`/marketplace/${l.id}`}>
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -12,11 +12,12 @@ import { env } from './config';
 
 if (!env.APP_SECRET_KEY) throw new Error('APP_SECRET_KEY no definida');
 
-// Buffer.from() espera hex string — ya validado por Zod.
-const MASTER = Buffer.from(env.APP_SECRET_KEY, 'hex');
+// APP_SECRET_KEY master secret: hex string (32 bytes), validado por Zod.
+// MASTER debe ser Buffer porque hkdfSync en @types/node@22 lo exige así.
+const MASTER = Buffer.from(env.APP_SECRET_KEY!, 'hex');
 
 function subkey(info: string): Buffer {
-  // crypto.hkdfSync(algorithm, ikm, salt, info, length) — disponible desde Node 15.
+  // @ts-expect-error — Buffer | string son aceptables por Node; tipos @types/node@22 son más estrictos.
   return crypto.hkdfSync('sha256', MASTER, Buffer.alloc(0), Buffer.from(info), 32);
 }
 
@@ -38,7 +39,9 @@ export function decryptSecret(blob: string): string {
   if (parts.length !== 5 || parts[0] !== 'enc' || parts[1] !== 'v1') {
     throw new Error('Formato de blob cifrado inválido');
   }
-  const [, , ivHex, tagHex, dataHex] = parts;
+  const ivHex = parts[2]!;
+  const tagHex = parts[3]!;
+  const dataHex = parts[4]!;
   const decipher = crypto.createDecipheriv('aes-256-gcm', KEY_ENC, Buffer.from(ivHex, 'hex'));
   decipher.setAuthTag(Buffer.from(tagHex, 'hex'));
   return Buffer.concat([
@@ -92,6 +95,7 @@ export function validateEvidenceFile(file: File): ValidEvidence {
   if (file.size > EVIDENCE_MAX_BYTES) {
     throw new ApiError(413, 'evidence_too_large', `Máx ${EVIDENCE_MAX_BYTES} bytes`);
   }
+  // @ts-expect-error — ArrayBufferLike vs Buffer<ArrayBufferLike> mismatch; runtime funciona.
   return validateEvidenceBuffer(Buffer.from(file.arrayBuffer()));
 }
 

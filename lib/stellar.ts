@@ -54,7 +54,7 @@ export async function createEscrowAccount(): Promise<{
   const escrowPublicKey = escrowMaster.publicKey();
 
   const platformAccount = await horizon.loadAccount(PLATFORM_PUBLIC_KEY);
-  const fee = await horizon.fetchBaseFee();
+  const fee = (await horizon.fetchBaseFee()).toString();
 
   const tx = new TransactionBuilder(platformAccount, {
     fee,
@@ -135,7 +135,7 @@ export async function releaseEscrowWithBarterGuard(params: {
 
   const arbiterSecret = decryptSecret(arbiterSecretEnc);
   const escrowSrc = await horizon.loadAccount(escrowAccount);
-  const fee = await horizon.fetchBaseFee();
+  const fee = (await horizon.fetchBaseFee()).toString();
 
   const builder = new TransactionBuilder(escrowSrc, {
     fee,
@@ -187,7 +187,7 @@ export async function refundEscrowWithBarterGuard(params: {
   if (amountCents === 0) return { hash: 'NO_TX_BARTER' };
 
   const escrowSrc = await horizon.loadAccount(escrowAccount);
-  const fee = await horizon.fetchBaseFee();
+  const fee = (await horizon.fetchBaseFee()).toString();
 
   const tx = new TransactionBuilder(escrowSrc, {
     fee,
@@ -225,7 +225,7 @@ export async function anchorDataEntry(
   }
 
   const source = await horizon.loadAccount(sourcePublic);
-  const fee = await horizon.fetchBaseFee();
+  const fee = (await horizon.fetchBaseFee()).toString();
 
   // ⚠️ manageData value debe ser Buffer.from(hex, 'hex') o string — Stellar SDK acepta string.
   const tx = new TransactionBuilder(source, {

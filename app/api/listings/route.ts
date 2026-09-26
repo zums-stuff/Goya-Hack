@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/auth';
 import { CreateListingSchema, ListListingsQuerySchema } from '@/lib/schemas';
 import { buildListingsWhere } from '@/lib/listings';
 import { handleApiError, ApiError } from '@/lib/errors';
+import type { Listing } from '@/generated/prisma/client';
 
 export const dynamic = 'force-dynamic';
 

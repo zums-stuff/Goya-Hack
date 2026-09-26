@@ -4,7 +4,7 @@
 // trabajo.
 
 import 'dotenv/config';
-import { Horizon, Networks } from '@stellar/stellar-sdk';
+import { Horizon } from '@stellar/stellar-sdk';
 
 const HORIZON = 'https://horizon-testnet.stellar.org';
 
@@ -13,13 +13,14 @@ if (!process.env.SEED_WALLET_IDS) {
   process.exit(1);
 }
 
-const walletIds = (() => {
-  try { return JSON.parse(process.env.SEED_WALLET_IDS!); }
-  catch (e) {
+const walletIds: Record<string, string> = (() => {
+  try {
+    return JSON.parse(process.env.SEED_WALLET_IDS!) as Record<string, string>;
+  } catch (e) {
     console.error('SEED_WALLET_IDS no es JSON válido:', (e as Error).message);
     process.exit(1);
   }
-}) as Record<string, string>;
+})();
 
 const server = new Horizon.Server(HORIZON);
 
@@ -32,7 +33,7 @@ interface VerifyResult {
 }
 
 async function verify(userId: string, address: string): Promise<VerifyResult> {
-  if (!address || !address.startsWith('G_PLACEHOLDER') === false && !address.startsWith('G')) {
+  if (!address || (!address.startsWith('G_PLACEHOLDER') && !address.startsWith('G'))) {
     return { userId, address, exists: false, balanceXlm: null, ok: false };
   }
   try {
@@ -46,7 +47,7 @@ async function verify(userId: string, address: string): Promise<VerifyResult> {
       ok: xlmBalance != null,
     };
   } catch (e: unknown) {
-    const err = e as { response?: { status?: number }; message?: string };
+    const err = e as { response?: { status?: number } };
     if (err.response?.status === 404) {
       return { userId, address, exists: false, balanceXlm: null, ok: false };
     }
@@ -61,7 +62,7 @@ async function main() {
   for (const [userId, address] of Object.entries(walletIds)) {
     const r = await verify(userId, address);
     results.push(r);
-    const status = r.ok ? '✅' : (r.exists ? '⚠️  sin balance' : '❌ no existe');
+    const status = r.ok ? '✅' : r.exists ? '⚠️  sin balance' : '❌ no existe';
     console.log(`  ${status}  ${userId.padEnd(12)} → ${r.address}   ${r.balanceXlm ?? ''} XLM`);
   }
 

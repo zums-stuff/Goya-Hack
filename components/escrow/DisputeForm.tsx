@@ -19,12 +19,12 @@ const REASONS: Array<{ code: 'item-damaged' | 'exchange-never-happened' | 'item-
 export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
   const router = useRouter();
   const [reason, setReason] = useState<string>(
-    initialReason && REASONS.some((r) => r.code === initialReason)
+    initialReason && REASONS.some((r: { code: string; label: string }) => r.code === initialReason)
       ? initialReason
-      : REASONS[0].code,
+      : (REASONS[0]?.code ?? 'item-damaged'),
   );
   const [description, setDescription] = useState('');
-  const [photo, setPhoto] = useState<File | null>(null);
+  const [photo, setPhoto] = useState<File | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,7 +105,10 @@ export function DisputeForm({ escrowId, initialReason, disabled }: Props) {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           required
-          onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            setPhoto(f ?? null);
+          }}
           className="block mt-1 text-sm"
         />
       </label>

@@ -11,6 +11,7 @@ import { AcceptOfferSchema } from '@/lib/schemas';
 import { createEscrowAccount } from '@/lib/stellar';
 import { handleApiError, ApiError } from '@/lib/errors';
 import { escrowSnapshotStore } from '@/lib/snapshots';
+import type { Prisma } from '@/generated/prisma/client';
 
 export const dynamic = 'force-dynamic';
 // force-dynamic + session cookie ensure no caching of state-changing routes.
@@ -39,13 +40,13 @@ export async function POST(req: Request) {
 
     // 1. Crear la cuenta Stellar (server-side). ~3-5s con Horizon.
     //    Si el $transaction falla después, queda huérfana (testnet, gratis).
-    const { publicKey, arbiterSecretEnc, txHash } = await createEscrowAccount();
+    const { escrowPublicKey, arbiterSecretEnc, txHash } = await createEscrowAccount();
     void txHash; // not stored yet; serves audit trail via Horizon explorer.
 
     // 2. Transición autoritativa DENTRO del $transaction.
     const initialStatus = (offer.xlmAmount ?? 0) === 0 ? 'funded' : 'awaiting-funding';
 
-    const escrow = await prisma.$transaction(async (tx) => {
+    const escrow = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const listingLock = await tx.listing.updateMany({
         where: { id: offer.listingId, status: 'active' },
         data: { status: 'pending' },
@@ -73,7 +74,7 @@ export async function POST(req: Request) {
           buyerId: offer.offererId,
           sellerId: offer.listing.sellerId,
           amountXlm: offer.xlmAmount ?? 0,
-          stellarEscrowAccount: publicKey,
+          stellarEscrowAccount: escrowPublicKey,
           arbiterSecretEnc,
           platformFeeBps: Number(process.env.NEXT_PUBLIC_PLATFORM_FEE_BPS ?? 200),
           status: initialStatus,

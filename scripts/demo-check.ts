@@ -8,6 +8,7 @@ import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
 import { seedUsers } from '../lib/seed-data';
+import type { Listing, Offer } from '../src/generated/prisma/client';
 
 if (!process.env.DATABASE_URL) {
   console.error('❌ DATABASE_URL no definida. Configura .env.local primero.');
@@ -50,22 +51,16 @@ async function main() {
     console.log(`   ${ok ? '✅' : '⚠️ '} ${u.email.padEnd(40)} esperado: ${expected} XLM | real: ${actual} XLM`);
   }
 
-  console.log('\n💸 Listings por status:');
-  const grouped = await prisma.listing.groupBy({
-    by: ['status'],
-    _count: true,
-  });
-  grouped.forEach((g) => {
+  // @ts-expect-error — Prisma 7 groupBy tiene retorno super-tipado; un simple cast funciona en runtime.
+const grouped = (await prisma.listing.groupBy({ by: ['status'], _count: true })) as Array<{ status: string; _count: number }>;
+  grouped.forEach((g: { status: string; _count: number }) => {
     console.log(`   ${g.status.padEnd(15)} ${g._count}`);
   });
 
   console.log('\n✋  Offers en tablero (pendientes) por tipo:');
-  const offGroup = await prisma.offer.groupBy({
-    by: ['type'],
-    where: { status: 'pending' },
-    _count: true,
-  });
-  offGroup.forEach((o) => {
+  // @ts-expect-error — same
+  const offGroup = (await prisma.offer.groupBy({ by: ['type'], where: { status: 'pending' }, _count: true })) as Array<{ type: string; _count: number }>;
+  offGroup.forEach((o: { type: string; _count: number }) => {
     console.log(`   ${o.type.padEnd(15)} ${o._count}`);
   });
 
