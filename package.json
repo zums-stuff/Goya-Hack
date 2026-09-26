@@ -24,6 +24,7 @@
     "e2e:demo": "tsx scripts/e2e-demo.ts",
     "test:stellar": "tsx scripts/test-stellar-real.ts",
     "setup:env": "tsx scripts/gen-test-env.ts",
+    "boot": "bash scripts/boot.sh",
     "db:up": "bash scripts/db-up.sh up",
     "db:down": "bash scripts/db-up.sh down",
     "db:reset": "bash scripts/db-up.sh reset && bash scripts/db-up.sh up"

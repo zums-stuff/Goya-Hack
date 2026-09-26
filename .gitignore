@@ -51,3 +51,6 @@ public/disputes/
 .vercel/
 # TypeScript build cache
 *.tsbuildinfo
+
+# Boot script artifacts
+logs/
