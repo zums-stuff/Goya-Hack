@@ -1,0 +1,16 @@
+{
+  "extends": ["next/core-web-vitals", "next/typescript"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "@typescript-eslint/consistent-type-imports": "error",
+    "no-console": "off"
+  },
+  "ignorePatterns": [
+    "src/generated/**",
+    "public/",
+    "node_modules/",
+    ".next/",
+    "scripts/capture-wallets.ts"
+  ]
+}
