@@ -1,11 +1,13 @@
 # PRD — PumaTrade (Goya-Hack) — MVP "El Ladrillo"
 
-**Versión:** 3.2 — el evento central del escrow es **el intercambio físico de los objetos**
-**Fecha:** 2026-09-24
+**Versión:** 3.4 — el evento central del escrow es **el intercambio físico de los objetos**
+**Fecha:** 2026-09-25
 **Estado:** Aprobado para implementación
 **Tiempo de implementación:** <24h
 **Audiencia del documento:** 1 implementador full-stack + 2 teammates (diseño/pitch)
 **Audiencia del producto:** Estudiantes universitarios (UNAM, principalmente FI)
+
+> **v3.4 (2026-09-25):** el escrow pasa a **2-de-2 plataforma + llave de arbitraje** (el comprador no puede ser signer: su llave vive custodiada en el AWS KMS de Pollar, sin API de firma ajena — detalle en ARCHITECTURE §6.2). Se agrega la **ventana de confirmación** (si una parte registra el intercambio y la otra no confirma ni disputa, el escrow se auto-cancela y el dinero vuelve) y el **1-escrow-por-listing** con estado `Pendiente`.
 
 > **El "Ladrillo"**: marketplace de intercambio flexible entre estudiantes, con dinero protegido durante una ventana de prueba. Esta versión contiene el **núcleo funcional** que valida la confianza entre dos alumnos; el resto vive en "La Casa".
 
@@ -13,9 +15,9 @@
 
 ## 0. Resumen ejecutivo
 
-**PumaTrade** es un marketplace móvil-first donde los estudiantes universitarios pueden **publicar un artículo** y recibir propuestas en **3 formatos** (solo saldo en PumaDolar, objeto por objeto, o una combinación de objeto + saldo). El vendedor **elige la oferta que mejor le conviene** desde un tablero.
+**PumaTrade** es un marketplace móvil-first donde los estudiantes universitarios pueden **publicar un artículo** y recibir propuestas en **3 formatos** (solo saldo en XLM, objeto por objeto, o una combinación de objeto + saldo). El vendedor **elige la oferta que mejor le conviene** desde un tablero.
 
-**El dinero se congela** en un smart contract (cuenta Stellar multi-sig 2-de-2). Cuando los estudiantes se encuentran en la facultad e **intercambian físicamente los objetos**, registran ese momento en la app. En ese instante arranca una **ventana de prueba (TTL)** — 48h en producción, 3 min en demo — durante la cual el comprador prueba el artículo. Tres caminos posibles:
+**El dinero se congela** en un smart contract (cuenta Stellar multi-sig 2-de-2: plataforma + llave de arbitraje). Cuando los estudiantes se encuentran en la facultad e **intercambian físicamente los objetos**, registran ese momento en la app. En ese instante arranca una **ventana de prueba (TTL)** — 48h en producción, 3 min en demo — durante la cual el comprador prueba el artículo. Tres caminos posibles:
 
 - **Rama A (happy path):** funciona → comprador acepta → el pago se libera al vendedor.
 - **Rama B (auto-resolve):** el comprador no confirma → el TTL expira → el sistema libera automáticamente al vendedor (evita que un comprador malicioso secuestros los fondos).
@@ -23,14 +25,14 @@
 
 **Diferenciadores del MVP:**
 
-1. **Intercambio flexible, no solo venta** — la diferencia de valor entre dos artículos se cubre con PumaDolar.
+1. **Intercambio flexible, no solo venta** — la diferencia de valor entre dos artículos se cubre con XLM (Lumens de Stellar).
 2. **Tablero de ofertas múltiples** — el vendedor ve todas las propuestas y elige.
 3. **El intercambio físico es el evento central** — la confianza se construye alrededor del momento en que los objetos cambian de manos, no alrededor de un QR o un botón abstracto.
 4. **Candado con ventana de prueba** — TTL configurable (48h en producción, 3 min en demo) + auto-resolve a favor del vendedor + rama de disputa con evidencia.
 
-**Stack:** Next.js 14 + `@pollar/react` + Stellar testnet (USDC como PumaDolar).
+**Stack:** Next.js 16 + `@pollar/react` + Stellar testnet (Lumens nativos como moneda).
 
-**Ingresos:** 2% de comisión sobre el saldo PumaDolar liberado (0% en hackathon).
+**Ingresos:** 2% de comisión sobre el saldo XLM liberado (0% en hackathon).
 
 ---
 
@@ -38,40 +40,42 @@
 
 Se crean en el dashboard de Pollar ANTES del hackathon y se siembran en la DB local. Saldos fondeados desde el treasury de la app.
 
+> 📌 **Emails seed reales:** las cuentas `@unam.mx` son los *perfiles de diseño* de esta sección; en el demo se entra con correos temporales de `mail.tm` (`maria.pumatrade+seed1@mail.tm`, etc. — ARCHITECTURE §9.4). Los saldos en XLM de cada persona (1,250 / 2,000 / 800 / 500 / 1,800) son los que siembra el seed (§8).
+
 ### 1.1 María — `maria@unam.mx` (vendedora con varias ofertas)
 - **Carrera:** Ing. en Computación, 5º semestre
-- **Saldo:** 1,250 P$
+- **Saldo:** 1,250 XLM
 - **Listings (3):**
-  1. **Calculadora TI-89 Titanium** — 800 P$ — ✓ verificado.
-  2. **Multímetro Fluke 117** — 1,200 P$ — ✓ verificado.
-  3. **Bata blanca talla M** — 250 P$ — ✓ verificado.
+  1. **Calculadora TI-89 Titanium** — 800 XLM — ✓ verificado.
+  2. **Multímetro Fluke 117** — 1,200 XLM — ✓ verificado.
+  3. **Bata blanca talla M** — 250 XLM — ✓ verificado.
 
 ### 1.2 Juan — `juan@unam.mx` (comprador técnico)
 - **Carrera:** Ing. Eléctrica, 3º semestre
-- **Saldo:** 2,000 P$
+- **Saldo:** 2,000 XLM
 - **Listings (2):**
-  1. **Arduino Mega 2560** — 450 P$ — ✓ verificado.
-  2. **Libro Sadiku — Electromagnetismo** — 300 P$ — ✓ verificado.
+  1. **Arduino Mega 2560** — 450 XLM — ✓ verificado.
+  2. **Libro Sadiku — Electromagnetismo** — 300 XLM — ✓ verificado.
 
 ### 1.3 Andrea — `andrea@unam.mx` (vendedora flexible)
 - **Carrera:** Matemáticas, 7º semestre
-- **Saldo:** 800 P$
+- **Saldo:** 800 XLM
 - **Listings (2):**
-  1. **Cálculo de Spivak (3ra ed.)** — 600 P$ — ✓ verificado.
-  2. **Bata blanca talla CH** — 200 P$ — ✓ verificado.
+  1. **Cálculo de Spivak (3ra ed.)** — 600 XLM — ✓ verificado.
+  2. **Bata blanca talla CH** — 200 XLM — ✓ verificado.
 
 ### 1.4 Pablo — `pablo@unam.mx` (nuevo ingreso)
 - **Carrera:** Física, 1º semestre
-- **Saldo:** 500 P$
+- **Saldo:** 500 XLM
 - **Listings (1):**
-  1. **Libro Tipler — Física Moderna** — 350 P$ — ✓ verificado.
+  1. **Libro Tipler — Física Moderna** — 350 XLM — ✓ verificado.
 
 ### 1.5 Sofía — `sofia@unam.mx` (vendedora high-value)
 - **Carrera:** Ing. en Computación, 8º semestre
-- **Saldo:** 1,800 P$
+- **Saldo:** 1,800 XLM
 - **Listings (2):**
-  1. **Laptop ThinkPad X1 Carbon (i7, 16GB, 2021)** — 8,500 P$ — ✓ verificado.
-  2. **Raspberry Pi 4 Model B 8GB** — 1,100 P$ — ✓ verificado.
+  1. **Laptop ThinkPad X1 Carbon (i7, 16GB, 2021)** — 8,500 XLM — ✓ verificado.
+  2. **Raspberry Pi 4 Model B 8GB** — 1,100 XLM — ✓ verificado.
 
 **Total:** 10 listings cubriendo 4 majors × 5 tipos.
 
@@ -91,7 +95,7 @@ type ListingType =
   | 'batas-uniformes' | 'laboratorio' | 'otros';
 
 type Condition = 'nuevo' | 'como-nuevo' | 'bueno' | 'aceptable';
-type OfferType = 'pollar-only' | 'barter' | 'hybrid';
+type OfferType = 'saldo-only' | 'barter' | 'hybrid';
 
 // Estados del escrow — el evento central es el intercambio físico de los objetos
 type EscrowStatus =
@@ -117,7 +121,7 @@ interface User {
   major: Major;
   bio: string;
   pollarWalletId: string;
-  balancePumaDolar: number;
+  balanceXlm: number;
   createdAt: string;
 }
 
@@ -126,7 +130,7 @@ interface Listing {
   sellerId: string;
   title: string;
   description: string;
-  pricePumaDolar: number;
+  priceXlm: number;
   type: ListingType;
   majors: Major[];
   condition: Condition;
@@ -141,8 +145,8 @@ interface Offer {
   listingId: string;
   offererId: string;
   type: OfferType;
-  offeredItems?: { title: string; estimatedValuePumaDolar: number }[];
-  pollarAmount?: number;
+  offeredItems?: { title: string; estimatedValueXlm: number }[];
+  xlmAmount?: number;
   message?: string;
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn';
   createdAt: string;
@@ -154,8 +158,8 @@ interface Escrow {
   listingId: string;
   buyerId: string;
   sellerId: string;
-  pollarAmount: number;          // 0 si es trueque puro
-  barterValuePumaDolar?: number;
+  xlmAmount: number;          // 0 si es trueque puro
+  barterValueXlm?: number;
   stellarEscrowAccount: string;
   stellarTxHashFunding?: string;
   stellarTxHashRelease?: string;
@@ -181,7 +185,7 @@ interface Escrow {
   disputeEvidenceUrl?: string;
   disputeDescription?: string;     // ≤500 chars
 
-  platformFeePumaDolar: number;
+  platformFeeXlm: number;
   createdAt: string;
 }
 
@@ -216,34 +220,38 @@ PASO 2 — María publica la TI-89 con video ✓
 
 PASO 3 — Juan (y otros) ofertan
    [Tres ofertas en el tablero de María:
-     - Pablo: solo saldo → 750 P$
-     - Juan: híbrida → Arduino Mega (450 P$) + 300 P$ = 750 P$
-     - Andrea: trueque puro → Spivak (600 P$) — no procede, falta 200 P$
+     - Pablo: solo saldo → 750 XLM
+     - Juan: híbrida → Arduino Mega (450 XLM) + 300 XLM = 750 XLM
+     - Andrea: trueque puro → Spivak (600 XLM) — no procede, falta 200 XLM
    ]
 
 PASO 4 — María acepta la híbrida de Juan
    [Estado: awaiting-funding]
-   [Se crea cuenta multi-sig 2-de-2, se notifica a Juan]
+   [Se crea la cuenta multi-sig (plataforma + llave de arbitraje)]
+   [El listing de María pasa a 'Pendiente' — 1 escrow por listing, no acepta más ofertas]
+   [Se notifica a Juan]
 
 PASO 5 — Juan fondea el escrow (CHECKOUT)
-   [SendModal de Pollar: 300 P$]
+   [Checkout Pollar — runTx('payment', …): 300 XLM → cuenta escrow]
    [Tx visible en stellar.expert]
    [Estado: funded]
 
 PASO 6 — Se encuentran en la facultad e intercambian
    [María entrega la TI-89. Juan la recibe.]
    [María toca "Intercambio realizado" en su app]
-   [Estado → awaiting-exchange · Juan ve la notificación]
+   [Estado → awaiting-exchange · Juan ve la notificación · arranca la ventana de confirmación]
    [Juan toca "Sí, confirmo el intercambio"]
    [Estado → exchange-recorded · arranca el TTL: 48h prod, 3 min demo]
+   [⚠️ Si Juan NO confirma ni disputa en la ventana (demo ~10 min, prod 8h):
+    el cron auto-cancela → el dinero vuelve a Juan (refund), listing → activo]
 
 PASO 7 — Juan prueba la calculadora (Fase 2: GRACE)
 
    -> RAMA A (happy): funciona bien → toca "Aceptar artículo"
-      [Estado: released · 300 P$ − 6 P$ (2%) = 294 P$ para María]
+      [Estado: released · 300 XLM − 6 XLM (2%) = 294 XLM para María]
 
    -> RAMA B (auto-resolve): Juan no confirma → TTL a cero
-      [Estado: auto-released · 294 P$ para María]
+      [Estado: auto-released · 294 XLM para María]
 
    -> RAMA C (disputa): algo está mal → toca "Reportar problema"
       [Elige razón: dañado / nunca ocurrió / item diferente]
@@ -264,23 +272,23 @@ PASO 8 — Recibo
 ```
 Cuenta: ESCROW-{uuid}
 Signers:
-  - COMPRADOR (peso 1)
   - PLATAFORMA (peso 1)
+  - LLAVE DE ARBITRAJE por-escrow (peso 1) — server-side, encriptada en la DB
 Threshold: 2
 ```
+
+**¿Por qué no el comprador como signer?** (v3.4) En el diseño original el comprador era la segunda llave ("el dinero no se mueve sin su firma"). Verificado con Pollar: la llave de cada usuario vive en su **AWS KMS** y su SDK solo firma transacciones que él mismo construye con source = wallet del usuario — **no existe API para que el comprador firme la release/refund del escrow**. El escrow se firma entonces con dos llaves server-side (plataforma + arbitraje). La UI no cambia: el comprador sigue viendo/tocando Aceptar/Disputar, y cada movimiento queda on-chain con 2 firmas en stellar.expert.
 
 ### 4.2 TTL (Time-To-Live)
 
 ```typescript
 // lib/escrow.ts
 const DEFAULT_TTL_MINUTES = 48 * 60; // 2880 min = 48h (producción)
-// Demo: DEMO_TTL_MINUTES=3 → 3 minutos
+// Demo: DEMO_TTL_MINUTES=3 → 3 minutos (para mostrar Rama B en vivo)
 
-export const TTL_MINUTES = (() => {
-  if (process.env.DEMO_TTL_MINUTES) return parseInt(process.env.DEMO_TTL_MINUTES, 10);
-  if (process.env.DEMO_FAST_TIMEOUT === 'true') return 3;
-  return DEFAULT_TTL_MINUTES;
-})();
+export const TTL_MINUTES = process.env.DEMO_TTL_MINUTES
+  ? parseInt(process.env.DEMO_TTL_MINUTES, 10)
+  : DEFAULT_TTL_MINUTES;
 
 export function ttlExpiry(exchangeConfirmedAt: Date): Date {
   return new Date(exchangeConfirmedAt.getTime() + TTL_MINUTES * 60 * 1000);
@@ -295,7 +303,7 @@ export function ttlExpiry(exchangeConfirmedAt: Date): Date {
                         ▼
                 awaiting-funding
                         │
-              [Comprador fondea vía SendModal]
+              [Comprador fondea — checkout Pollar: `runTx('payment', …)`]
                         │
                         ▼
                      funded ────────────────────┐
@@ -304,9 +312,9 @@ export function ttlExpiry(exchangeConfirmedAt: Date): Date {
    [Una parte registra el intercambio]         refunded
                         │
                         ▼
-              awaiting-exchange
-                        │
-              [La otra parte confirma]
+              awaiting-exchange ── [cualquiera cancela, o la
+                        │            ventana de confirmación
+              [La otra parte confirma]  expira (cron) → refunded]
                         │
                         ▼
             exchange-recorded (TTL corriendo)
@@ -326,9 +334,10 @@ El TTL no arranca por un QR, una cámara o un gesto técnico. Arranca porque **l
 
 1. Cualquiera de las dos partes toca **"Intercambio realizado"** en su app (en su pantalla de escrow `funded`).
 2. El estado pasa a `awaiting-exchange`. La otra parte recibe una notificación push: *"{Nombre} registró que hicieron el intercambio. ¿Confirmas?"*
-3. La otra parte tiene dos opciones:
+3. La otra parte tiene tres caminos:
    - **"Sí, confirmar intercambio"** → estado `exchange-recorded`, arranca el TTL.
    - **"No, eso no pasó"** → se abre inmediatamente Rama C con razón `exchange-never-happened`.
+   - **No responde** → la **ventana de confirmación** (demo ~10 min, prod 8h) expira y el cron auto-cancela: el dinero vuelve al comprador (refund) y la oferta regresa a `pending`.
 
 ```typescript
 // POST /api/escrow/record-exchange
@@ -347,12 +356,12 @@ El TTL no arranca por un QR, una cámara o un gesto técnico. Arranca porque **l
 
 **Rama A — Accept (`POST /api/escrow/accept`):**
 - Comprador toca "Aceptar artículo" mientras está en `exchange-recorded`
-- Plataforma firma + comprador firma → tx Stellar: escrow → vendedor (− comisión) + escrow → treasury (comisión)
+- **Plataforma + llave de arbitraje firman** (2-de-2, §4.1) → tx Stellar: escrow → vendedor (− comisión) + escrow → treasury (comisión)
 - Estado: `released`
 
 **Rama B — Auto-resolve (`GET /api/escrow/timeout-check`, llamado por cron cada 30s):**
 - Encuentra escrows donde `ttlExpiresAt < NOW()` y status = `exchange-recorded`
-- Plataforma firma con timestamp (verificable en el ledger de Stellar)
+- **Plataforma + llave de arbitraje firman** con timestamp (verificable en el ledger de Stellar)
 - Tx Stellar: igual a Rama A
 - Estado: `auto-released`
 
@@ -370,13 +379,13 @@ El TTL no arranca por un QR, una cámara o un gesto técnico. Arranca porque **l
 ### 4.6 Comisión
 
 ```typescript
-// lib/fees.ts
+// lib/fees.ts — montos SIEMPRE en centavos de XLM (Int; doctrina de ARCHITECTURE §4.2)
 const PLATFORM_FEE_BPS = 200; // 2%. Hackathon: 0
-export function calculateFee(amount: number): number {
+export function feeCents(amountCents: number, bps = PLATFORM_FEE_BPS): number {
   if (process.env.HACKATHON_FREE_FEES === 'true') return 0;
-  return Math.round((amount * PLATFORM_FEE_BPS) / 10000 * 1e6) / 1e6;
+  return Math.floor((amountCents * bps) / 10000);   // round-down a favor del vendedor
 }
-// 300 P$ → fee 6 P$ → María recibe 294 P$
+// 300 XLM = 30,000 centavos → fee 600 centavos (6 XLM) → María recibe 29,400 centavos (294 XLM)
 ```
 
 ### 4.7 Memo receipt (Stellar)
@@ -391,7 +400,7 @@ Visible en stellar.expert en el historial de ambas wallets.
 
 ```typescript
 // app/api/escrow/accept-offer/route.ts   POST — vendedor acepta oferta → crea escrow
-// app/api/escrow/fund/route.ts           POST — comprador fondea multi-sig (SendModal)
+// app/api/escrow/fund/route.ts           POST — comprador fondea multi-sig (devuelve paymentParams para runTx)
 // app/api/escrow/record-exchange/route.ts POST — una parte registra el intercambio → awaiting-exchange
 // app/api/escrow/confirm-exchange/route.ts POST — la otra parte confirma → exchange-recorded + TTL
 // app/api/escrow/accept/route.ts         POST — Rama A: liberar al vendedor (resta comisión)
@@ -496,7 +505,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 
 ```
 ┌─────────────────────────────────────┐
-│ 🐆 PumaTrade         💰 1,250 P$  👤│
+│ 🐆 PumaTrade         💰 1,250 XLM  👤│
 ├─────────────────────────────────────┤
 │  Hola, María 👋                     │
 │                                     │
@@ -510,7 +519,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │                                     │
 │  ─── Tus publicaciones (3) ───     │
 │  ┌─────────────────────────────┐    │
-│  │ [📷 TI-89]    800 P$        │    │
+│  │ [📷 TI-89]    800 XLM        │    │
 │  │ Calculadora    ✓ verificado  │    │
 │  │ 3 ofertas  [Ver tablero →]   │    │
 │  └─────────────────────────────┘    │
@@ -528,11 +537,11 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │ 🔍 [Buscar...]                      │
 ├─────────────────────────────────────┤
 │ ┌─────────────────────────────┐     │
-│ │ [📷 TI-89]   800 P$         │     │
+│ │ [📷 TI-89]   800 XLM         │     │
 │ │ Calculadora · María · 3 of.  │     │
 │ └─────────────────────────────┘     │
 │ ┌─────────────────────────────┐     │
-│ │ [📷 ThinkPad] 8,500 P$      │     │
+│ │ [📷 ThinkPad] 8,500 XLM      │     │
 │ │ Electrónica · Sofía · 1 of.  │     │
 │ └─────────────────────────────┘     │
 │ [Cargar más]                        │
@@ -547,26 +556,26 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ├─────────────────────────────────────┤
 │  [📷 Foto]                          │
 │  Calculadora TI-89 Titanium         │
-│  800 P$ · ✓ Verificado              │
+│  800 XLM · ✓ Verificado              │
 │                                     │
 │  ─── Tablero de ofertas (3) ───     │
 │                                     │
 │  ┌─────────────────────────────┐    │
 │  │ 💵 Compra directa            │    │
-│  │ Pablo ofrece: 750 P$          │    │
+│  │ Pablo ofrece: 750 XLM          │    │
 │  │ [Rechazar]  [Aceptar]        │    │
 │  └─────────────────────────────┘    │
 │  ┌─────────────────────────────┐    │
 │  │ 🔄 Híbrida (RECOMENDADA)    │    │
 │  │ Juan ofrece:                 │    │
-│  │   • Arduino Mega (450 P$)    │    │
-│  │   • 300 P$ en PumaDolar      │    │
+│  │   • Arduino Mega (450 XLM)    │    │
+│  │   • 300 XLM como saldo       │    │
 │  │ [Rechazar]  [Aceptar]        │    │
 │  └─────────────────────────────┘    │
 │  ┌─────────────────────────────┐    │
 │  │ 🎁 Trueque puro              │    │
-│  │ Andrea: Spivak (600 P$)      │    │
-│  │ ⚠ Falta 200 P$ → no procede  │    │
+│  │ Andrea: Spivak (600 XLM)      │    │
+│  │ ⚠ Falta 200 XLM → no procede  │    │
 │  │ [Rechazar]                   │    │
 │  └─────────────────────────────┘    │
 └─────────────────────────────────────┘
@@ -580,7 +589,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ├─────────────────────────────────────┤
 │  [📷 Foto]                          │
 │  Multímetro Fluke 117               │
-│  1,200 P$ · ✓ Verificado            │
+│  1,200 XLM · ✓ Verificado            │
 │                                     │
 │  ─── 0 ofertas ───                  │
 │  ┌─────────────────────────────┐    │
@@ -595,13 +604,13 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ┌─────────────────────────────────────┐
 │ ← Cancelar      Hacer oferta        │
 ├─────────────────────────────────────┤
-│  Ofertando por: TI-89 (800 P$)      │
+│  Ofertando por: TI-89 (800 XLM)      │
 │                                     │
-│  ⦿ Compra directa (solo PumaDolar)  │
+│  ⦿ Compra directa (solo saldo)   │
 │  ○ Trueque puro (objeto por objeto) │
 │  ○ Híbrida (objeto + diferencia)    │
 │                                     │
-│  Cantidad: [1,100] P$               │
+│  Cantidad: [1,100] XLM               │
 │  ℹ Mercado $650–850. Por encima.   │
 │                                     │
 │  Mensaje: [Hola, me urge...]        │
@@ -618,7 +627,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │ 🔒 ESCROW ACTIVO                    │
 ├─────────────────────────────────────┤
 │  Comprando: TI-89 Titanium          │
-│  A: María R. · Monto: 300 P$        │
+│  A: María R. · Monto: 300 XLM        │
 │                                     │
 │  Estado: 🟡 FUNDED                  │
 │  Tu pago está retenido.             │
@@ -681,7 +690,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │                                     │
 │  ┌─────────────────────────────┐    │
 │  │  ✅ Aceptar artículo        │    │
-│  │  → libera 300 P$ a María    │    │
+│  │  → libera 300 XLM a María    │    │
 │  └─────────────────────────────┘    │
 │                                     │
 │  ┌─────────────────────────────┐    │
@@ -758,9 +767,9 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │  Comprador: Juan P.                 │
 │  Vendedor: María R.                 │
 │                                     │
-│  Monto: 300 P$                      │
-│  Comisión (2%): −6 P$               │
-│  María recibió: 294 P$              │
+│  Monto: 300 XLM                      │
+│  Comisión (2%): −6 XLM               │
+│  María recibió: 294 XLM              │
 │                                     │
 │  ─── Recibo (Stellar) ───           │
 │  Tx: def456...ab                     │
@@ -768,8 +777,8 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │  [Ver en stellar.expert ↗]          │
 │                                     │
 │  Saldos:                            │
-│  María: 1,250 + 294 = 1,544 P$      │
-│  Juan:  2,000 − 300 = 1,700 P$      │
+│  María: 1,250 + 294 = 1,544 XLM      │
+│  Juan:  2,000 − 300 = 1,700 XLM      │
 └─────────────────────────────────────┘
 ```
 
@@ -782,7 +791,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │  📷 [Subir foto]                    │
 │  Título [Calculadora TI-89...]      │
 │  Descripción [Sin caja, funciona..] │
-│  Precio sugerido [800] P$           │
+│  Precio sugerido [800] XLM           │
 │  ⚠ Mercado: $650–850. OK.           │
 │  Tipo [Calculadoras ▼]              │
 │  Carreras [✓Compu][✓Eléctrica]      │
@@ -801,9 +810,9 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │ ← Atrás                             │
 ├─────────────────────────────────────┤
 │  👤 María R.                        │
-│  maria@unam.mx                      │
+│  maria.pumatrade+seed1@mail.tm      │
 │                                     │
-│  Balance: 💰 1,544 P$ [Actualizar]  │
+│  Balance: 💰 1,544 XLM [Actualizar]  │
 │  Dirección: GABC...XYZ [Copiar]     │
 │  [Historial de transacciones]       │
 │                                     │
@@ -842,41 +851,43 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ## 8. Seed data
 
 ```jsonc
-// seed/seed.json — IDs de wallets Pollar se inyectan al sembrar
+// lib/seed-data.ts — los G-address de wallets Pollar se inyectan al sembrar (SEED_WALLET_IDS)
+// ⚠️ Los valores monetarios se escriben en XLM para lectura humana;
+//    la DB los guarda como INT en CENTAVOS (×100). El seed hace el ×100.
 {
   "users": [
-    { "id": "usr_maria",  "email": "maria@unam.mx",  "displayName": "María R.",  "major": "Ing. en Computación", "balancePumaDolar": 1250 },
-    { "id": "usr_juan",   "email": "juan@unam.mx",   "displayName": "Juan P.",   "major": "Ing. Eléctrica",      "balancePumaDolar": 2000 },
-    { "id": "usr_andrea", "email": "andrea@unam.mx", "displayName": "Andrea L.", "major": "Matemáticas",         "balancePumaDolar": 800 },
-    { "id": "usr_pablo",  "email": "pablo@unam.mx",  "displayName": "Pablo M.",  "major": "Física",              "balancePumaDolar": 500 },
-    { "id": "usr_sofia",  "email": "sofia@unam.mx",  "displayName": "Sofía C.",  "major": "Ing. en Computación", "balancePumaDolar": 1800 }
+    { "id": "usr_maria",  "email": "maria.pumatrade+seed1@mail.tm",  "displayName": "María R.",  "major": "Ing. en Computación", "balanceXlm": 1250 },
+    { "id": "usr_juan",   "email": "juan.pumatrade+seed1@mail.tm",   "displayName": "Juan P.",   "major": "Ing. Eléctrica",      "balanceXlm": 2000 },
+    { "id": "usr_andrea", "email": "andrea.pumatrade+seed1@mail.tm", "displayName": "Andrea L.", "major": "Matemáticas",         "balanceXlm": 800 },
+    { "id": "usr_pablo",  "email": "pablo.pumatrade+seed1@mail.tm",  "displayName": "Pablo M.",  "major": "Física",              "balanceXlm": 500 },
+    { "id": "usr_sofia",  "email": "sofia.pumatrade+seed1@mail.tm",  "displayName": "Sofía C.",  "major": "Ing. en Computación", "balanceXlm": 1800 }
   ],
   "listings": [
-    { "id": "lst_ti89",   "sellerId": "usr_maria",  "title": "Calculadora TI-89 Titanium", "pricePumaDolar": 800,  "type": "calculadoras",    "videoVerified": true },
-    { "id": "lst_fluke",  "sellerId": "usr_maria",  "title": "Multímetro Fluke 117",        "pricePumaDolar": 1200, "type": "laboratorio",     "videoVerified": true },
-    { "id": "lst_bata_m", "sellerId": "usr_maria",  "title": "Bata blanca talla M",         "pricePumaDolar": 250,  "type": "batas-uniformes", "videoVerified": true },
-    { "id": "lst_arduino","sellerId": "usr_juan",   "title": "Arduino Mega 2560",           "pricePumaDolar": 450,  "type": "electronica",     "videoVerified": true },
-    { "id": "lst_sadiku", "sellerId": "usr_juan",   "title": "Sadiku — Electromagnetismo",  "pricePumaDolar": 300,  "type": "libros",          "videoVerified": true },
-    { "id": "lst_spivak", "sellerId": "usr_andrea", "title": "Cálculo de Spivak (3ra ed.)", "pricePumaDolar": 600,  "type": "libros",          "videoVerified": true },
-    { "id": "lst_bata_ch","sellerId": "usr_andrea", "title": "Bata blanca talla CH",        "pricePumaDolar": 200,  "type": "batas-uniformes", "videoVerified": true },
-    { "id": "lst_tipler", "sellerId": "usr_pablo",  "title": "Tipler — Física Moderna",     "pricePumaDolar": 350,  "type": "libros",          "videoVerified": true },
-    { "id": "lst_thinkpad","sellerId":"usr_sofia",  "title": "ThinkPad X1 Carbon (i7,16GB)","pricePumaDolar": 8500, "type": "electronica",     "videoVerified": true },
-    { "id": "lst_raspi",  "sellerId": "usr_sofia",  "title": "Raspberry Pi 4 8GB",          "pricePumaDolar": 1100, "type": "electronica",     "videoVerified": true }
+    { "id": "lst_ti89",   "sellerId": "usr_maria",  "title": "Calculadora TI-89 Titanium", "priceXlm": 800,  "type": "calculadoras",    "videoVerified": true },
+    { "id": "lst_fluke",  "sellerId": "usr_maria",  "title": "Multímetro Fluke 117",        "priceXlm": 1200, "type": "laboratorio",     "videoVerified": true },
+    { "id": "lst_bata_m", "sellerId": "usr_maria",  "title": "Bata blanca talla M",         "priceXlm": 250,  "type": "batas-uniformes", "videoVerified": true },
+    { "id": "lst_arduino","sellerId": "usr_juan",   "title": "Arduino Mega 2560",           "priceXlm": 450,  "type": "electronica",     "videoVerified": true },
+    { "id": "lst_sadiku", "sellerId": "usr_juan",   "title": "Sadiku — Electromagnetismo",  "priceXlm": 300,  "type": "libros",          "videoVerified": true },
+    { "id": "lst_spivak", "sellerId": "usr_andrea", "title": "Cálculo de Spivak (3ra ed.)", "priceXlm": 600,  "type": "libros",          "videoVerified": true },
+    { "id": "lst_bata_ch","sellerId": "usr_andrea", "title": "Bata blanca talla CH",        "priceXlm": 200,  "type": "batas-uniformes", "videoVerified": true },
+    { "id": "lst_tipler", "sellerId": "usr_pablo",  "title": "Tipler — Física Moderna",     "priceXlm": 350,  "type": "libros",          "videoVerified": true },
+    { "id": "lst_thinkpad","sellerId":"usr_sofia",  "title": "ThinkPad X1 Carbon (i7,16GB)","priceXlm": 8500, "type": "electronica",     "videoVerified": true },
+    { "id": "lst_raspi",  "sellerId": "usr_sofia",  "title": "Raspberry Pi 4 8GB",          "priceXlm": 1100, "type": "electronica",     "videoVerified": true }
   ],
   "offers": [
     { "id": "ofr_pablo_ti89", "listingId": "lst_ti89", "offererId": "usr_pablo",
-      "type": "pollar-only", "pollarAmount": 750, "message": "Me serviría mucho.", "status": "pending" },
+      "type": "saldo-only", "xlmAmount": 750, "message": "Me serviría mucho.", "status": "pending" },
     { "id": "ofr_juan_ti89_hybrid", "listingId": "lst_ti89", "offererId": "usr_juan",
       "type": "hybrid",
-      "offeredItems": [{ "title": "Arduino Mega 2560", "estimatedValuePumaDolar": 450 }],
-      "pollarAmount": 300,
+      "offeredItems": [{ "title": "Arduino Mega 2560", "estimatedValueXlm": 450 }],
+      "xlmAmount": 300,
       "message": "Oferta final, la hago porque necesito la calculadora.", "status": "pending" },
     { "id": "ofr_andrea_ti89_barter", "listingId": "lst_ti89", "offererId": "usr_andrea",
       "type": "barter",
-      "offeredItems": [{ "title": "Cálculo de Spivak (3ra ed.)", "estimatedValuePumaDolar": 600 }],
+      "offeredItems": [{ "title": "Cálculo de Spivak (3ra ed.)", "estimatedValueXlm": 600 }],
       "message": "Solo cambiaría si me das efectivo para la diferencia.", "status": "pending" },
     { "id": "ofr_pablo_thinkpad", "listingId": "lst_thinkpad", "offererId": "usr_pablo",
-      "type": "pollar-only", "pollarAmount": 8300, "message": "Si me la dejas en 8300 te la compro hoy.", "status": "pending" }
+      "type": "saldo-only", "xlmAmount": 8300, "message": "Si me la dejas en 8300 te la compro hoy.", "status": "pending" }
   ]
 }
 ```
@@ -887,8 +898,8 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 
 | Fuente | Implementación |
 |---|---|
-| **Comisión de escrow** | 2% sobre PumaDolar liberado (deducido al release). Hackathon: 0%. |
-| **Premium listings (futuro)** | Destacar un artículo: 10–15 P$ / semana. |
+| **Comisión de escrow** | 2% sobre el monto XLM liberado (deducido al release; el fee se calcula en enteros: `feeCents = floor(amount × bps / 10000)`). Hackathon: 0%. |
+| **Premium listings (futuro)** | Destacar un artículo: 10–15 XLM / semana. |
 
 ---
 
@@ -899,18 +910,23 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 ```json
 {
   "dependencies": {
-    "next": "^14.2.0", "react": "^18.3.0", "react-dom": "^18.3.0", "typescript": "^5.4.0",
-    "@pollar/core": "^0.11.3", "@pollar/react": "^0.11.3",
-    "@stellar/stellar-sdk": "^11.0.0",
-    "tailwindcss": "^3.4.0", "zustand": "^4.5.0", "zod": "^3.23.0",
-    "@prisma/client": "^5.15.0", "lucide-react": "^0.400.0", "date-fns": "^3.6.0"
+    "next": "16.2.9", "react": "19.3.0", "react-dom": "19.3.0", "typescript": "^5.9.0",
+    "@pollar/core": "0.11.3", "@pollar/react": "0.11.3",
+    "@stellar/stellar-sdk": "17.1.0",
+    "tailwindcss": "4.3.3", "@tailwindcss/postcss": "4.3.3", "postcss": "8.5.6",
+    "zustand": "5.0.15", "zod": "4.6.5",
+    "@prisma/client": "7.10.0", "@prisma/adapter-neon": "7.10.0",
+    "@neondatabase/serverless": "1.1.0", "@vercel/blob": "2.8.0",
+    "lucide-react": "1.48.0", "date-fns": "4.4.0"
   },
   "devDependencies": {
-    "prisma": "^5.15.0", "@types/node": "^20.0.0", "@types/react": "^18.3.0",
-    "eslint": "^8.57.0", "prettier": "^3.3.0"
+    "prisma": "7.10.0", "@types/node": "^22.0.0", "@types/react": "^19.0.0",
+    "eslint": "^9.0.0", "eslint-config-next": "16.2.9", "prettier": "^3.3.0"
   }
 }
 ```
+
+> **Nota v3.4:** exactamente la matriz fijada en ARCHITECTURE §3.1. Versiones clavadas (sin `^`) para las piezas críticas; en dev, TS y eslint con `^`.
 
 ### 10.2 Estructura de carpetas
 
@@ -943,21 +959,39 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │   ├── cron.ts
 │   └── priceAlert/{referencePrices,engine}.ts
 ├── prisma/schema.prisma
-├── seed/seed.json
+├── lib/seed-data.ts              # seed compartido (prisma/seed.ts + /api/reset-demo)
 └── .env.local
 ```
 
 ### 10.3 Variables de entorno
 
 ```bash
-NEXT_PUBLIC_POLLAR_API_KEY=pk_test_...
-POLLAR_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_STELLAR_NETWORK=TESTNET
+# .env.local — lista COMPLETA. La fuente de verdad final es ARCHITECTURE §14.
+# === Pollar app Usuarios ===
+NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_...
+POLLAR_USERS_SECRET_KEY=sec_testnet_users_...
+# === Pollar app Operacional (server-only) ===
+POLLAR_OPS_SECRET_KEY=sec_testnet_ops_...
+# === Stellar (plataforma = treasury) ===
+PLATFORM_PUBLIC_KEY=G...
+PLATFORM_SECRET_KEY=S...
+# === Cifrado llave árbitro + firma cookies (openssl rand -hex 32) ===
+APP_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+# === DB (Neon Postgres; misma string en dev y prod) ===
+DATABASE_URL=postgresql://...
+# === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
 DEMO_TTL_MINUTES=3                  # demo: 3 min; producción: omitir (default 2880)
-DEMO_FAST_TIMEOUT=true
+CONFIRM_WINDOW_MINUTES=10           # ventana awaiting-exchange (prod: 8h = 480)
 HACKATHON_FREE_FEES=true
-POLLAR_TREASURY_WALLET_ID=G-...
+ENABLE_CRON=true
+ADMIN_EMAILS=maria.pumatrade+seed1@mail.tm
+# === Deploy (Vercel) ===
+CRON_SECRET=random-32-chars
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...   # solo prod
+# === Seed / demo ===
+SEED_WALLET_IDS={}
+ALLOW_RESET_DEMO=true
 ```
 
 ### 10.4 Integración Pollar
@@ -965,12 +999,14 @@ POLLAR_TREASURY_WALLET_ID=G-...
 ```tsx
 // app/layout.tsx
 import { PollarProvider } from '@pollar/react';
-<PollarProvider client={{ apiKey: process.env.NEXT_PUBLIC_POLLAR_API_KEY!, network: 'stellar' }}>
+// ⚠️ Sin parámetro `network`: la red se fija a nivel de app en el dashboard
+// (Chains → Stellar testnet). El demo app oficial usa solo `client={{ apiKey }}`.
+<PollarProvider client={{ apiKey: process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY! }}>
 ```
 
-- `<WalletButton>` (header), `usePollar().login()`, `<SendModal>` (checkout), `<TxHistoryModal>` (settings), `refreshBalance()` post-acción.
-- Server-side: `client.stellar.buildTransaction()` / `submitTransaction()` para funding y release multi-sig.
-- Cron: `lib/cron.ts` corre cada 30s vía `setInterval` (Node) o un endpoint `/api/escrow/timeout-check` invocado por Vercel Cron / worker externo.
+- `<WalletButton>` (header), `usePollar().login()`, **`runTx('payment', …)`** (checkout del escrow — reemplaza al `<SendModal>` de versiones previas, verificado en ARCHITECTURE §5.4/§10.4), `<TxHistoryModal>` (settings), `refreshBalance()` post-acción.
+- Server-side: `@stellar/stellar-sdk` v17 construye la release/refund multi-sig y la firma con **platform + llave de arbitraje** (§6.2/§6.3 de ARCHITECTURE).
+- Cron: `lib/cron.ts` corre cada 30s vía `setInterval` (dev) o el endpoint `/api/cron/timeout-check` invocado por Vercel Cron / worker externo (2 pasadas: TTL + ventana de confirmación).
 
 ---
 
@@ -978,9 +1014,9 @@ import { PollarProvider } from '@pollar/react';
 
 **T-24h:**
 - [ ] App en [dashboard.pollar.xyz](https://dashboard.pollar.xyz): Stellar Testnet, G-accounts, funding Immediate, Google auth, API keys
-- [ ] Treasury fondeado con USDC testnet (~10,000)
+- [ ] Treasury fondeada con XLM de testnet (friendbot, ~10,000 XLM — gratis en testnet)
 - [ ] 5 wallets seed creadas y fondeadas
-- [ ] Capturar `G-...` IDs para `seed.json`
+- [ ] Capturar `G-...` IDs en `SEED_WALLET_IDS` (route handler dev — ARCH §13.3)
 - [ ] Probar send entre dos wallets seed
 
 **T-2h:**
@@ -996,7 +1032,7 @@ import { PollarProvider } from '@pollar/react';
 3. Detalle listing (vendedor y visitante)
 4. Hacer oferta (3 tipos)
 5. Tablero + aceptar oferta → escrow (awaiting-funding)
-6. Fondear escrow (SendModal) → funded
+6. Fondear escrow (runTx Pollar) → funded
 7. Pantalla escrow funded + botón "Intercambio realizado"
 8. Notificación + confirmar intercambio → exchange-recorded + TTL
 9. Countdown TTL + Aceptar → released + recibo
@@ -1012,7 +1048,7 @@ import { PollarProvider } from '@pollar/react';
 
 - Tarjeta física NFC (Tangem)
 - Pagos de depósitos de renta para estudiantes foráneos
-- Pago de comidas en cafeterías con PumaDolar
+- Pago de comidas en cafeterías con XLM
 - Foro comunitario para alumnos de nuevo ingreso
 - Compra urgente por la plataforma (buyback)
 - Asistente IA completo (búsqueda en lenguaje natural, tasador de depreciación)
@@ -1044,12 +1080,12 @@ ventana de prueba."
 [Abrir como María → ver su TI-89 con 3 ofertas]
 "María vende su calculadora. Su tablero muestra tres ofertas.
 María elige la híbrida: Juan le da su Arduino valuado en 450
-más 300 en PumaDolar. María se lleva un componente que SÍ va a
+más 300 en saldo XLM. María se lleva un componente que SÍ va a
 usar más saldo para el próximo semestre."
 
 [1:00–1:30] CHECKOUT + FUNDED
-[Juan compra → SendModal → funded]
-"Juan paga los 300 P$ en PumaDolar. Inmediatamente el dinero
+[Juan compra → runTx Pollar → funded]
+"Juan paga los 300 XLM como saldo. Inmediatamente el dinero
 se congela en un smart contract — una cuenta multi-sig en
 Stellar, aquí está la transacción en vivo. Ni Juan ni María
 pueden tocar ese dinero todavía."
@@ -1072,7 +1108,7 @@ la ventana de prueba."
 
 [2:30–3:00] ACEPTAR + RECIBO
 [Juan acepta → mostrar release, recibo, saldos]
-"Juan la probó, funciona. Acepta. Mira: 294 P$ para María,
+"Juan la probó, funciona. Acepta. Mira: 294 XLM para María,
 recibo público en Stellar, saldos actualizados al instante.
 
 Eso es PumaTrade: trueque justo, dinero protegido, cero
@@ -1092,30 +1128,38 @@ cada artículo contra precios reales del mercado."]
 | Multi-sig setup tarda | Alta | Cuenta Stellar pre-creada como template; clonar por escrow |
 | TTL demo muy corto | Baja | `DEMO_TTL_MINUTES=3` da tiempo a explicar y mostrar Rama B |
 | Auto-resolve no dispara en vivo | Baja | Cron corre cada 30s; suficiente margen |
-| SendModal falla en Safari | Baja | Probar en Chrome; tener Chrome como backup |
+| Checkout Pollar (runTx) falla en Safari | Baja | Probar en Chrome; tener Chrome como backup |
 | Saldos desincronizados | Media | `refreshBalance()` tras cada acción |
 | Tx hash no aparece inmediato en explorer | Alta | Esperar 5–10s; tx de backup visible |
 | Wallets seed no listas | Media | Plan B: 2 wallets + 3 listings dummy |
 | Comisión rompe el flujo visual | Baja | Hackathon: `HACKATHON_FREE_FEES=true` |
-| Una parte no confirma el intercambio | Baja | Cualquiera puede cancelar; reembolso |
+| Una parte no confirma el intercambio | Baja | Ventana de confirmación: si expira sin confirm ni dispute → auto-refund al comprador (cron); también se puede cancelar manual |
+| Comprador fantasma nunca fondea | Baja | `awaiting-funding` no expira por cron (nada fondeado = sin riesgo de dinero); lo cierran el cancel manual o el reset-demo. TTL de fondeo = post-MVP |
+| Suplantación vía `/api/auth/sync` (email ajeno + wallet propia) | Media | El `pollarWalletId` se vincula una sola vez (o si es placeholder): un email ya vinculado a otra wallet recibe 409 (ARCHITECTURE §9.4/§12) |
 
 ---
 
 ## 15. Glosario
 
-- **PumaDolar (P$):** saldo de la app. 1 P$ = 1 USDC en Stellar testnet.
+- **Moneda (decisión v3.3):** Lumens (XLM) nativos de Stellar testnet — no hay token propio ni emisor; el saldo de la app ES XLM. Cantidades en DB como enteros (centavos de XLM; 1 XLM = 100 centavos).
 - **Pollar (SDK):** infraestructura de wallets embebidas + auth para Stellar.
 - **Stellar:** blockchain L1 de liquidación.
-- **Escrow:** retención de fondos en cuenta multi-sig 2-de-2.
+- **Escrow:** retención de fondos en cuenta multi-sig 2-de-2 (plataforma + llave de arbitraje por-escrow, server-side).
 - **TTL / ventana de prueba:** período entre el intercambio registrado y la resolución (48h prod, 3 min demo).
+- **Ventana de confirmación:** período en `awaiting-exchange` para que la otra parte confirme o dispute; al expirar sin respuesta, el cron auto-cancela y devuelve el dinero al comprador (demo ~10 min, prod 8h).
 - **Intercambio registrado:** ambas partes confirman que los objetos cambiaron físicamente de manos → arranca el TTL.
+- **Listing Pendiente:** estado del listing mientras hay un escrow en vuelo (1 escrow por listing): no acepta más ofertas. Al resolver → `sold` / `active`.
 - **Rama A:** comprador acepta → release.
 - **Rama B:** TTL expira → auto-resolve a favor del vendedor.
 - **Rama C:** comprador reporta (dañado / nunca ocurrió / item diferente) → disputa congelada.
-- **Oferta híbrida:** objeto + PumaDolar como diferencia.
+- **Oferta híbrida:** objeto + XLM como diferencia.
 - **"El Ladrillo":** lo que se demuestra en el hackathon.
 - **"La Casa":** la visión completa post-MVP.
 
 ---
 
-**FIN DEL PRD v3.2** — El intercambio físico es el evento central: ambas partes lo registran, el TTL arranca, y de ahí vienen las tres salidas posibles. Listo para implementar.
+**FIN DEL PRD v3.4** — El intercambio físico es el evento central: ambas partes lo registran, el TTL arranca, y de ahí vienen las tres salidas posibles. Listo para implementar.
+
+> **v3.3 (2026-09-25):** moneda = **Lumens (XLM) nativos de testnet** (fuera PumaDolar/USDC); cantidades en **enteros centavos**; ofertas del tipo `saldo-only` (antes `pollar-only`); IDs `cuid()`; ofertas por listing públicas y cancel devuelve la oferta a `pending`. El resto del contenido no cambió — **excepto lo de v3.4:**
+>
+> **v3.4 (2026-09-25):** escrow **2-de-2 plataforma + llave de arbitraje** por-escrow (el comprador no es signer — su llave vive custodiada en el AWS KMS de Pollar, sin API de firma ajena; detalle en ARCHITECTURE §6.2); **ventana de confirmación** en `awaiting-exchange` (si la otra parte no confirma ni disputa, el cron auto-cancela y el dinero vuelve al comprador); **1 escrow por listing** con estado `Pendiente`. Checkout del escrow con `runTx('payment', …)` (reemplaza al `SendModal`, verificado en el demo app de Pollar).
