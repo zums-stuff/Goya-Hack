@@ -12,7 +12,9 @@ import {
 import { prisma } from '@/lib/db';
 import { EscrowActions } from '@/components/escrow/EscrowActions';
 import { CountdownTimer } from '@/components/escrow/CountdownTimer';
-import { fmtPrice } from '@/lib/format';
+import { ChatThread } from '@/components/chat/ChatThread';
+import { tryGetUser } from '@/lib/auth';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 
 function statusLabel(s: string): { label: string; tone: 'positive' | 'soon' | 'alert' | 'muted' } {
   switch (s) {
@@ -51,6 +53,7 @@ export default async function EscrowDetailPage(props: {
   });
   if (!escrow) notFound();
 
+  const me = await tryGetUser();
   const st = statusLabel(escrow.status);
   const toneClass =
     st.tone === 'positive'
@@ -58,6 +61,22 @@ export default async function EscrowDetailPage(props: {
       : st.tone === 'alert'
         ? 'warning-text'
         : 'ai-price-signal market';
+
+  const rate = await xlmMxnRate();
+  const fmtAmount = await fmtXlm(escrow.amountXlm);
+  const fmtShort = (cents: number) =>
+    `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(cents, rate))}`;
+
+  // El chat se deshabilita una vez que el escrow está cerrado (released /
+  // refunded / auto-released) — coordinar pickup ya no aplica.
+  const chatClosedStates = ['released', 'auto-released', 'refunded', 'disputed'];
+  const chatDisabled = chatClosedStates.includes(escrow.status);
+  const chatDisabledReason =
+    escrow.status === 'disputed'
+      ? 'Chat cerrado durante la disputa (usa /report para aportar evidencia).'
+      : escrow.status === 'refunded'
+        ? 'Chat cerrado — el escrow fue reembolsado.'
+        : 'Chat cerrado — el intercambio ya terminó.';
 
   return (
     <section style={{ maxWidth: 760 }}>
@@ -83,7 +102,7 @@ export default async function EscrowDetailPage(props: {
           <span>Monto del intercambio</span>
           <Wallet />
         </div>
-        <div className="balance-amount">P$ {fmtPrice(escrow.amountXlm)}</div>
+        <div className="balance-amount">{fmtAmount}</div>
         <div className="balance-footer">
           <span className={toneClass}>
             {st.tone === 'alert' ? <ShieldAlert /> : <ShieldCheck />}
@@ -158,6 +177,30 @@ export default async function EscrowDetailPage(props: {
           }}
         />
       </div>
+
+      {me && (me.id === escrow.buyerId || me.id === escrow.sellerId) && (
+        <div style={{ marginTop: 36 }}>
+          <div className="section-heading" style={{ marginBottom: 10 }}>
+            <div>
+              <p className="eyebrow">MENSAJES · TRADE</p>
+              <h2>Coordina con {me.id === escrow.buyerId ? 'el vendedor' : 'el comprador'}</h2>
+              <p>
+                Habla directo: lugar de encuentro, horario, identidad del
+                objeto. Polling 4s — refresca solo cuando la pestaña está
+                visible.
+              </p>
+            </div>
+          </div>
+          <ChatThread
+            scope="escrow"
+            scopeId={escrow.id}
+            meId={me.id}
+            title={escrow.listing.title}
+            disabled={chatDisabled}
+            disabledReason={chatDisabledReason}
+          />
+        </div>
+      )}
 
       <p className="subcopy" style={{ marginTop: 24, fontSize: 11 }}>
         ID: <code className="font-mono">{escrow.id}</code>

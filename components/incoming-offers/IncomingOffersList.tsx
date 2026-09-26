@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AlertCircle,
   Check,
@@ -31,14 +31,42 @@ function initials(n: string): string {
   return ((p[0]?.[0] ?? '?') + (p[1]?.[0] ?? '')).toUpperCase();
 }
 
-function fmtPrice(cents: number): string {
-  return (cents / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+const FALLBACK_RATE = 7.5;
+function fmtMxN(amount: number): string {
+  return amount.toLocaleString('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function IncomingOffersList({ offers }: { offers: IncomingOffer[] }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rate, setRate] = useState<number>(FALLBACK_RATE);
+
+  // Tasa XLM/MXN: refetch al montar para que el MXN esté sincronizado.
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch('/api/fx', { cache: 'no-store' });
+        if (!r.ok) return;
+        const j = (await r.json()) as { rate: number };
+        if (!cancelled && Number.isFinite(j.rate) && j.rate > 0) setRate(j.rate);
+      } catch {
+        /* fallback rate ya está */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const fmt = (cents: number) =>
+    `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxN((cents / 100) * rate)}`;
 
   async function accept(id: string, listingTitle: string) {
     if (!confirm(`¿Aceptar la oferta de "${listingTitle}"? Crea el escrow.`)) return;
@@ -133,7 +161,7 @@ export function IncomingOffersList({ offers }: { offers: IncomingOffer[] }) {
                         : 'Trueque puro'}
                   </span>
                   <span className="offer-total">
-                    P$ {fmtPrice(totalCents)}
+                    {fmt(totalCents)}
                     {coveragePct !== null && (
                       <span
                         className={

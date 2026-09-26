@@ -110,6 +110,14 @@ export const DisputeFormSchema = z.object({
   description: z.string().min(10).max(500),
 });
 
+// ─── Chat (Message) ─────────────────────────────────────────────────────
+export const MessageScopeSchema = z.enum(['listing', 'escrow']);
+export type MessageScope = z.infer<typeof MessageScopeSchema>;
+
+export const SendMessageSchema = z.object({
+  body: z.string().trim().min(1).max(1000),
+});
+
 // ─── Auth (dev only) ──────────────────────────────────────────────────────
 export const DevLoginSchema = z.object({
   email: z.string().email(),

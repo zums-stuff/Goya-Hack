@@ -4,10 +4,7 @@
 // pesadas ni rounded extremos — hairline border + rounded-2xl.
 
 import type { SeedListing } from '@/lib/seed-data';
-
-function fmtPrice(cents: number): string {
-  return (cents / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 });
-}
+import { fmtXlmShort } from '@/lib/format';
 
 function fmtCondition(c: string): string {
   switch (c) {
@@ -48,8 +45,7 @@ export function ListingCard({
       {/* Cuerpo */}
       <div className="p-3">
         <p className="text-2xl font-extrabold leading-tight">
-          {fmtPrice(listing.priceXlm)}{' '}
-          <span className="text-base font-bold text-black/60">XLM</span>
+          {fmtXlmShort(listing.priceXlm)}
         </p>
         <p className="mt-1 line-clamp-2 text-sm text-black/80">
           {listing.title}

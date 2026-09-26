@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { tryGetUser } from '@/lib/auth';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 
 export default async function ReceiptPage(props: {
   params: Promise<{ escrowId: string }>;
@@ -53,11 +53,18 @@ export default async function ReceiptPage(props: {
   }
 
   const isRelease = escrow.status !== 'refunded';
-  const net = (escrow.amountXlm - escrow.platformFeeXlm) / 100;
-  const fee = escrow.platformFeeXlm / 100;
+  const netCents = (escrow.amountXlm - escrow.platformFeeXlm);
+  const feeCents = escrow.platformFeeXlm;
+  const net = netCents / 100;
+  const fee = feeCents / 100;
   const toneClass = isRelease ? 'verified' : 'warning-text';
   const toneText = isRelease ? '✓ Transacción completada' : '↺ Reembolso emitido';
   const toneIcon = isRelease ? <CheckCircle2 /> : <ArrowLeft />;
+
+  const rate = await xlmMxnRate();
+  const fmtAmount = await fmtXlm(escrow.amountXlm);
+  const fmtNet = await fmtXlm(netCents);
+  const fmtFee = await fmtXlm(feeCents);
 
   return (
     <section style={{ maxWidth: 560 }}>
@@ -83,7 +90,7 @@ export default async function ReceiptPage(props: {
           <span>{escrow.listing.title}</span>
           <Wallet />
         </div>
-        <div className="balance-amount">P$ {fmtPrice(escrow.amountXlm)}</div>
+        <div className="balance-amount">{fmtAmount}</div>
         <div className="balance-footer">
           <span className={toneClass}>
             {toneIcon}
@@ -129,18 +136,17 @@ export default async function ReceiptPage(props: {
           <ShieldCheck />
           <strong>Desglose de la transacción</strong>
           <small>
-            Monto: P$ {fmtPrice(escrow.amountXlm)}
+            Monto: {fmtAmount}
             {escrow.platformFeeXlm > 0 && (
               <>
-                {' '}· Plataforma ({escrow.platformFeeBps} bps): P${' '}
-                {fee.toLocaleString('es-MX', { maximumFractionDigits: 4 })}
+                {' '}· Plataforma ({escrow.platformFeeBps} bps): {fmtFee}
               </>
             )}
           </small>
         </span>
         {isRelease && (
           <span className="ai-price-signal market" style={{ marginTop: 0 }}>
-            Vendedor recibe P$ {net.toLocaleString('es-MX', { maximumFractionDigits: 4 })}
+            Vendedor recibe {fmtNet}
           </span>
         )}
       </div>

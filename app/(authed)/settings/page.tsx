@@ -18,7 +18,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { tryGetUser } from '@/lib/auth';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 
 export default async function SettingsPage() {
   const me = await tryGetUser();
@@ -30,6 +30,11 @@ export default async function SettingsPage() {
   })();
 
   const minorBalance = me.balanceXlm / 1000; // rough heuristic for "uso del mes"
+
+  const rate = await xlmMxnRate();
+  const fmtBalance = await fmtXlm(me.balanceXlm);
+  const fmtShort = (c: number) =>
+    `${(c / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(c, rate))}`;
 
   return (
     <section className="account-view" style={{ maxWidth: 760 }}>
@@ -49,10 +54,10 @@ export default async function SettingsPage() {
       {/* Tarjeta grande: saldo + acciones rápidas */}
       <div className="balance-card" style={{ marginTop: 18 }}>
         <div className="balance-top">
-          <span>Saldo PumaDolar</span>
+          <span>Saldo XLM</span>
           <WalletCards />
         </div>
-        <div className="balance-amount">P$ {fmtPrice(me.balanceXlm)}</div>
+        <div className="balance-amount">{fmtBalance}</div>
         <div className="balance-footer">
           <span className="positive">
             <ShieldCheck />
@@ -154,7 +159,7 @@ export default async function SettingsPage() {
         <div className="account-row">
           <span className="kv-key">Saldo actual</span>
           <span className="kv-val">
-            P$ {fmtPrice(me.balanceXlm)}
+            {fmtShort(me.balanceXlm)}
           </span>
         </div>
         <div className="account-row">

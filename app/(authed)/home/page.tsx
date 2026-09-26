@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db';
 import { tryGetUser } from '@/lib/auth';
 import { buildListingsWhere } from '@/lib/listings';
 import { ListListingsQuerySchema } from '@/lib/schemas';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 
 const VISUALS = ['visual-coral', 'visual-blue', 'visual-yellow', 'visual-purple'];
 
@@ -113,6 +113,13 @@ const totalSavingsCents = savings.reduce(
 const totalSpentCents = savings.reduce((acc, e) => acc + e.amountXlm, 0);
 const savingsCount = savings.length;
 
+// Currency formatting for this render.
+const rate = await xlmMxnRate();
+const fmtBalance = await fmtXlm(me.balanceXlm);
+const fmtSavings = await fmtXlm(totalSavingsCents);
+const fmt = (cents: number) =>
+  `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(cents, rate))}`;
+
   return (
     <section className="home-view">
       <div className="welcome-row">
@@ -134,10 +141,10 @@ const savingsCount = savings.length;
       <div className="balance-grid balance-grid-4col">
         <div className="balance-card">
           <div className="balance-top">
-            <span>Saldo PumaDolar</span>
+            <span>Saldo XLM</span>
             <WalletCards />
           </div>
-          <div className="balance-amount">P$ {fmtPrice(me.balanceXlm)}</div>
+          <div className="balance-amount">{fmtBalance}</div>
           <div className="balance-footer">
             <span className="positive">
               <ShieldCheck />
@@ -154,7 +161,7 @@ const savingsCount = savings.length;
           </div>
           <div>
             <span>Ahorros del semestre</span>
-            <strong style={{ color: '#2c6b56' }}>P$ {fmtPrice(totalSavingsCents)}</strong>
+            <strong style={{ color: '#2c6b56' }}>{fmtSavings}</strong>
             <small>
               {savingsCount} trueque{savingsCount === 1 ? '' : 's'} liberado
               {savingsCount === 1 ? '' : 's'}
@@ -254,7 +261,7 @@ const savingsCount = savings.length;
                 {l.seller.displayName} · {l.seller.major}
               </div>
               <div className="price-row">
-                <strong>P$ {fmtPrice(l.priceXlm)}</strong>
+                <strong>{fmt(l.priceXlm)}</strong>
                 <span className="condition-badge">
                   {l.condition === 'como-nuevo' ? 'Como nuevo' : l.condition === 'aceptable' ? 'Aceptable' : 'Bueno'}
                 </span>
@@ -336,7 +343,7 @@ const savingsCount = savings.length;
                       </span>
                       {(o.xlmAmount ?? 0) > 0 && (
                         <span className="offer-total">
-                          P$ {fmtPrice(offerTotal)}
+                          {fmt(offerTotal)}
                         </span>
                       )}
                     </div>

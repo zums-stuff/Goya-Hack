@@ -13,7 +13,8 @@ import {
 } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { tryGetUser } from '@/lib/auth';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
+// fmtPrice se reemplaza por format con MXN (lib/currency.ts).
 
 const STATUS_LABEL: Record<string, { label: string; tone: 'pending' | 'funded' | 'success' | 'alert' | 'muted'; icon: React.ReactNode }> = {
   'awaiting-funding': {
@@ -73,6 +74,10 @@ export default async function ProcesosPage() {
     if (!groups.has(e.status)) groups.set(e.status, { meta: m, items: [] });
     groups.get(e.status)!.items.push(e);
   }
+
+  const rate = await xlmMxnRate();
+  const fmt = (cents: number) =>
+    `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(cents, rate))}`;
 
   return (
     <section style={{ maxWidth: 920 }}>
@@ -138,7 +143,7 @@ export default async function ProcesosPage() {
                             {iAmBuyer ? 'COMPRADOR' : 'VENDEDOR'} · {counterparty.toUpperCase()}
                           </span>
                           <span className="offer-total">
-                            P$ {fmtPrice(e.amountXlm)}
+                            {fmt(e.amountXlm)}
                           </span>
                         </div>
                         <strong

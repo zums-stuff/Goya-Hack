@@ -29,6 +29,7 @@ model User {
   escrowsAsSeller     Escrow[]          @relation("SellerEscrows")
   exchangeInitiated   Escrow[]          @relation("ExchangeInitiator")
   exchangeConfirmed   Escrow[]          @relation("ExchangeConfirmer")
+  messages            Message[]
   txLogs              TransactionLog[]
   disputeReports      DisputeEvidence[]
 }
@@ -140,6 +141,26 @@ model DisputeEvidence {
   createdAt   DateTime @default(now())
 
   @@index([escrowId])
+}
+
+// Chat entre las dos partes. Scope polimórfico:
+// - 'listing': offerer ↔ seller, antes de aceptar (regatea la oferta)
+// - 'escrow' : buyer ↔ seller, después de aceptar (coordinan pickup, etc.)
+//
+// Una sola tabla para queries simples (`WHERE scope='X' AND scopeId=?`)
+// y un solo index compuesto hace el patrón "dame los mensajes de X" O(1).
+model Message {
+  id         String   @id @default(cuid())
+  scope      String   // 'listing' | 'escrow'
+  scopeId    String   // listingId o escrowId según scope
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id])
+  body       String
+  createdAt  DateTime @default(now())
+  readAt     DateTime?
+
+  @@index([scope, scopeId, createdAt])
+  @@index([scope, scopeId, readAt])
 }
 
 model TransactionLog {

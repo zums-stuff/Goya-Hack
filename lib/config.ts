@@ -47,6 +47,9 @@ const Schema = z.object({
   SEED_WALLET_IDS: z.string().default('{}'),
   ALLOW_RESET_DEMO: z.coerce.boolean().default(false),
   DEV_LOGIN_ENABLED: z.coerce.boolean().default(false),
+
+  // FX (opcional — si falta se usan CoinGecko o el fallback 7.5 en lib/currency.ts).
+  XLM_MXN_RATE: z.coerce.number().positive().optional(),
 });
 
 export type Env = z.infer<typeof Schema>;

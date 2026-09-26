@@ -1,6 +1,8 @@
 // components/listings/ListingForm.tsx — Form con feedback explícito.
 // UX: indica estado (Enviando → escrito), navega a detalle al éxito.
 // Majors se preseleccionan con la major del usuario como mejor guess.
+// El campo precio usa AmountField (toggle XLM ⇄ MXN) — el servidor recibe
+// SIEMPRE centavos de XLM.
 // Errores del server (zod validation) se muestran campo por campo desde
 // `details[]`, no como mensaje opaco.
 'use client';
@@ -10,6 +12,7 @@ import { useRouter } from 'next/navigation';
 import { AlertCircle, Plus } from 'lucide-react';
 import { ListingTypeSchema, MajorSchema, ConditionSchema } from '@/lib/schemas';
 import { parseApiError, type FormattedError } from '@/lib/api-errors';
+import { AmountField } from '@/components/forms/AmountField';
 
 const LISTING_TYPES = ListingTypeSchema.options;
 const MAJORS = MajorSchema.options;
@@ -31,6 +34,8 @@ export function ListingForm({ defaultMajor }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormattedError[]>([]);
+  // El precio en centavos de XLM (AmountField emite en centavos directamente).
+  const [priceCents, setPriceCents] = useState<number>(0);
 
   // majors prechecked: la major del usuario (si la tiene) como forecast mínimo.
   const initialMajors = defaultMajor && MAJORS.includes(defaultMajor as never)
@@ -54,15 +59,12 @@ export function ListingForm({ defaultMajor }: Props) {
       return;
     }
 
-    const priceStr = (formData.get('priceXlm') ?? '').toString();
-    const priceNum = Number(priceStr);
-    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+    if (!Number.isFinite(priceCents) || priceCents <= 0) {
       setBusy(false);
       setFieldErrors([]);
       setError('Precio debe ser un número mayor a 0.');
       return;
     }
-    const priceXlm = Math.round(priceNum * 100);
 
     const photoUrl = (formData.get('photoUrl') ?? '').toString();
     try {
@@ -77,7 +79,7 @@ export function ListingForm({ defaultMajor }: Props) {
     const payload = {
       title: formData.get('title')?.toString() ?? '',
       description: formData.get('description')?.toString() ?? '',
-      priceXlm,
+      priceXlm: priceCents,
       type: formData.get('type')?.toString() ?? '',
       majors,
       condition: formData.get('condition')?.toString() ?? 'bueno',
@@ -151,19 +153,16 @@ export function ListingForm({ defaultMajor }: Props) {
       </label>
 
       <div className="form-row">
-        <label className="form-label">
-          <span>Precio (XLM)</span>
-          <span className="form-hint">Conserva decimales</span>
-          <input
-            className="form-field"
-            name="priceXlm"
-            type="number"
-            min={0.01}
-            max={5_000}
-            step={0.01}
+          <AmountField
+            value={priceCents}
+            onChange={setPriceCents}
+            min={1}
+            max={50_000_000}
+            label="Precio"
+            hint="Precio de venta en Lumens (XLM, nativos de Stellar testnet)."
             required
+            disabled={busy}
           />
-        </label>
 
         <label className="form-label">
           <span>Tipo</span>

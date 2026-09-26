@@ -7,7 +7,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import {
   ArrowRightLeft,
   Bell,
@@ -21,7 +21,7 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-react';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlmShort } from '@/lib/format';
 
 type Me = {
   id: string;
@@ -126,7 +126,7 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
           <div className="top-actions">
             <div className="balance-chip">
               <WalletCards />
-              <span>P$ {fmtPrice(me.balanceXlm)}</span>
+              <span>{fmtXlmShort(me.balanceXlm)}</span>
             </div>
             <button
               type="button"

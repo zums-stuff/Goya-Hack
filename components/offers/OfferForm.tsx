@@ -2,6 +2,8 @@
 // UX clave: tras POST exitoso mostramos un panel verde con "Oferta
 // enviada" + un CTA para volver. La fase 'success' cierra la duda de
 // "¿el botón hizo algo?".
+// Los campos de monto (XLM y valor de trueque) usan AmountField con toggle
+// XLM ⇄ MXN — siempre pasamos centavos de XLM al server.
 'use client';
 
 import { useState } from 'react';
@@ -9,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { parseApiError, type FormattedError } from '@/lib/api-errors';
+import { AmountField } from '@/components/forms/AmountField';
 
 type Props = {
   listingId: string;
@@ -22,17 +25,15 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>('idle');
   const [type, setType] = useState<'saldo-only' | 'barter' | 'hybrid'>('saldo-only');
-  const [xlmAmount, setXlmAmount] = useState('');
+  const [xlmCents, setXlmCents] = useState<number>(0);
+  const [barterCents, setBarterCents] = useState<number>(0);
   const [itemTitle, setItemTitle] = useState('');
-  const [itemValue, setItemValue] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FormattedError[]>([]);
 
   function totalCents(): number {
-    const val = Number(itemValue || '0');
-    const xlm = Number(xlmAmount || '0');
-    return Math.round((val + xlm) * 100);
+    return xlmCents + barterCents;
   }
 
   const deltaPct =
@@ -42,9 +43,9 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
 
   function reset() {
     setType('saldo-only');
-    setXlmAmount('');
+    setXlmCents(0);
+    setBarterCents(0);
     setItemTitle('');
-    setItemValue('');
     setMessage('');
     setError(null);
     setPhase('idle');
@@ -61,19 +62,17 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
           ? [
               {
                 title: itemTitle.trim(),
-                estimatedValueXlm: Math.round(Number(itemValue) * 100),
+                estimatedValueXlm: barterCents,
               },
             ]
           : undefined;
-      const xlmCents =
-        type === 'saldo-only' || type === 'hybrid'
-          ? Math.round(Number(xlmAmount) * 100)
-          : undefined;
+      const xlmAmount =
+        type === 'saldo-only' || type === 'hybrid' ? xlmCents : undefined;
       const body = {
         listingId,
         type,
         offeredItems,
-        xlmAmount: xlmCents,
+        xlmAmount,
         message: message.trim() || undefined,
       };
       const res = await fetch('/api/offers', {
@@ -163,18 +162,17 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {(type === 'saldo-only' || type === 'hybrid') && (
-          <label className="form-label">
-            <span>Saldo XLM</span>
-            <input
-              className="form-field"
-              type="number"
-              min={0.01}
-              step={0.01}
-              value={xlmAmount}
-              onChange={(e) => setXlmAmount(e.target.value)}
-              placeholder="300"
-            />
-          </label>
+          <AmountField
+            value={xlmCents}
+            onChange={setXlmCents}
+            min={1}
+            max={50_000_000}
+            label="Saldo XLM"
+            hint="Cuánto quieres ofrecer en XLM por este artículo."
+            id="offer-xlm"
+            required
+            disabled={busy}
+          />
         )}
 
         {(type === 'barter' || type === 'hybrid') && (
@@ -189,21 +187,21 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
                 maxLength={80}
               />
             </label>
-            <label className="form-label">
-              <span>Valor estimado (XLM)</span>
-              <input
-                className="form-field"
-                type="number"
-                min={0.01}
-                step={0.01}
-                value={itemValue}
-                onChange={(e) => setItemValue(e.target.value)}
-              />
-            </label>
+            <AmountField
+              value={barterCents}
+              onChange={setBarterCents}
+              min={1}
+              max={50_000_000}
+              label="Valor estimado"
+              hint="Tu estimación honesta del valor del objeto que das en parte de pago."
+              id="offer-barter"
+              required
+              disabled={busy}
+            />
           </>
         )}
 
-        {(type === 'barter' || type === 'hybrid') && itemValue && (
+        {(type === 'barter' || type === 'hybrid') && barterCents > 0 && (
           <div
             className="detail-trust"
             style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}
@@ -212,10 +210,9 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
             <span>
               <strong>Aviso de brecha</strong>
               <small>
-                Tu oferta cubre ≈ {(totalCents() / 100).toFixed(2)} XLM (
-                {deltaPct >= 0 ? '+' : ''}
-                {deltaPct}% del precio). El servidor no rechaza — el vendedor
-                decide.
+                Tu oferta cubre ≈ {(totalCents() / 100).toFixed(2)} XLM en
+                total ({deltaPct >= 0 ? '+' : ''}{deltaPct}% del precio). El
+                servidor no rechaza — el vendedor decide.
               </small>
             </span>
           </div>

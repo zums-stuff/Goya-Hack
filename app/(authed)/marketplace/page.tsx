@@ -4,7 +4,7 @@ import { ChevronRight, Calculator, CheckCircle2, Heart } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { buildListingsWhere } from '@/lib/listings';
 import { ListListingsQuerySchema } from '@/lib/schemas';
-import { fmtPrice } from '@/lib/format';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 
 const VISUALS = ['visual-coral', 'visual-blue', 'visual-yellow', 'visual-purple'];
 
@@ -41,6 +41,10 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
     take: args.success ? args.data.limit : 50,
     include: { seller: { select: { displayName: true, major: true } } },
   });
+
+  const rate = await xlmMxnRate();
+  const fmt = (cents: number) =>
+    `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(cents, rate))}`;
 
   return (
     <section className="marketplace-view">
@@ -138,7 +142,7 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
                 {l.seller.displayName} · {l.seller.major}
               </div>
               <div className="price-row">
-                <strong>P$ {fmtPrice(l.priceXlm)}</strong>
+                <strong>{fmt(l.priceXlm)}</strong>
                 <span className="condition-badge">
                   {l.condition === 'como-nuevo' ? 'Como nuevo' : l.condition === 'aceptable' ? 'Aceptable' : 'Bueno'}
                 </span>

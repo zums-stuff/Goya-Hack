@@ -15,7 +15,8 @@ import { tryGetUser } from '@/lib/auth';
 import { OfferBoard, type OfferLite } from '@/components/offers/OfferBoard';
 import { OfferForm } from '@/components/offers/OfferForm';
 import { PriceAlertCallout } from '@/components/listings/PriceAlertCallout';
-import { fmtPrice } from '@/lib/format';
+import { ChatThread } from '@/components/chat/ChatThread';
+import { fmtXlm, mxnFromCents, xlmMxnRate, fmtMxn } from '@/lib/currency';
 import type { ListingType } from '@/lib/schemas';
 
 const VISUALS = ['visual-coral', 'visual-blue', 'visual-yellow', 'visual-purple'];
@@ -91,6 +92,11 @@ export default async function ListingDetailPage(props: {
       : null;
   }
 
+  // Currency formatters for this render.
+  const rate = await xlmMxnRate();
+  const fmt = (cents: number) =>
+    `${(cents / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM · ≈ ${fmtMxn(mxnFromCents(cents, rate))}`;
+
   return (
     <section className="detail-view">
       <Link href="/marketplace" className="back-button">
@@ -123,7 +129,7 @@ export default async function ListingDetailPage(props: {
             Publicado por {listing.seller.displayName} · {listing.seller.major}
           </p>
           <div className="detail-price">
-            <strong>P$ {fmtPrice(listing.priceXlm)}</strong>
+            <strong>{fmt(listing.priceXlm)}</strong>
             <span className="ai-price-signal market">
               <Bot /> IA: Precio de mercado
             </span>
@@ -184,7 +190,7 @@ export default async function ListingDetailPage(props: {
                 <small>
                   {publicCount > 0 && avgOfferCents != null && (
                     <>
-                      {' '}Promedio: P$ {fmtPrice(avgOfferCents)} ({Math.round((avgOfferCents / (listing.priceXlm / 100)))}% del precio).
+                      {' '}Promedio: {fmt(avgOfferCents)} ({Math.round((avgOfferCents / (listing.priceXlm / 100)))}% del precio).
                     </>
                   )}
                   {publicCount === 0 && ' Sé el primero en ofertar.'}
@@ -224,7 +230,7 @@ export default async function ListingDetailPage(props: {
                 </small>
                 {rawMyOffer.xlmAmount ? (
                   <small style={{ marginTop: 4, display: 'block' }}>
-                    Tu oferta: P$ {fmtPrice(rawMyOffer.xlmAmount)}.
+                    Tu oferta: {fmt(rawMyOffer.xlmAmount)}.
                   </small>
                 ) : null}
               </span>
@@ -256,6 +262,38 @@ export default async function ListingDetailPage(props: {
                 Iniciar sesión <ChevronRight />
               </Link>
             </>
+          )}
+
+          {/* Chat pre-oferta: solo si soy participante (seller u offerer). */}
+          {me && (isOwner || rawMyOffer) && (
+            <div style={{ marginTop: 26 }}>
+              <div className="section-heading" style={{ marginBottom: 10 }}>
+                <div>
+                  <p className="eyebrow">MENSAJES · NEGOCIACIÓN</p>
+                  <h2>Negocia con {isOwner ? 'los offerers' : 'el vendedor'}</h2>
+                  <p>
+                    Coordina detalles antes de aceptar la oferta: estado real
+                    del artículo, horario de encuentro, trueques mixtos.
+                  </p>
+                </div>
+              </div>
+              <ChatThread
+                scope="listing"
+                scopeId={listingId}
+                meId={me.id}
+                title={listing.title}
+              />
+              {isOwner && (
+                <p
+                  className="subcopy"
+                  style={{ marginTop: 8, fontSize: 10, color: '#7f8c9d' }}
+                >
+                  Como vendedor, tu chat es con CADA offerer que haya escrito.
+                  Polling cada 4s para ver mensajes nuevos — la pestaña
+                  refresca sola cuando está visible.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </div>
