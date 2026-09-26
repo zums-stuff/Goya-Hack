@@ -8,6 +8,7 @@ import {
   ChevronRight,
   HandHeart,
   Heart,
+  PiggyBank,
   ShieldCheck,
   WalletCards,
   X,
@@ -63,7 +64,7 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
   });
   const where = args.success ? buildListingsWhere(args.data) : { status: 'active' };
 
-  const [listings, completed, active, myOffers] = await Promise.all([
+  const [listings, completed, active, myOffers, savings] = await Promise.all([
     prisma.listing.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -92,7 +93,25 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
         },
       },
     }),
+    // Ahorros en intercambios liberados: comparación listing.priceXlm vs
+    // amountXlm pagado por el escrow.
+    prisma.escrow.findMany({
+      where: {
+        OR: [{ buyerId: me.id }, { sellerId: me.id }],
+        status: { in: ['released', 'auto-released'] },
+      },
+      include: { listing: { select: { priceXlm: true, title: true } } },
+      take: 50,
+    }),
   ]);
+
+// Deriva stats de savings.
+const totalSavingsCents = savings.reduce(
+  (acc, e) => acc + Math.max(0, e.listing.priceXlm - e.amountXlm),
+  0,
+);
+const totalSpentCents = savings.reduce((acc, e) => acc + e.amountXlm, 0);
+const savingsCount = savings.length;
 
   return (
     <section className="home-view">
@@ -112,7 +131,7 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
         </Link>
       </div>
 
-      <div className="balance-grid">
+      <div className="balance-grid balance-grid-4col">
         <div className="balance-card">
           <div className="balance-top">
             <span>Saldo PumaDolar</span>
@@ -129,6 +148,19 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
             </Link>
           </div>
         </div>
+        <div className="stat-card" style={{ background: 'var(--mint)', borderColor: '#d8f0e7' }}>
+          <div className="stat-icon" style={{ background: 'var(--mint)', color: '#369671' }}>
+            <PiggyBank />
+          </div>
+          <div>
+            <span>Ahorros del semestre</span>
+            <strong style={{ color: '#2c6b56' }}>P$ {fmtPrice(totalSavingsCents)}</strong>
+            <small>
+              {savingsCount} trueque{savingsCount === 1 ? '' : 's'} liberado
+              {savingsCount === 1 ? '' : 's'}
+            </small>
+          </div>
+        </div>
         <div className="stat-card">
           <div>
             <span>Compras realizadas</span>
@@ -140,7 +172,7 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
           <div>
             <span>Intercambios activos</span>
             <strong>{active}</strong>
-            <small>Todo en orden</small>
+            <small>{active === 0 ? 'Todo en orden' : `${active} esperan acción`}</small>
           </div>
         </div>
       </div>

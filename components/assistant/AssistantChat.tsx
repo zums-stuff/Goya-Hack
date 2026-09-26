@@ -15,7 +15,12 @@ import {
 
 export function AssistantChat() {
   const [messages, setMessages] = useState<
-    Array<{ role: 'user' | 'assistant'; text: string; listings?: Listing[] }>
+    Array<{
+      role: 'user' | 'assistant';
+      text: string;
+      listings?: Listing[];
+      marketContext?: import('./types').MarketContext;
+    }>
   >([
     {
       role: 'assistant',
@@ -51,6 +56,7 @@ export function AssistantChat() {
           role: 'assistant',
           text: data.reply,
           listings: data.listings,
+          marketContext: data.marketContext,
         },
       ]);
       requestAnimationFrame(() => {
@@ -87,6 +93,43 @@ export function AssistantChat() {
           ) : (
             <div key={i}>
               <div className="chat-bubble ai-bubble">{m.text}</div>
+              {m.marketContext &&
+                m.marketContext.verdict !== 'no_reference' &&
+                m.marketContext.offerCount > 0 && (
+                  <div
+                    style={{
+                      maxWidth: '78%',
+                      marginTop: 8,
+                      display: 'flex',
+                      gap: 6,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span
+                      className={
+                        m.marketContext.verdict === 'cheap'
+                          ? 'ai-price-signal cheap'
+                          : m.marketContext.verdict === 'pricey'
+                            ? 'ai-price-signal pricey'
+                            : 'ai-price-signal market'
+                      }
+                    >
+                      {m.marketContext.verdict === 'cheap'
+                        ? 'Ganga vs mercado'
+                        : m.marketContext.verdict === 'pricey'
+                          ? 'Sobreprecio'
+                          : 'Precio justo'}
+                    </span>
+                    <span style={{ fontSize: 9, color: '#8793a3' }}>
+                      {m.marketContext.offerCount} oferta
+                      {m.marketContext.offerCount !== 1 ? 's' : ''} activa
+                      {m.marketContext.offerCount !== 1 ? 's' : ''}
+                      {m.marketContext.avgOfferCents
+                        ? ` · promedio P$${(m.marketContext.avgOfferCents / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`
+                        : ''}
+                    </span>
+                  </div>
+                )}
               {m.listings && m.listings.length > 0 && (
                 <ul
                   style={{

@@ -66,6 +66,42 @@ export async function POST(req: Request) {
       include: { seller: { select: { displayName: true, major: true } } },
     });
 
+    // 3. Comparativa del mercado para el primer listing: cuántas ofertas
+    //    pendientes tiene y precio medio. Permite decir "fair/ganga/sobreprecio".
+    const marketContext: {
+      avgOfferCents: number | null;
+      offerCount: number;
+      verdict: 'no_reference' | 'fair' | 'cheap' | 'pricey';
+    } = { avgOfferCents: null, offerCount: 0, verdict: 'no_reference' };
+    if (listings.length > 0 && listings[0]) {
+      const lid = listings[0].id;
+      const offers = await prisma.offer.findMany({
+        where: { listingId: lid, status: 'pending' },
+        select: { type: true, xlmAmount: true, offeredItems: true },
+      });
+      marketContext.offerCount = offers.length;
+      if (offers.length > 0) {
+        const totals = offers.map((o) => {
+          if (o.xlmAmount == null) {
+            const items = o.offeredItems
+              ? (JSON.parse(o.offeredItems) as Array<{ estimatedValueXlm: number }>)
+              : [];
+            return items.reduce((a, it) => a + it.estimatedValueXlm, 0);
+          }
+          return o.xlmAmount;
+        });
+        const avg = Math.round(
+          totals.reduce((a, n) => a + n, 0) / totals.length,
+        );
+        marketContext.avgOfferCents = avg;
+        const delta =
+          ((listings[0].priceXlm - avg) / (avg / 100)) | 0;
+        if (delta <= -10) marketContext.verdict = 'cheap';
+        else if (delta >= 10) marketContext.verdict = 'pricey';
+        else marketContext.verdict = 'fair';
+      }
+    }
+
     // 3. Componer respuesta natural
     let reply: string;
     if (listings.length === 0) {
@@ -91,13 +127,44 @@ export async function POST(req: Request) {
 
     // 4. Si detecta "compar" o "mejor", añade comparación básica.
     if (q.includes('mejor') || q.includes('compara')) {
-      reply +=
-        listings.length >= 2
-          ? ` Para comparar: ${listings[0]?.title ?? '—'} vs ${listings[1]?.title ?? '—'} — ambos video verificados y con escrow Stellar.`
-          : ' No tengo suficientes productos para comparar ahora.';
+      if (listings.length >= 2) {
+        reply += ` Para comparar: ${listings[0]?.title ?? '—'} vs ${listings[1]?.title ?? '—'} — ambas con video verificado y escrow Stellar.`;
+      } else {
+        reply += ' No tengo suficientes productos para comparar ahora.';
+      }
     }
 
-    return Response.json({ reply, listings }, { headers: { 'Cache-Control': 'no-store' } });
+    // 5. Verdict del mercado sobre el primer listing (ganga/fair/sobreprecio).
+    if (listings.length > 0 && marketContext.offerCount > 0) {
+      const fmt = (c: number) =>
+        `P$${(c / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 })}`;
+      if (marketContext.verdict === 'cheap') {
+        reply += ` ${listings[0]?.title} está ${
+          Math.min(
+            Math.round(
+              ((listings[0]!.priceXlm - marketContext.avgOfferCents!) /
+                (listings[0]!.priceXlm / 100)) *
+                -1,
+            ),
+          ) || 0
+        }% por debajo del promedio de otras ofertas (${
+          marketContext.avgOfferCents ? fmt(marketContext.avgOfferCents) : ''
+        }). Es una ganga.`;
+      } else if (marketContext.verdict === 'pricey') {
+        reply += ` ${listings[0]?.title} está por encima del promedio de otras ofertas (${
+          marketContext.avgOfferCents ? fmt(marketContext.avgOfferCents) : ''
+        }). Considera negociar o esperar.`;
+      } else {
+        reply += ` ${listings[0]?.title} está en precio justo contra el promedio de otras ofertas (${
+          marketContext.avgOfferCents ? fmt(marketContext.avgOfferCents) : '—'
+        }).`;
+      }
+    }
+
+    return Response.json(
+      { reply, listings, marketContext },
+      { headers: { 'Cache-Control': 'no-store' } },
+    );
   } catch (e) {
     return handleApiError(e);
   }

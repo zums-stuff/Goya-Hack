@@ -9,8 +9,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import {
+  ArrowRightLeft,
   Bell,
   Bot,
+  Inbox,
   LogOut,
   MapPinned,
   Search,
@@ -30,6 +32,8 @@ type Me = {
 const NAV = [
   ['/home', 'Inicio', Store] as const,
   ['/marketplace', 'Marketplace', Store] as const,
+  ['/procesos', 'Procesos', ArrowRightLeft] as const,
+  ['/incoming-offers', 'Recibidas', Inbox] as const,
   ['/assistant', 'Asistente IA', Bot] as const,
   ['/map', 'Mapa', MapPinned] as const,
   ['/settings', 'Mi cuenta', UserRound] as const,

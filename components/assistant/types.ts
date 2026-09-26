@@ -9,7 +9,14 @@ export type Listing = {
   seller: { displayName: string; major: string };
 };
 
+export type MarketContext = {
+  avgOfferCents: number | null;
+  offerCount: number;
+  verdict: 'no_reference' | 'fair' | 'cheap' | 'pricey';
+};
+
 export type AssistantReply = {
   reply: string;
   listings: Listing[];
+  marketContext?: MarketContext;
 };

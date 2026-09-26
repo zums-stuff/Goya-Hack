@@ -926,3 +926,15 @@ input[type="file"].form-field::file-selector-button {
 /* errors visual emphasis */
 .error-list li strong { display: inline-block; min-width: 110px; }
 .error-list li strong::after { content: ":"; margin-left: 1px; }
+
+.balance-grid-4col { grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 12px; }
+.balance-grid-4col .stat-card { min-height: 151px; padding: 18px 16px; }
+@media (max-width: 1100px) {
+  .balance-grid-4col { grid-template-columns: 1fr 1fr; }
+  .balance-grid-4col > [style*="background: var(--ink"], .balance-grid-4col > .balance-card {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 700px) {
+  .balance-grid-4col { grid-template-columns: 1fr; }
+}
