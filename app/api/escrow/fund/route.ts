@@ -3,6 +3,14 @@
 // Es idempotente: si el escrow ya está en `funded` (o más allá), devuelve
 // el estado actual. El cliente además hace la tx Stellar y luego vuelve a
 // llamar — el server verifica balance en Horizon antes de marcar `funded`.
+//
+// MODO DEMO (`process.env.DEMO_FUNDING_BYPASS === 'true'`):
+//   Si el usuario tiene un intent explícito (`{ force: true }` en el body)
+//   Y el server está en demo mode (env flag), el server marca el escrow
+//   como funded SIN pedir paymentParams de Stellar. Usado en demos donde
+//   las keys de Pollar son placeholders y la tx on-chain no se puede enviar.
+//   El cliente renderiza un banner "DEMO — sin tx on-chain" para que sea
+//   explícito al jurado/usuario.
 
 import { prisma } from '@/lib/db';
 import { requireUser } from '@/lib/auth';
@@ -16,7 +24,11 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: Request) {
   try {
     const user = await requireUser();
-    const { escrowId } = FundSchema.parse(await req.json());
+    const body = await req.json().catch(() => ({}));
+    const { escrowId } = FundSchema.parse(body);
+    const forceDemo = Boolean((body as { force?: boolean }).force);
+    const demoBypass =
+      forceDemo && process.env.DEMO_FUNDING_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
 
     const escrow = await prisma.escrow.findUnique({
       where: { id: escrowId },
@@ -38,6 +50,26 @@ export async function POST(req: Request) {
     // Idempotente: si ya pasó, devolver estado sin tocar nada.
     if (escrow.status !== 'awaiting-funding') {
       return Response.json({ escrow, funded: true, paymentParams: null });
+    }
+
+    // Demo bypass: marcar funded sin pedir tx Stellar.
+    if (demoBypass) {
+      const lock = await prisma.escrow.updateMany({
+        where: { id: escrowId, status: 'awaiting-funding' },
+        data: { status: 'funded' },
+      });
+      if (lock.count === 1) {
+        await prisma.transactionLog.create({
+          data: { escrowId, actorId: user.id, action: 'escrow-funded-demo' },
+        });
+      }
+      const updated = await prisma.escrow.findUniqueOrThrow({ where: { id: escrowId } });
+      return Response.json({
+        escrow: updated,
+        funded: true,
+        paymentParams: null,
+        demoBypass: true,
+      });
     }
 
     // Verificar balance en Horizon para confirmar que el pago llegó.

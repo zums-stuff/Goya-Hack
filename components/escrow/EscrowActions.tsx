@@ -13,7 +13,6 @@ import {
   Receipt,
 } from 'lucide-react';
 import { usePollar } from '@pollar/react';
-import { useAuthStore } from '@/stores/authStore';
 
 type Escrow = {
   id: string;
@@ -24,15 +23,31 @@ type Escrow = {
   sellerId: string;
 };
 
-export function EscrowActions({ escrow }: { escrow: Escrow }) {
+type Props = {
+  escrow: Escrow;
+  /**
+   * Si el padre conoce mi id (server-render: me lo pasa), se prefiere sobre
+   * el store del cliente. Esto es importante porque en el HTML inicial del
+   * server render el store aún no está hidratado y los botones no aparecen.
+   * Acepta null cuando el padre no puede resolver el user (ej. anon).
+   */
+  meId?: string | null;
+  /**
+   * Modo demo: el botón "Fondear" avanza el escrow sin requerir tx
+   * Stellar on-chain (Pollar dev-login + placeholders). El server debe
+   * tener DEMO_FUNDING_BYPASS=true para aceptarlo.
+   */
+  demoMode?: boolean;
+};
+
+export function EscrowActions({ escrow, meId, demoMode }: Props) {
   const router = useRouter();
-  const me = useAuthStore((s) => s.user);
   const { getClient } = usePollar();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isBuyer = me?.id === escrow.buyerId;
-  const isSeller = me?.id === escrow.sellerId;
+  const isBuyer = meId === escrow.buyerId;
+  const isSeller = meId === escrow.sellerId;
 
   async function callApi(path: string, body: unknown) {
     setBusy(true);
@@ -47,7 +62,6 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
         const err: { message?: string } = await res.json().catch(() => ({}));
         throw new Error(err.message ?? 'Error');
       }
-      router.refresh();
       return res.json();
     } catch (e) {
       setError((e as Error).message);
@@ -58,9 +72,23 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
   }
 
   async function fund() {
+    setBusy(true);
+    setError(null);
     try {
-      const r = await callApi('/api/escrow/fund', { escrowId: escrow.id });
-      const data: { paymentParams: { destination: string; amount: string; asset: { type: 'native' } } | null; funded: boolean } = await r.json();
+      // Rama demo: si el server está en DEMO_FUNDING_BYPASS y las keys
+      // de Pollar son placeholders, saltamos la tx on-chain. Marcamos
+      // funded directo. El servidor exige `force: true` y NODE_ENV!=prod.
+      if (demoMode) {
+        await callApi('/api/escrow/fund', { escrowId: escrow.id, force: true });
+        router.refresh();
+        return;
+      }
+
+      // Rama real: intentamos ejecutar la tx on-chain a través de Pollar.
+      const data: {
+        funded: boolean;
+        paymentParams: { destination: string; amount: string; asset: { type: 'native' } } | null;
+      } = await callApi('/api/escrow/fund', { escrowId: escrow.id });
       if (data.funded || !data.paymentParams) {
         router.refresh();
         return;
@@ -76,6 +104,8 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
       router.refresh();
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -97,7 +127,7 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
           >
             {escrow.amountXlm === 0
               ? '✦ Trueque puro · no requiere fondeo'
-              : `Fondear escrow · P$ {(escrow.amountXlm / 100).toLocaleString('es-MX', { maximumFractionDigits: 2 })}`}
+              : `Fondear escrow · ${(escrow.amountXlm / 100).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} XLM`}
           </button>
           <p className="subcopy" style={{ fontSize: 10, color: '#7f8c9d' }}>
             Tu pago se transfiere a la cuenta de escrow Stellar. Se libera al
@@ -153,7 +183,7 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
 
       {escrow.status === 'awaiting-exchange' && (isBuyer || isSeller) && (
         <>
-          {escrow.exchangeInitiatorId === me?.id ? (
+          {escrow.exchangeInitiatorId === meId ? (
             <div className="detail-trust" style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}>
               <ArrowRightLeft />
               <span>
@@ -217,7 +247,7 @@ export function EscrowActions({ escrow }: { escrow: Escrow }) {
           <div className="submit-row">
             <button
               disabled={busy}
-              onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id })}
+              onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id, force: !!demoMode })}
               className="sell-button"
               style={{ opacity: busy ? 0.5 : 1 }}
             >

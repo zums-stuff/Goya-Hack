@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowLeft,
   ChevronRight,
   ShieldCheck,
@@ -167,6 +168,8 @@ export default async function EscrowDetailPage(props: {
 
       <div style={{ marginTop: 24 }}>
         <EscrowActions
+          meId={me?.id ?? null}
+          demoMode={Boolean(process.env.DEMO_FUNDING_BYPASS) && process.env.NODE_ENV !== 'production'}
           escrow={{
             id: escrow.id,
             status: escrow.status,
@@ -176,6 +179,29 @@ export default async function EscrowDetailPage(props: {
             sellerId: escrow.sellerId,
           }}
         />
+        {Boolean(process.env.DEMO_FUNDING_BYPASS) && process.env.NODE_ENV !== 'production' && (
+          <div
+            className="detail-trust"
+            style={{
+              background: 'var(--yellow)',
+              borderColor: '#e9d279',
+              marginTop: 12,
+              color: '#7a5b14',
+            }}
+          >
+            <AlertCircle />
+            <span>
+              <strong>Modo DEMO activo</strong>
+              <small>
+                Las keys de Pollar son placeholders. "Fondear" avanza el
+                escrow directamente sin enviar la transacción on-chain a
+                Stellar. Para demo end-to-end sin redeploy; en producción
+                (NODE_ENV=production) el bypass está deshabilitado aunque
+                la env esté puesta.
+              </small>
+            </span>
+          </div>
+        )}
       </div>
 
       {me && (me.id === escrow.buyerId || me.id === escrow.sellerId) && (
