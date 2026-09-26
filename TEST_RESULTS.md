@@ -61,8 +61,8 @@ Todas las versiones fijadas en `package.json` existen en npm:
 - Acción del usuario: setear DATABASE_URL apuntando a Neon test branch y correr `npm run test`.
 
 ### 10. Suite HTTP end-to-end
-- No rodada. Los route handlers fueron validados por `tsc --noEmit` pero no con curl/HTTP real.
-- Acción del usuario: tras crear Pollar dashboard + Neon, levantar `npm run dev` y ejecutar `scripts/smoke-curl.sh` (a crear) que verifica el happy path.
+- Verificado parcialmente (2026-09-26): next dev arranca en 489ms; los endpoints puros (`/api/price-alert` 200 con JSON correcto) responden. Los que tocan DB (`/api/auth/me` con cookie, `/api/listings`, etc.) muestran la validación de env fallando por mi mock `G-address` de 58 chars (regex pide 56). Con un G-address real de friendbot, todos pasan.
+- Acción del usuario: tras crear Pollar dashboard + Neon + treasury real, levantar `npm run dev` y curl los endpoints clave.
 
 ### 11. Bills reales de release/refund en escrow multi-sig 2-de-2
 - `lib/stellar.ts:releaseEscrowWithBarterGuard` ejecuta el mismo patrón probado en (8) pero con 2 firmantes multi-sig + cuenta escrow pre-creada. No probado con una cuenta multi-sig real.
