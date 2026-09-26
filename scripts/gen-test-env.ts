@@ -71,9 +71,18 @@ async function main(): Promise<void> {
   // Email admin is arbitrary but must be a valid email.
   const adminEmail = 'admin@pumatrade.local';
 
-  // DATABASE_URL de Neon free tier / local Postgres. NO se intenta conectar — solo
-  // se setea con un placeholder válido. El usuario debe reemplazarlo.
-  const databaseUrl = 'postgresql://postgres:postgres@127.0.0.1:5432/pumatrade?sslmode=disable';
+  // DATABASE_URL: NO la escribimos con un placeholder falso. Si la pusiera
+  // algo tipo `postgres:postgres@127.0.0.1`, Prisma tira P1000 (creds fake)
+  // al primer migrate/seed, y el operador pierde tiempo debuggeando.
+  //
+  // En lugar de eso, dejamos la línea comentada y el operador la pega de
+  // su fuente de verdad (Neon.tech console, Docker local, etc.).
+  const databasePlaceholder =
+    '# Reemplaza con tu DATABASE_URL real (Neon console → "Connection string"):\n' +
+    '#   postgres://user:pass@host/db?sslmode=require\n' +
+    '#   o local sin TLS:\n' +
+    '#   postgres://user:pass@localhost:5432/pumatrade\n' +
+    'DATABASE_URL=';
 
   const envContent = `# Generado por scripts/gen-test-env.ts — verificado ✅ friendbot funded 2 accounts.
 # ⚠️ NO USAR EN PRODUCCIÓN. Las keys de Stellar son de testnet (gratis).
@@ -87,9 +96,11 @@ POLLAR_OPS_SECRET_KEY=${pollarOpsSecret}
 PLATFORM_PUBLIC_KEY=${platformMaster.publicKey()}
 PLATFORM_SECRET_KEY=${platformMaster.secret()}
 
-# === Crypto + DB ===
+# === Crypto ===
 APP_SECRET_KEY=${appSecretKey}
-DATABASE_URL=${databaseUrl}
+
+# === Postgres — PEGA TU URL ABAJO ===
+${databasePlaceholder}
 
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
