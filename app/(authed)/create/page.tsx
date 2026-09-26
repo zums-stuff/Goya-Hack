@@ -1,9 +1,14 @@
-// app/(authed)/create/page.tsx — Form modal-style para publicar artículo.
+// app/(authed)/create/page.tsx — Modal de publicación. El ListingForm
+// recibe `defaultMajor` para preseleccionar la carrera del usuario.
+import { tryGetUser } from '@/lib/auth';
 import { ListingForm } from '@/components/listings/ListingForm';
 import { Plus, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CreateListingPage() {
+export default async function CreateListingPage() {
+  const me = await tryGetUser();
+  if (!me) return null; // layout ya redirige
+
   return (
     <section style={{ maxWidth: 720 }}>
       <Link href="/home" className="back-button" style={{ marginBottom: 12 }}>
@@ -23,7 +28,7 @@ export default function CreateListingPage() {
         </p>
 
         <div style={{ marginTop: 18 }}>
-          <ListingForm />
+          <ListingForm defaultMajor={me.major} />
         </div>
 
         <p
@@ -35,9 +40,9 @@ export default function CreateListingPage() {
             color: 'var(--muted)',
           }}
         >
-          Tu artículo se publica al instante. Los demás ven la lista y pueden
-          ofertarte. Cuando aceptas una oferta, el escrow empieza
-          automáticamente.
+          Al publicar, el artículo aparece en el marketplace (visible en{' '}
+          <code className="font-mono">/marketplace</code>) y los demás
+          estudiantes ven tu publicación al instante.
         </p>
       </div>
     </section>

@@ -1,5 +1,6 @@
-// components/listings/ListingForm.tsx — Form de crear listing.
-// Sistema: form-field, form-label, form-fieldset (majors), sell-button.
+// components/listings/ListingForm.tsx — Form con feedback explícito.
+// UX: indica estado (Enviando → escrito), navega a detalle al éxito.
+// Majors se preseleccionan con la major del usuario como mejor guess.
 'use client';
 
 import { useState } from 'react';
@@ -17,30 +18,68 @@ const CONDITION_LABEL: Record<string, string> = {
   aceptable: 'Aceptable',
 };
 
-export function ListingForm() {
+type Props = {
+  /** preselecciona el major del usuario logueado como default */
+  defaultMajor?: string;
+};
+
+export function ListingForm({ defaultMajor }: Props) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // majors prechecked: la major del usuario (si la tiene) como forecast mínimo.
+  const initialMajors = defaultMajor && MAJORS.includes(defaultMajor as never)
+    ? [defaultMajor]
+    : MAJORS.length > 0
+      ? [MAJORS[0]!]
+      : [];
+
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (busy) return;
     setBusy(true);
     setError(null);
+
     const formData = new FormData(event.currentTarget);
+
+    const majors = (formData.getAll('majors') as string[]).filter(Boolean);
+    if (majors.length === 0) {
+      setBusy(false);
+      setError('Marca al menos una carrera aceptada.');
+      return;
+    }
+
+    const priceStr = (formData.get('priceXlm') ?? '').toString();
+    const priceNum = Number(priceStr);
+    if (!Number.isFinite(priceNum) || priceNum <= 0) {
+      setBusy(false);
+      setError('Precio debe ser un número mayor a 0.');
+      return;
+    }
+    const priceXlm = Math.round(priceNum * 100);
+
+    const photoUrl = (formData.get('photoUrl') ?? '').toString();
     try {
-      const majors = (formData.getAll('majors') as string[]).filter(Boolean);
-      const priceXlm = Math.round(Number(formData.get('priceXlm')) * 100);
-      const photoUrl = (formData.get('photoUrl') ?? '').toString();
-      const payload = {
-        title: formData.get('title')?.toString() ?? '',
-        description: formData.get('description')?.toString() ?? '',
-        priceXlm,
-        type: formData.get('type')?.toString() ?? '',
-        majors,
-        condition: formData.get('condition')?.toString() ?? 'bueno',
-        photoUrl,
-        videoVerified: formData.get('videoVerified') === 'on',
-      };
+      new URL(photoUrl);
+    } catch {
+      setBusy(false);
+      setError('URL de foto inválida (debe empezar por http:// o https://).');
+      return;
+    }
+
+    const payload = {
+      title: formData.get('title')?.toString() ?? '',
+      description: formData.get('description')?.toString() ?? '',
+      priceXlm,
+      type: formData.get('type')?.toString() ?? '',
+      majors,
+      condition: formData.get('condition')?.toString() ?? 'bueno',
+      photoUrl,
+      videoVerified: formData.get('videoVerified') === 'on',
+    };
+
+    try {
       const res = await fetch('/api/listings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -51,11 +90,11 @@ export function ListingForm() {
         throw new Error(err.message ?? 'Error creando listing');
       }
       const { listing } = (await res.json()) as { listing: { id: string } };
-      router.refresh();
+      // Navegamos directo al detalle — sin refresh intermedio para evitar
+      // race con router.push() en Next 16.
       router.push(`/marketplace/${listing.id}`);
     } catch (e) {
       setError((e as Error).message);
-    } finally {
       setBusy(false);
     }
   }
@@ -63,6 +102,7 @@ export function ListingForm() {
   return (
     <form
       onSubmit={onSubmit}
+      noValidate
       style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
     >
       <label className="form-label">
@@ -137,7 +177,12 @@ export function ListingForm() {
         <legend>Majors aceptados</legend>
         {MAJORS.map((m) => (
           <label key={m} className="form-check">
-            <input type="checkbox" name="majors" value={m} />
+            <input
+              type="checkbox"
+              name="majors"
+              value={m}
+              defaultChecked={initialMajors.includes(m)}
+            />
             {m}
           </label>
         ))}
@@ -172,7 +217,10 @@ export function ListingForm() {
           type="submit"
           className="sell-button"
           disabled={busy}
-          style={{ opacity: busy ? 0.5 : 1 }}
+          style={{
+            opacity: busy ? 0.6 : 1,
+            cursor: busy ? 'wait' : 'pointer',
+          }}
         >
           <Plus />
           {busy ? 'Publicando…' : 'Publicar artículo'}

@@ -1,11 +1,13 @@
-// components/offers/OfferForm.tsx — Form con tabs (3 tipos) + campos.
-// Sistema: tabs (.tab-bar/.tab-btn), inputs (.form-field), boton primario
-// (.sell-button), aviso de brecha (.detail-trust lavender).
+// components/offers/OfferForm.tsx — 3 tipos + confirmación explícita.
+// UX clave: tras POST exitoso mostramos un panel verde con "Oferta
+// enviada" + un CTA para volver. La fase 'success' cierra la duda de
+// "¿el botón hizo algo?".
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AlertCircle } from 'lucide-react';
+import Link from 'next/link';
+import { AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 
 type Props = {
   listingId: string;
@@ -13,13 +15,15 @@ type Props = {
   maxXlmCents: number;
 };
 
+type Phase = 'idle' | 'submitting' | 'success' | 'error';
+
 export function OfferForm({ listingId, maxXlmCents }: Props) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [phase, setPhase] = useState<Phase>('idle');
   const [type, setType] = useState<'saldo-only' | 'barter' | 'hybrid'>('saldo-only');
-  const [xlmAmount, setXlmAmount] = useState(''); // XLM (decimal)
+  const [xlmAmount, setXlmAmount] = useState('');
   const [itemTitle, setItemTitle] = useState('');
-  const [itemValue, setItemValue] = useState(''); // XLM (decimal)
+  const [itemValue, setItemValue] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -34,9 +38,20 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
       ? Math.round((totalCents() - maxXlmCents) / (maxXlmCents / 100))
       : 0;
 
+  function reset() {
+    setType('saldo-only');
+    setXlmAmount('');
+    setItemTitle('');
+    setItemValue('');
+    setMessage('');
+    setError(null);
+    setPhase('idle');
+  }
+
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setBusy(true);
+    if (phase === 'submitting' || phase === 'success') return;
+    setPhase('submitting');
     setError(null);
     try {
       const offeredItems =
@@ -68,17 +83,58 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
         const err: { message?: string } = await res.json().catch(() => ({}));
         throw new Error(err.message ?? 'Error creando oferta');
       }
-      router.refresh();
+      setPhase('success');
+      // Refresh en background para que el tablero del vendedor vea la nueva
+      // oferta cuando vuelva, pero no descarto la fase 'success' visible.
+      setTimeout(() => router.refresh(), 0);
     } catch (e) {
       setError((e as Error).message);
-    } finally {
-      setBusy(false);
+      setPhase('error');
     }
   }
 
+  if (phase === 'success') {
+    return (
+      <div
+        className="detail-trust"
+        style={{ background: 'var(--mint)', borderColor: '#d8f0e7', flexDirection: 'column', alignItems: 'stretch' }}
+      >
+        <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+          <CheckCircle2 />
+          <span>
+            <strong>Oferta enviada ✨</strong>
+            <small>
+              El vendedor verá tu propuesta en su tablero. Te avisaremos
+              cuando la acepte o responda.
+            </small>
+          </span>
+        </div>
+        <div className="submit-row" style={{ marginTop: 14 }}>
+          <Link href="/marketplace" className="sell-button" style={{ justifyContent: 'center' }}>
+            <ArrowLeft />
+            Volver al marketplace
+          </Link>
+          <button
+            type="button"
+            onClick={reset}
+            className="outline-button"
+            style={{ padding: '10px 14px', fontSize: 11, justifyContent: 'center' }}
+          >
+            Enviar otra
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const busy = phase === 'submitting';
+
   return (
-    <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Tabs de tipo de oferta */}
+    <form
+      onSubmit={onSubmit}
+      noValidate
+      style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+    >
       <div className="tab-bar" role="tablist">
         {(['saldo-only', 'barter', 'hybrid'] as const).map((t) => (
           <button
@@ -94,7 +150,6 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
         ))}
       </div>
 
-      {/* Campos según tipo */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {(type === 'saldo-only' || type === 'hybrid') && (
           <label className="form-label">
@@ -107,7 +162,6 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
               value={xlmAmount}
               onChange={(e) => setXlmAmount(e.target.value)}
               placeholder="300"
-              required
             />
           </label>
         )}
@@ -121,7 +175,6 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
                 value={itemTitle}
                 onChange={(e) => setItemTitle(e.target.value)}
                 placeholder="Arduino Mega 2560"
-                required
                 maxLength={80}
               />
             </label>
@@ -134,7 +187,6 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
                 step={0.01}
                 value={itemValue}
                 onChange={(e) => setItemValue(e.target.value)}
-                required
               />
             </label>
           </>
@@ -179,12 +231,22 @@ export function OfferForm({ listingId, maxXlmCents }: Props) {
         </div>
       )}
 
+      {!busy && phase === 'error' && (
+        <p className="subcopy" style={{ fontSize: 11, color: '#c45f4e' }}>
+          No pudimos enviar la oferta. Revisa los datos y vuelve a
+          intentar.
+        </p>
+      )}
+
       <div className="submit-row">
         <button
           type="submit"
           className="sell-button"
           disabled={busy}
-          style={{ opacity: busy ? 0.5 : 1 }}
+          style={{
+            opacity: busy ? 0.6 : 1,
+            cursor: busy ? 'wait' : 'pointer',
+          }}
         >
           {busy ? 'Enviando…' : 'Enviar oferta'}
         </button>
