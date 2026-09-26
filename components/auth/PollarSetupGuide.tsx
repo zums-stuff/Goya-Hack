@@ -1,24 +1,27 @@
-// components/auth/PollarSetupGuide.tsx — Guía de configuración de Pollar.
+// components/auth/PollarSetupGuide.tsx — Guía de setup de Pollar.
 //
-// Se muestra SOLO cuando alguna key de Pollar no está 'ok' (modo dev/demo).
-// Dice exactamente qué pegar, de dónde sale cada valor y da el estado en vivo
-// de las 3 keys (✓ listo / ⚠ marcador / ✗ falta). Botón "Copiar" incluido.
+// Sistema visual: light theme, dentro del `.sell-modal` blanco. Bloques `.ai-bubble`
+// para los code blocks, .profile-row para status por key. Reusa el mismo
+// lenguaje que el resto de la app.
 
 'use client';
 
 import { useState } from 'react';
+import { Check, Copy, ChevronRight, CircleAlert, ShieldCheck } from 'lucide-react';
 import type { PollarKeyStatus, PollarSetupStatus } from '@/lib/pollar-status';
 
 const ENV_TEMPLATE = [
-  '# .env.local — reemplaza los <TU_KEY_AQUÍ> por tus keys reales (sin <>)',
+  '# PumaTrade — reemplaza los <TU_KEY_AQUÍ> por tus keys reales del dashboard',
   'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_<TU_KEY_AQUÍ>',
   'POLLAR_USERS_SECRET_KEY=sec_testnet_users_<TU_KEY_AQUÍ>',
   'POLLAR_OPS_SECRET_KEY=sec_testnet_ops_<TU_KEY_AQUÍ>',
 ].join('\n');
 
-type RowKey = 'usersPub' | 'usersSec' | 'opsSec';
-
-const ROWS: Array<{ key: RowKey; varName: string; source: string }> = [
+const ROWS: Array<{
+  key: 'usersPub' | 'usersSec' | 'opsSec';
+  varName: string;
+  source: string;
+}> = [
   {
     key: 'usersPub',
     varName: 'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY',
@@ -27,168 +30,186 @@ const ROWS: Array<{ key: RowKey; varName: string; source: string }> = [
   {
     key: 'usersSec',
     varName: 'POLLAR_USERS_SECRET_KEY',
-    source: 'App "PumaTrade Usuarios" → Build → API Keys → Secret key (solo server)',
+    source: 'App "PumaTrade Usuarios" → Build → API Keys → Secret key',
   },
   {
     key: 'opsSec',
     varName: 'POLLAR_OPS_SECRET_KEY',
-    source: 'App "PumaTrade Operacional" → Build → API Keys → Secret key (solo server)',
+    source: 'App "PumaTrade Operacional" → Build → API Keys → Secret key',
   },
 ];
 
-function StatusPill({ status }: { status: PollarKeyStatus }) {
-  const map = {
-    ok: { dot: 'bg-emerald-400', text: '✓ Lista', cls: 'text-emerald-300' },
-    placeholder: {
-      dot: 'bg-amber-400',
-      text: '⚠ Es un marcador (pk_/sk_) — reemplázalo',
-      cls: 'text-amber-300',
-    },
-    missing: { dot: 'bg-rose-400', text: '✗ Falta en .env.local', cls: 'text-rose-300' },
-  } as const;
-  const m = map[status];
+function statusBadge(s: PollarKeyStatus) {
+  if (s === 'ok')
+    return (
+      <span className="verified">
+        <Check />
+        Lista
+      </span>
+    );
+  if (s === 'placeholder')
+    return (
+      <span className="warning-text">
+        <CircleAlert />
+        Marcador
+      </span>
+    );
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${m.cls}`}>
-      <span className={`h-2 w-2 rounded-full ${m.dot}`} />
-      {m.text}
+    <span className="warning-text" style={{ color: 'var(--primary)' }}>
+      <CircleAlert />
+      Falta
     </span>
   );
 }
 
 export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
-  const [open, setOpen] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  async function copyTemplate() {
+  async function copy() {
     try {
       await navigator.clipboard.writeText(ENV_TEMPLATE);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 1800);
     } catch {
-      // Sin permiso de clipboard: el usuario copia a mano.
+      // No permiso — el usuario copia a mano.
     }
   }
 
-  if (!open) {
-    return (
-      <div className="w-full max-w-2xl text-center">
-        <button
-          onClick={() => setOpen(true)}
-          className="text-xs font-medium text-sky-300 underline-offset-4 hover:underline"
-        >
-          Mostrar guía de configuración de Pollar
-        </button>
-      </div>
-    );
-  }
-
   return (
-    <section
-      id="pollar-guide"
-      className="w-full max-w-2xl rounded-2xl border border-white/10 bg-[#0d1428]/90 p-6 text-left shadow-[0_20px_60px_-20px_rgba(0,0,0,0.7)]"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold text-white">
-            Configura Pollar para activar el login
-          </h2>
-          <p className="mt-1 text-sm leading-relaxed text-slate-400">
-            El login usa wallets de <span className="text-slate-200">Pollar</span>. Las keys
-            reales se generan en{' '}
-            <a
-              href="https://dashboard.pollar.xyz"
-              target="_blank"
-              rel="noreferrer"
-              className="text-sky-300 underline underline-offset-2 hover:text-sky-200"
-            >
-              dashboard.pollar.xyz
-            </a>{' '}
-            (crea 2 apps) — no se pueden crear desde el código. Abajo está el estado de cada
-            key en tu <code className="rounded bg-white/10 px-1 py-0.5 font-mono text-xs">.env.local</code>.
-          </p>
-        </div>
-        <button
-          onClick={() => setOpen(false)}
-          aria-label="Ocultar guía"
-          className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
-        >
-          Ocultar
-        </button>
-      </div>
-
+    <ol className="space-y-7 mt-2">
       {/* Paso 1 — crear las apps */}
-      <ol className="mt-5 space-y-4 text-sm">
-        <li className="space-y-1">
-          <p className="font-medium text-white">
-            1. Crea las 2 apps en dashboard.pollar.xyz
-          </p>
-          <ul className="list-disc space-y-1 pl-5 text-slate-400">
-            <li>
-              <span className="text-slate-200">«PumaTrade Usuarios»</span> — Auth providers:
-              Google + email OTP · Funding: Immediate · Stellar testnet
-            </li>
-            <li>
-              <span className="text-slate-200">«PumaTrade Operacional»</span> — sin UI,
-              solo server-side · Stellar testnet
-            </li>
-          </ul>
-        </li>
+      <li>
+        <p className="eyebrow">PASO 1</p>
+        <p
+          className="text-base font-bold tracking-tight mb-2.5"
+          style={{ letterSpacing: '-0.3px' }}
+        >
+          Crea las 2 apps en dashboard.pollar.xyz
+        </p>
+        <ul className="list-disc pl-5 text-xs text-[var(--muted)] space-y-1">
+          <li>
+            <strong className="text-[var(--ink)]">«PumaTrade Usuarios»</strong> —
+            Auth: Google + email OTP · Funding: Immediate · Stellar testnet
+          </li>
+          <li>
+            <strong className="text-[var(--ink)]">
+              «PumaTrade Operacional»
+            </strong>{' '}
+            — sin UI, solo server-side · Stellar testnet
+          </li>
+        </ul>
+      </li>
 
-        {/* Paso 2 — pegar keys */}
-        <li className="space-y-2">
-          <p className="font-medium text-white">
-            2. Pega las 3 keys en <code className="font-mono text-xs">.env.local</code>
-          </p>
+      {/* Paso 2 — pegar las keys */}
+      <li>
+        <p className="eyebrow">PASO 2</p>
+        <p
+          className="text-base font-bold tracking-tight mb-2.5"
+          style={{ letterSpacing: '-0.3px' }}
+        >
+          Pega las 3 keys en <code className="font-mono">.env.local</code>
+        </p>
 
-          {/* Estado en vivo por key */}
-          <ul className="space-y-2">
-            {ROWS.map((r) => (
-              <li
-                key={r.key}
-                className="rounded-xl border border-white/10 bg-black/30 p-3"
+        <ul className="space-y-2">
+          {ROWS.map((r) => (
+            <li key={r.key}>
+              <div
+                style={{
+                  border: '1px solid var(--line)',
+                  background: '#fff',
+                  borderRadius: 9,
+                  padding: '10px 12px',
+                }}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <code className="font-mono text-xs text-sky-200">{r.varName}</code>
-                  <StatusPill status={status[r.key]} />
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <code
+                    style={{ fontSize: 10, color: 'var(--ink)', letterSpacing: 0 }}
+                  >
+                    {r.varName}
+                  </code>
+                  {statusBadge(status[r.key])}
                 </div>
-                <p className="mt-1 text-xs text-slate-500">{r.source}</p>
-              </li>
-            ))}
-          </ul>
+                <p style={{ fontSize: 9, color: '#94a0b0', marginTop: 4 }}>
+                  {r.source}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
 
-          {/* Bloque copiable */}
-          <div className="relative mt-3">
-            <pre className="overflow-x-auto rounded-xl border border-white/10 bg-black/50 p-4 font-mono text-xs leading-relaxed text-emerald-200">
-              {ENV_TEMPLATE}
-            </pre>
-            <button
-              onClick={copyTemplate}
-              className="absolute right-2 top-2 rounded-lg border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-white/20"
-            >
-              {copied ? '✓ Copiado' : 'Copiar plantilla'}
-            </button>
-          </div>
-          <p className="text-xs text-slate-500">
-            Reemplaza <span className="font-mono text-slate-400">&lt;TU_KEY_AQUÍ&gt;</span>{' '}
-            por el valor exacto que copiaste del dashboard y guarda.
-          </p>
-        </li>
+        {/* Bloque copiable */}
+        <div className="relative mt-3.5">
+          <pre
+            style={{
+              background: '#f8fafc',
+              border: '1px solid var(--line)',
+              borderRadius: 7,
+              padding: '11px 12px',
+              fontSize: 10,
+              lineHeight: 1.55,
+              color: '#516174',
+              whiteSpace: 'pre',
+              overflowX: 'auto',
+            }}
+          >
+            {ENV_TEMPLATE}
+          </pre>
+          <button
+            type="button"
+            onClick={copy}
+            className="absolute right-2 top-2 flex items-center gap-1.5 bg-white border border-[var(--line)] rounded-md px-2 py-1 text-[10px] font-bold text-[var(--ink)] hover:bg-[var(--yellow)] transition"
+          >
+            {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+            {copied ? 'Copiado' : 'Copiar'}
+          </button>
+        </div>
+        <p className="mt-2 text-[10px] text-[var(--muted)]">
+          Reemplaza <code className="font-mono">&lt;TU_KEY_AQUÍ&gt;</code> por
+          el valor exacto que copiaste del dashboard.
+        </p>
+      </li>
 
-        {/* Paso 3 — reiniciar */}
-        <li className="space-y-1">
-          <p className="font-medium text-white">3. Reinicia el servidor</p>
-          <p className="text-slate-400">
-            Detén <code className="font-mono text-xs">npm run dev</code> y vuelve a levitarlo:
-            el modal de Pollar aparecerá en el botón <span className="text-slate-200">«Iniciar
-            sesión»</span> y esta guía desaparecerá sola.
-          </p>
-          <p className="text-xs text-slate-500">
-            Nota: si re-corres <code className="font-mono text-xs">npm run setup:env</code>,
-            ya <strong className="text-slate-300">no borra</strong> estas keys (si empiezan con{' '}
-            <code className="font-mono text-xs">pub_</code>/<code className="font-mono text-xs">sec_</code>).
-          </p>
-        </li>
-      </ol>
-    </section>
+      {/* Paso 3 — reiniciar */}
+      <li>
+        <p className="eyebrow">PASO 3</p>
+        <p
+          className="text-base font-bold tracking-tight mb-2.5"
+          style={{ letterSpacing: '-0.3px' }}
+        >
+          Reinicia el dev server
+        </p>
+        <div className="detail-trust">
+          <ShieldCheck />
+          <span>
+            <strong>Modo dev sigue funcionando</strong>
+            <small>
+              Re-correr <code className="font-mono">npm run setup:env</code> ya no
+              pisa tus keys reales (las preserva si empiezan con{' '}
+              <code className="font-mono">pub_</code>/<code className="font-mono">sec_</code>).
+            </small>
+          </span>
+        </div>
+      </li>
+
+      <li>
+        <a
+          href="https://dashboard.pollar.xyz"
+          target="_blank"
+          rel="noreferrer"
+          className="sell-button"
+          style={{ background: '#fff', color: 'var(--primary)', boxShadow: 'none' }}
+        >
+          Ir a dashboard.pollar.xyz
+          <ChevronRight />
+        </a>
+      </li>
+    </ol>
   );
 }

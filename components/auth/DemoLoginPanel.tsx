@@ -1,12 +1,13 @@
-// components/auth/DemoLoginPanel.tsx — Login de seed users al estilo Wallapop.
+// components/auth/DemoLoginPanel.tsx — Login como uno de los 5 seed users.
 //
-// Cada fila: indicador numerado amarillo (común en marketplaces), nombre +
-// carrera, saldo a la derecha, botón amarillo negro de "Entrar".
-
+// Sistema visual del frontend example: cada fila es `.profile-row` con
+// `.avatar` (32px monograma), `.profile-copy`, saldo alineado y chevron.
+// Sin arrows text, sin emojis, sin eyebrow caps — coherente con el resto.
 'use client';
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronRight, AlertCircle } from 'lucide-react';
 
 export type SeedUserRow = {
   email: string;
@@ -14,6 +15,15 @@ export type SeedUserRow = {
   major: string;
   balanceXlm: number; // centavos
 };
+
+function initials(name: string): string {
+  const parts = name.replace(/\./g, '').trim().split(/\s+/);
+  return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase();
+}
+
+function fmtMoney(cents: number): string {
+  return (cents / 100).toLocaleString('es-MX', { maximumFractionDigits: 0 });
+}
 
 export function DemoLoginPanel({ users }: { users: SeedUserRow[] }) {
   const router = useRouter();
@@ -46,10 +56,11 @@ export function DemoLoginPanel({ users }: { users: SeedUserRow[] }) {
 
   if (users.length === 0) {
     return (
-      <div className="border-2 border-black bg-[#FAFAFA] p-6 text-center">
-        <p className="text-sm text-black/70">
+      <div className="border border-dashed border-[var(--line)] rounded-xl p-4 flex gap-3 items-start">
+        <AlertCircle className="w-5 h-5 text-[var(--muted)] flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-[var(--muted)] leading-relaxed">
           No hay seed users. Corre{' '}
-          <code className="rounded bg-black px-2 py-0.5 font-mono text-xs text-white">
+          <code className="rounded bg-[var(--bg)] px-1.5 py-0.5 font-mono text-[11px]">
             npm run db:seed
           </code>{' '}
           primero.
@@ -59,68 +70,54 @@ export function DemoLoginPanel({ users }: { users: SeedUserRow[] }) {
   }
 
   return (
-    <div className="border-2 border-black bg-white">
-      <div className="border-b-2 border-black bg-[#FFE600] px-4 py-3 sm:px-6 sm:py-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-black/70">
-          Demo de la UNAM
-        </p>
-        <p className="mt-1 text-xl font-extrabold leading-tight sm:text-2xl">
-          Entra como uno de los 5 estudiantes.
-        </p>
-      </div>
-      <ul>
-        {users.map((u, i) => {
-          const busy = pendingEmail === u.email;
-          const label = String(i + 1).padStart(2, '0');
-          return (
-            <li
-              key={u.email}
-              className="border-b border-black/10 last:border-b-0"
+    <ul className="-mx-2 mt-2">
+      {users.map((u) => {
+        const busy = pendingEmail === u.email;
+        const disabled = pendingEmail !== null && !busy;
+        return (
+          <li key={u.email} className="border-b border-[var(--line)] last:border-b-0">
+            <button
+              type="button"
+              onClick={() => loginAs(u.email)}
+              disabled={disabled}
+              className="profile-row disabled:opacity-40 enabled:hover:bg-[#fff7f5]"
+              style={{ borderTop: 0, paddingTop: 13, paddingBottom: 13 }}
             >
-              <button
-                type="button"
-                onClick={() => loginAs(u.email)}
-                disabled={pendingEmail !== null && !busy}
-                className="group flex w-full items-center gap-4 px-4 py-4 text-left transition disabled:opacity-40 enabled:hover:bg-[#FFF8C5]"
+              <div className="avatar">{initials(u.displayName)}</div>
+              <div className="profile-copy">
+                <strong className={busy ? 'animate-pulse' : ''}>
+                  {u.displayName}
+                </strong>
+                <small>{u.major}</small>
+              </div>
+              <div
+                className="profile-copy"
+                style={{ textAlign: 'right', flex: 'none', minWidth: 70 }}
               >
-                <span className="flex h-14 w-14 flex-none items-center justify-center rounded-md bg-[#FFE600] text-2xl font-black text-black ring-1 ring-black/15">
-                  {label}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-base font-bold leading-tight text-black">
-                    {u.displayName}
-                  </span>
-                  <span className="block truncate text-sm text-black/60">
-                    {u.major}
-                  </span>
-                </span>
-                <span className="hidden text-right font-mono text-xs text-black/60 sm:block">
-                  <span className="block text-base font-bold text-black">
-                    {(u.balanceXlm / 100).toLocaleString('es-MX', {
-                      maximumFractionDigits: 0,
-                    })}
-                  </span>
-                  <span className="block">XLM</span>
-                </span>
-                <span
-                  className={`flex-none rounded-md px-4 py-2 text-sm font-bold transition ${
-                    busy
-                      ? 'bg-black/10 text-black/60'
-                      : 'bg-black text-[#FFE600] group-hover:bg-[#FFE600] group-hover:text-black'
-                  }`}
-                >
-                  {busy ? 'Entrando…' : 'Entrar'}
-                </span>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                <strong className="font-mono">
+                  P$ {fmtMoney(u.balanceXlm)}
+                </strong>
+                <small>XLM</small>
+              </div>
+              <span
+                className={
+                  busy
+                    ? 'text-[var(--primary)]'
+                    : 'text-[#a4adba] group-hover:text-[var(--primary)]'
+                }
+                style={{ display: 'flex', alignItems: 'center' }}
+              >
+                {busy ? <span style={{ fontSize: 9 }}>…</span> : <ChevronRight className="w-4 h-4" />}
+              </span>
+            </button>
+          </li>
+        );
+      })}
       {error && (
-        <p className="border-t-2 border-black bg-[#FFE6E6] px-4 py-3 text-sm text-red-700">
-          {error}
-        </p>
+        <li className="border-b border-[var(--line)] border-t-0">
+          <p className="text-xs text-[var(--primary)] px-2 py-3">{error}</p>
+        </li>
       )}
-    </div>
+    </ul>
   );
 }
