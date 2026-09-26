@@ -40,14 +40,24 @@ export default async function ListingDetailPage(props: {
   const isPending = listing.status === 'pending';
   const listingType = listing.type as ListingType;
 
-  const rawOffers = isOwner && !isPending
-    ? await prisma.offer.findMany({
-        where: { listingId, status: 'pending' },
-        orderBy: { createdAt: 'desc' },
-        include: { offerer: { select: { id: true, displayName: true, major: true } } },
-      })
-    : [];
-  const offers: OfferLite[] = rawOffers.map((o) => ({
+  // Carga de ofertas — diferente según si eres owner o no.
+  const [rawOffersForOwner, rawMyOffer, publicCount] = await Promise.all([
+    isOwner && !isPending
+      ? prisma.offer.findMany({
+          where: { listingId, status: 'pending' },
+          orderBy: { createdAt: 'desc' },
+          include: { offerer: { select: { id: true, displayName: true, major: true } } },
+        })
+      : Promise.resolve([]),
+    me && !isOwner
+      ? prisma.offer.findFirst({
+          where: { listingId, offererId: me.id },
+          orderBy: { createdAt: 'desc' },
+        })
+      : Promise.resolve(null),
+    prisma.offer.count({ where: { listingId, status: 'pending' } }),
+  ]);
+  const offers: OfferLite[] = rawOffersForOwner.map((o) => ({
     id: o.id,
     type: o.type as 'saldo-only' | 'barter' | 'hybrid',
     xlmAmount: o.xlmAmount,
@@ -58,6 +68,28 @@ export default async function ListingDetailPage(props: {
       major: (o as unknown as { offerer: { id: string; displayName: string; major: string } }).offerer.major,
     },
   }));
+
+  // Precio medio de las ofertas pendientes (se muestra en stats) — sólo
+  // cuando no eres el owner (interés público de mercado).
+  let avgOfferCents: number | null = null;
+  if (publicCount > 0 && !isOwner) {
+    const sample = await prisma.offer.findMany({
+      where: { listingId, status: 'pending' },
+      select: { type: true, xlmAmount: true, offeredItems: true },
+    });
+    const totals = sample.map((o) => {
+      if (o.xlmAmount == null) {
+        const items = o.offeredItems
+          ? (JSON.parse(o.offeredItems) as Array<{ estimatedValueXlm: number }>)
+          : [];
+        return items.reduce((a, it) => a + it.estimatedValueXlm, 0);
+      }
+      return o.xlmAmount;
+    });
+    avgOfferCents = totals.length
+      ? Math.round(totals.reduce((a, n) => a + n, 0) / totals.length)
+      : null;
+  }
 
   return (
     <section className="detail-view">
@@ -135,7 +167,33 @@ export default async function ListingDetailPage(props: {
 
         {/* Columna derecha — ofertas / form */}
         <div className="offers-board">
-          {me && !isOwner && listing.status === 'active' ? (
+          {!isOwner && (
+            <div
+              className="detail-trust"
+              style={{ background: 'var(--mint)', borderColor: '#d8f0e7' }}
+            >
+              <Tag />
+              <span>
+                <strong>
+                  {publicCount === 0
+                    ? 'Aún no hay ofertas'
+                    : publicCount === 1
+                      ? '1 oferta pendiente'
+                      : `${publicCount} ofertas pendientes`}
+                </strong>
+                <small>
+                  {publicCount > 0 && avgOfferCents != null && (
+                    <>
+                      {' '}Promedio: P$ {fmtPrice(avgOfferCents)} ({Math.round((avgOfferCents / (listing.priceXlm / 100)))}% del precio).
+                    </>
+                  )}
+                  {publicCount === 0 && ' Sé el primero en ofertar.'}
+                </small>
+              </span>
+            </div>
+          )}
+
+          {me && !isOwner && listing.status === 'active' && !rawMyOffer ? (
             <>
               <div className="section-heading">
                 <div>
@@ -146,6 +204,31 @@ export default async function ListingDetailPage(props: {
               </div>
               <OfferForm listingId={listing.id} maxXlmCents={listing.priceXlm} />
             </>
+          ) : me && !isOwner && rawMyOffer ? (
+            <div className="detail-trust" style={{ background: 'var(--lavender)', borderColor: '#d6c8f5' }}>
+              <CheckCircle2 />
+              <span>
+                <strong>Ya enviaste una oferta</strong>
+                <small>
+                  Tipo: {rawMyOffer.type === 'saldo-only' ? 'solo saldo' : rawMyOffer.type === 'hybrid' ? 'híbrida' : 'trueque puro'}{' '}
+                  · Estado actual:&nbsp;
+                  <strong>
+                    {rawMyOffer.status === 'pending'
+                      ? 'pendiente · esperando al vendedor'
+                      : rawMyOffer.status === 'accepted' || rawMyOffer.status === 'completed'
+                        ? 'aceptada · revisa tu cola de escrows'
+                        : rawMyOffer.status === 'rejected'
+                          ? 'rechazada · puedes intentar otra'
+                          : 'retirada'}
+                  </strong>
+                </small>
+                {rawMyOffer.xlmAmount ? (
+                  <small style={{ marginTop: 4, display: 'block' }}>
+                    Tu oferta: P$ {fmtPrice(rawMyOffer.xlmAmount)}.
+                  </small>
+                ) : null}
+              </span>
+            </div>
           ) : isOwner && !isPending ? (
             <>
               <div className="section-heading">

@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import {
   Calculator,
+  Check,
   CheckCircle2,
   ChevronRight,
+  HandHeart,
   Heart,
   ShieldCheck,
   WalletCards,
+  X,
 } from 'lucide-react';
 import { prisma } from '@/lib/db';
 import { tryGetUser } from '@/lib/auth';
@@ -60,7 +63,7 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
   });
   const where = args.success ? buildListingsWhere(args.data) : { status: 'active' };
 
-  const [listings, completed, active] = await Promise.all([
+  const [listings, completed, active, myOffers] = await Promise.all([
     prisma.listing.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -77,6 +80,16 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
       where: {
         OR: [{ buyerId: me.id }, { sellerId: me.id }],
         status: { in: ['awaiting-funding', 'funded', 'exchange-pending', 'exchange-confirmed', 'disputed'] },
+      },
+    }),
+    prisma.offer.findMany({
+      where: { offererId: me.id },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      include: {
+        listing: {
+          select: { id: true, title: true, priceXlm: true, type: true, status: true },
+        },
       },
     }),
   ]);
@@ -246,6 +259,94 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
           Cómo funciona <ChevronRight />
         </Link>
       </div>
+
+      {myOffers.length > 0 && (
+        <section className="section-block" style={{ marginTop: 36 }}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">ACTIVIDAD · MIS OFERTAS</p>
+              <h2>Tus ofertas recientes</h2>
+              <p>Las últimas {myOffers.length} que enviaste. Pulsa para ver el listing.</p>
+            </div>
+          </div>
+          <ul style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {myOffers.map((o) => {
+              const offerTotal =
+                (o.xlmAmount ?? 0) +
+                (o.offeredItems
+                  ? (JSON.parse(o.offeredItems) as Array<{ estimatedValueXlm: number }>).reduce(
+                      (a, it) => a + it.estimatedValueXlm,
+                      0,
+                    )
+                  : 0);
+              const statusTone =
+                o.status === 'pending'
+                  ? 'ai-price-signal market'
+                  : o.status === 'completed'
+                    ? 'ai-price-signal cheap'
+                    : o.status === 'rejected' || o.status === 'withdrawn'
+                      ? 'ai-price-signal pricey'
+                      : 'ai-price-signal market';
+              const statusIcon =
+                o.status === 'pending'
+                  ? <HandHeart />
+                  : o.status === 'completed'
+                    ? <Check />
+                    : o.status === 'rejected' || o.status === 'withdrawn'
+                      ? <X />
+                      : <HandHeart />;
+              return (
+                <li key={o.id}>
+                  <Link href={`/marketplace/${o.listingId}`} className="offer-card" style={{ display: 'block', padding: 14 }}>
+                    <div className="offer-top">
+                      <span className={`type-badge ${o.type}`}>
+                        {o.type === 'saldo-only' ? 'Solo saldo' : o.type === 'hybrid' ? 'Híbrida' : 'Trueque puro'}
+                      </span>
+                      {(o.xlmAmount ?? 0) > 0 && (
+                        <span className="offer-total">
+                          P$ {fmtPrice(offerTotal)}
+                        </span>
+                      )}
+                    </div>
+                    <strong style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
+                      {o.listing.title}
+                    </strong>
+                    <p style={{ fontSize: 10, color: '#7f8c9d', marginTop: 4, lineHeight: 1.45 }}>
+                      {o.message || <em style={{ opacity: 0.6 }}>(sin mensaje)</em>}
+                    </p>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginTop: 10,
+                        paddingTop: 10,
+                        borderTop: '1px solid var(--line)',
+                      }}
+                    >
+                      <span className={statusTone} style={{ marginTop: 0 }}>
+                        {statusIcon}
+                        {o.status === 'pending'
+                          ? 'Esperando respuesta'
+                          : o.status === 'completed' || o.status === 'accepted'
+                            ? 'Aceptada'
+                            : o.status === 'rejected'
+                              ? 'Rechazada'
+                              : o.status === 'withdrawn'
+                                ? 'Retirada'
+                                : o.status}
+                      </span>
+                      <span style={{ fontSize: 9, color: '#94a0b0', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                        ↗ Ver listing
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
     </section>
   );
 }
