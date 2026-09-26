@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRightLeft,
   CheckCircle2,
@@ -44,9 +45,14 @@ const STATUS_LABEL: Record<string, { label: string; tone: 'pending' | 'funded' |
   refunded: { label: 'Reembolsado', tone: 'muted', icon: <ArrowLeft /> },
 };
 
-export default async function ProcesosPage() {
+export default async function ProcesosPage(props: {
+  searchParams: Promise<{ from?: string }>;
+}) {
   const me = await tryGetUser();
   if (!me) redirect('/');
+
+  const sp = await props.searchParams;
+  const justRecovery = sp.from === 'escrow_missing';
 
   const escrows = await prisma.escrow.findMany({
     where: { OR: [{ buyerId: me.id }, { sellerId: me.id }] },
@@ -95,6 +101,28 @@ export default async function ProcesosPage() {
         cualquiera para ver las acciones disponibles (fondear, confirmar
         intercambio, aceptar, reportar, ver recibo).
       </p>
+
+      {justRecovery && (
+        <div
+          className="detail-trust"
+          style={{
+            background: 'var(--yellow)',
+            borderColor: '#e9d279',
+            color: '#7a5b14',
+            marginTop: 18,
+          }}
+        >
+          <AlertCircle />
+          <span>
+            <strong>Te trajimos de vuelta al inbox</strong>
+            <small>
+              El escrow que intentaste abrir ya no existe (quizá se cerró o
+              se reinició la base). Aquí tienes los procesos activos que
+              aún esperan acción tuya.
+            </small>
+          </span>
+        </div>
+      )}
 
       {escrows.length === 0 && (
         <div className="empty-state" style={{ marginTop: 24 }}>

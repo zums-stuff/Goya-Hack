@@ -1,7 +1,6 @@
 // app/(authed)/escrow/[escrowId]/page.tsx — Detalle del escrow.
 // Estado + participantes + acciones. Estilo del example: .wallet-panel + .detail-trust.
 import Link from 'next/link';
-import { notFound } from 'next/navigation';
 import {
   AlertCircle,
   ArrowLeft,
@@ -52,9 +51,49 @@ export default async function EscrowDetailPage(props: {
       listing: { select: { id: true, title: true, type: true } },
     },
   });
-  if (!escrow) notFound();
+
+  // En lugar del notFound() (que muestra una página completa 404 con chrome mínimo),
+  // rendereamos un panel explícito con CTA a /procesos. Esto pasa cuando:
+  //   - El ID enviado es inválido.
+  //   - El escrow fue limpiado por DB reset y el usuario llegó tarde.
+  //   - Hubo un fetch race con refresh.
+  if (!escrow) {
+    return (
+      <section style={{ maxWidth: 520 }}>
+        <Link href="/home" className="back-button" style={{ marginBottom: 16 }}>
+          <ArrowLeft />
+          Volver al dashboard
+        </Link>
+        <div className="sell-modal" style={{ width: '100%' }}>
+          <div className="modal-spark" style={{ background: 'var(--yellow)', color: '#a17a18' }}>
+            <ShieldAlert />
+          </div>
+          <p className="eyebrow">ESCROW · NO ENCONTRADO</p>
+          <h2>Este intercambio ya no existe</h2>
+          <p>
+            El escrow <code className="font-mono">{escrowId}</code> no se
+            encuentra en la base de datos. Esto puede pasar si:
+          </p>
+          <ul style={{ paddingLeft: 18, fontSize: 12, color: '#4a5568', lineHeight: 1.7 }}>
+            <li>Otro dispositivo lo cerró mientras navegabas.</li>
+            <li>El ID se corrompió (prueba a recargar con Ctrl+Shift+R).</li>
+            <li>Ya pasó el TTL y el sistema lo cerró (raro en demo).</li>
+          </ul>
+          <div className="submit-row" style={{ marginTop: 18 }}>
+            <Link href="/procesos" className="sell-button offer-button">
+              Ver mis procesos <ChevronRight />
+            </Link>
+            <Link href="/home" className="outline-button">
+              Inicio
+            </Link>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
   const me = await tryGetUser();
+
   const st = statusLabel(escrow.status);
   const toneClass =
     st.tone === 'positive'

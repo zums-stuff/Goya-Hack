@@ -59,8 +59,17 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
         body: JSON.stringify(body),
       });
       if (!res.ok) {
-        const err: { message?: string } = await res.json().catch(() => ({}));
-        throw new Error(err.message ?? 'Error');
+        const err: { error?: string; message?: string } = await res
+          .json()
+          .catch(() => ({}));
+        // Si el server responde "escrow_not_found" (escrow borrado o race con
+        // demo-reset), redirigimos a /procesos con un toast en lugar de
+        // quedarnos en una página rota.
+        if (err.error === 'escrow_not_found') {
+          router.push('/procesos?from=escrow_missing');
+          return null;
+        }
+        throw new Error(err.message ?? err.error ?? 'Error del servidor');
       }
       return res.json();
     } catch (e) {
@@ -139,7 +148,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
       {escrow.status === 'awaiting-funding' && (isBuyer || isSeller) && (
         <button
           disabled={busy}
-          onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+          onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id }).catch(() => {})}
           className="cancel-button"
           style={{ opacity: busy ? 0.5 : 1 }}
         >
@@ -163,7 +172,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
           <div className="submit-row">
             <button
               disabled={busy}
-              onClick={() => callApi('/api/escrow/record-exchange', { escrowId: escrow.id })}
+              onClick={() => callApi('/api/escrow/record-exchange', { escrowId: escrow.id }).catch(() => {})}
               className="sell-button"
               style={{ opacity: busy ? 0.5 : 1 }}
             >
@@ -173,7 +182,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
           </div>
           <button
             disabled={busy}
-            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id }).catch(() => {})}
             className="cancel-button"
           >
             Cancelar y reembolso
@@ -203,7 +212,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
               <div className="submit-row">
                 <button
                   disabled={busy}
-                  onClick={() => callApi('/api/escrow/confirm-exchange', { escrowId: escrow.id })}
+                  onClick={() => callApi('/api/escrow/confirm-exchange', { escrowId: escrow.id }).catch(() => {})}
                   className="sell-button"
                   style={{ opacity: busy ? 0.5 : 1 }}
                 >
@@ -224,7 +233,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
           )}
           <button
             disabled={busy}
-            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id })}
+            onClick={() => callApi('/api/escrow/cancel', { escrowId: escrow.id }).catch(() => {})}
             className="cancel-button"
           >
             Cancelar y reembolsar
@@ -247,7 +256,7 @@ export function EscrowActions({ escrow, meId, demoMode }: Props) {
           <div className="submit-row">
             <button
               disabled={busy}
-              onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id, force: !!demoMode })}
+              onClick={() => callApi('/api/escrow/accept', { escrowId: escrow.id, force: !!demoMode }).catch(() => {})}
               className="sell-button"
               style={{ opacity: busy ? 0.5 : 1 }}
             >
