@@ -17,7 +17,8 @@
     "prisma:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
     "capture:wallets": "tsx scripts/capture-wallets.ts",
-    "cron:once": "tsx -e \"import('./lib/cron.ts').then(m => m.runTimeoutCheck().then(r => console.log(JSON.stringify(r))))\""
+    "cron:once": "tsx -e \"import('./lib/cron.ts').then(m => m.runTimeoutCheck().then(r => console.log(JSON.stringify(r))))\"",
+    "demo:check": "tsx scripts/demo-check.ts"
   },
   "dependencies": {
     "next": "16.2.9",
