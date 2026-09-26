@@ -18,35 +18,40 @@
     "db:seed": "tsx prisma/seed.ts",
     "capture:wallets": "tsx scripts/capture-wallets.ts",
     "cron:once": "tsx -e \"import('./lib/cron.ts').then(m => m.runTimeoutCheck().then(r => console.log(JSON.stringify(r))))\"",
-    "demo:check": "tsx scripts/demo-check.ts"
+    "demo:check": "tsx scripts/demo-check.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e:demo": "tsx scripts/e2e-demo.ts"
   },
   "dependencies": {
-    "next": "16.2.9",
-    "react": "19.3.0",
-    "react-dom": "19.3.0",
+    "@neondatabase/serverless": "1.1.0",
     "@pollar/core": "0.11.3",
     "@pollar/react": "0.11.3",
+    "@prisma/adapter-neon": "7.10.0",
+    "@prisma/client": "7.10.0",
     "@stellar/stellar-sdk": "17.1.0",
-    "tailwindcss": "4.3.3",
     "@tailwindcss/postcss": "4.3.3",
-    "postcss": "8.5.6",
-    "zustand": "5.0.15",
-    "zod": "4.6.5",
+    "@vercel/blob": "2.8.0",
     "date-fns": "4.4.0",
     "lucide-react": "1.48.0",
-    "@prisma/client": "7.10.0",
-    "@prisma/adapter-neon": "7.10.0",
-    "@neondatabase/serverless": "1.1.0",
-    "@vercel/blob": "2.8.0"
+    "next": "16.2.9",
+    "postcss": "8.5.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "tailwindcss": "4.3.3",
+    "zod": "4.6.5",
+    "zustand": "5.0.15"
   },
   "devDependencies": {
-    "prisma": "7.10.0",
-    "typescript": "^5.9",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.9",
-    "tsx": "^4"
+    "prisma": "7.10.0",
+    "tsx": "^4",
+    "typescript": "^5.9",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.7"
   }
 }
