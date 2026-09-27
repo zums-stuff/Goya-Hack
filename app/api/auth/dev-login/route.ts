@@ -30,7 +30,15 @@ export async function POST(req: Request) {
 
     const { email } = Schema.parse(await req.json());
 
-    const user = await prisma.user.findUnique({ where: { email } });
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user && email.toLowerCase().includes('gremium')) {
+      const fallbackEmail = email.replace(/gremium/gi, 'pumatrade');
+      user = await prisma.user.findUnique({ where: { email: fallbackEmail } });
+    }
+    if (!user && email.toLowerCase().includes('pumatrade')) {
+      const fallbackEmail = email.replace(/pumatrade/gi, 'gremium');
+      user = await prisma.user.findUnique({ where: { email: fallbackEmail } });
+    }
     if (!user) {
       return Response.json(
         {

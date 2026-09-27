@@ -48,10 +48,44 @@ export default async function HomePage() {
       style={{ background: 'var(--bg)' }}
     >
       <div className="sell-modal">
-        <div className="modal-spark">
-          <Wallet />
+        {/* Espacio para el logo del equipo Genesis */}
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            background: '#faf5ff',
+            border: '1px solid #e9d5ff',
+            marginBottom: '14px',
+          }}
+        >
+          <img
+            src="/GenesisPNG.png"
+            alt="Equipo Genesis"
+            style={{ height: '16px', width: '16px', objectFit: 'contain', borderRadius: '50%' }}
+          />
+          <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b21a8' }}>
+            Equipo Genesis · Goya-Hack
+          </span>
         </div>
-        <p className="eyebrow">PUMATRADE · UNAM</p>
+
+        {/* Logos Gremium */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+          <img
+            src="/Logo_Gremium.png"
+            alt="Logo Gremium"
+            style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
+          />
+          <img
+            src="/Gremium.png"
+            alt="Gremium"
+            style={{ height: '26px', width: 'auto', objectFit: 'contain' }}
+          />
+        </div>
+
+        <p className="eyebrow">GREMIUM · UNAM</p>
         <h2>
           Inicia sesión para <br />
           vender, comprar o truequear.
@@ -105,8 +139,13 @@ export default async function HomePage() {
         {/* Camino dev (jueces en laptops sin Pollar): 1-click seed user. */}
         {devLogin && <DemoLoginPanel users={seedRows} />}
 
-        <div className="mt-6 pt-5 border-t border-[var(--line)] text-center text-xs text-[var(--muted)]">
-          Demo estudiantil · Stellar testnet
+        <div className="mt-6 pt-5 border-t border-[var(--line)] text-center text-xs text-[var(--muted)] flex items-center justify-center gap-2">
+          <img
+            src="/GenesisPNG.png"
+            alt="Equipo Genesis"
+            style={{ height: '16px', width: '16px', objectFit: 'contain', borderRadius: '50%' }}
+          />
+          <span>Desarrollado por <strong>Equipo Genesis</strong> · Stellar Testnet</span>
         </div>
       </div>
     </main>

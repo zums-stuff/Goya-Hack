@@ -1,4 +1,4 @@
-# ARCHITECTURE — PumaTrade
+# ARCHITECTURE — Gremium
 
 **Versión:** 1.3 (blueprint de implementación)
 **Fecha:** 2026-09-25
@@ -8,7 +8,7 @@
 
 **Changelog v1.3 (2026-09-25):**
 - **Decisión 13 — UI de login nativa de Pollar:** se eliminaron los botones custom ("Continuar con Google", input OTP) — ahora `LoginButton` abre el **modal nativo** (`openLoginModal()`) y la sesión activa muestra el **`WalletButton`** de Pollar (saldo/send/logout). Si la publishable key es placeholder (`pk_…`), la pantalla muestra una tarjeta con el paso a paso para pegar las keys reales del dashboard — jamás un widget roto. `gen-test-env.ts` ya NO pisa keys reales de Pollar (preserva `pub_*`/`sec_*` existentes).
-- **Decisión 12 — Postgres local con Docker (dev) / serverless (prod):** el driver adapter pasa de `@prisma/adapter-neon` a **`@prisma/adapter-pg`** (driver `pg` estándar) — funciona con CUALQUIER Postgres (localhost, Neon, Supabase, Railway). Solo cambia `DATABASE_URL`. Dev: `npm run db:up` levanta `pumatrade-db` en `localhost:5433` (evita chocar con un Postgres 5432 existente). `lib/load-env.ts` es el cargador compartido de `.env.local` para CLI/seed/Prisma config. Vitest: los 18 tests del state machine corren contra el Postgres real (`DB_AVAILABLE` probe); `setup.ts` ya no importa lib/db estáticamente (ESM hoisting rompía el orden de `process.env`).
+- **Decisión 12 — Postgres local con Docker (dev) / serverless (prod):** el driver adapter pasa de `@prisma/adapter-neon` a **`@prisma/adapter-pg`** (driver `pg` estándar) — funciona con CUALQUIER Postgres (localhost, Neon, Supabase, Railway). Solo cambia `DATABASE_URL`. Dev: `npm run db:up` levanta `gremium-db` en `localhost:5433` (evita chocar con un Postgres 5432 existente). `lib/load-env.ts` es el cargador compartido de `.env.local` para CLI/seed/Prisma config. Vitest: los 18 tests del state machine corren contra el Postgres real (`DB_AVAILABLE` probe); `setup.ts` ya no importa lib/db estáticamente (ESM hoisting rompía el orden de `process.env`).
 - **Decisión 9 — escrow 2-de-2 plataforma + árbitro:** verificado en docs.pollar.xyz que la llave del comprador vive en el AWS KMS de Pollar y su SDK solo firma txs que él mismo construye — el comprador NO puede firmar la release/refund del escrow. El escrow pasa a signers = PLATFORM + ÁRBITRO por-escrow (secret encriptada en DB con AES-256-GCM, §6.4). UI/estados no cambian.
 - **Decisión 10 — ventana de confirmación:** `awaiting-exchange` expira por cron (`CONFIRM_WINDOW_MINUTES`) → auto-cancel → refund completo al buyer. También se permite `cancel` manual en ese estado. Ya no existe ningún estado congelado para siempre.
 - **Decisión 11 — 1 escrow por listing + estado `Pendiente`:** aceptar oferta pone el listing en `pending` (no acepta más ofertas, 409 si intentan); al release → `sold`; al refund → `active` y la oferta vuelve a `pending`.
@@ -48,12 +48,12 @@ Cuando tengas dudas durante la implementación, vuelve a la sección relevante d
 
 ## 1. Visión general del sistema
 
-PumaTrade es una app Next.js con tres roles principales:
+Gremium es una app Next.js con tres roles principales:
 
 | Rol | Quién | Qué hace en Stellar |
 |---|---|---|
 | **Estudiante (buyer/seller)** | 5 usuarios seed | Tiene una wallet G-address manejada por Pollar. Firma pagos al escrow. |
-| **Plataforma (PumaTrade)** | Server-side | Tiene una wallet *sponsor* y una wallet *treasury*. Firma releases + cobra comisión. |
+| **Plataforma (Gremium)** | Server-side | Tiene una wallet *sponsor* y una wallet *treasury*. Firma releases + cobra comisión. |
 | **Escrow (cuenta multi-sig)** | Una cuenta nueva por transacción | G-address con signers = PLATFORM + ÁRBITRO por-escrow (server-side, encriptado). Threshold = 2. Cada movimiento on-chain lleva 2 firmas. |
 
 **Tres capas físicas:**
@@ -470,7 +470,7 @@ Antes de codear, una persona del equipo:
 
 **App 1: `Pollar — Usuarios`**
 
-1. Crear app en [dashboard.pollar.xyz](https://dashboard.pollar.xyz) → nombrarla "PumaTrade Usuarios"
+1. Crear app en [dashboard.pollar.xyz](https://dashboard.pollar.xyz) → nombrarla "Gremium Usuarios"
 2. **Settings → Auth providers:** habilitar Google + email OTP. Google para usuarios reales, email OTP para los 5 seed users (con correos temporales).
 3. **Settings → Funding mode:** `Immediate` (cada login activa la wallet al instante; necesario porque el demo necesita que el usuario tenga wallet operativa sin pasos extra)
 4. **Settings → Account Funding:** `starting balance = 0` (el fundeo de las wallets seed se hace en T-2h vía Server API `POST /v1/wallets/fund`, ver paso 17)
@@ -480,7 +480,7 @@ Antes de codear, una persona del equipo:
 
 **App 2: `Pollar — Operacional`**
 
-8. Crear segunda app → nombrarla "PumaTrade Operacional"
+8. Crear segunda app → nombrarla "Gremium Operacional"
 9. **Settings → Auth providers:** deshabilitar todo (esta app no tiene UI; solo se usa server-side)
 10. **Settings → Funding mode:** `Immediate`
 11. **Chains → Stellar testnet:** XLM nativo (igual que la app Usuarios)
@@ -505,7 +505,7 @@ Antes de codear, una persona del equipo:
 
 17. **Fondeo de las 5 wallets seed con XLM:** el demo app oficial de Pollar usa la **Server API `POST /v1/wallets/fund`** con la secret key (✅ verificado en `pollar-xyz/template-nextjs`) — un route handler nuestro hará exactamente eso después de cada primer login de un seed user, con el **saldo por persona del PRD §1** (María 1,250 / Juan 2,000 / Andrea 800 / Pablo 500 / Sofía 1,800 XLM — multiplicar ×100 al guardarlo en centavos).
 18. Para cada seed user (5):
-    - Login **una vez** vía email OTP con correo temporal (`maria.pumatrade+seed1@mail.tm`…)
+    - Login **una vez** vía email OTP con correo temporal (`maria.gremium+seed1@mail.tm`…)
     - Un route handler (solo dev) llama a `POST /v1/wallets/fund` → la wallet queda con saldo XLM sin pasos manuales
     - El mismo dev helper captura `wallet.address` → `SEED_WALLET_IDS` (JSON en `.env.local`)
     - `npm run capture:wallets` verifica en Stellar que las 5 existen y tienen saldo de XLM
@@ -547,7 +547,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 | `usePollar()` | En todos los componentes que necesitan login/balances | Hook principal. Expone `login`, `logout`, `isAuthenticated`, `wallet`, `getClient()` (headless). |
 | `openLoginModal()` | **Login (LoginButton)** | Abre el **modal nativo de Pollar** (Google + email OTP según providers del dashboard). NO re-implementar botones. |
 | `usePollar().login({ provider: 'google' })` | Fallback headless (solo si el modal no aplica) | Crea la wallet embebida automáticamente. |
-| `usePollar().login({ provider: 'email' })` | Auth para los 5 seed users con emails temporales (ej. `maria.pumatrade+seed1@mail.tm`) | Email OTP — mismo flujo de creación de wallet. |
+| `usePollar().login({ provider: 'email' })` | Auth para los 5 seed users con emails temporales (ej. `maria.gremium+seed1@mail.tm`) | Email OTP — mismo flujo de creación de wallet. |
 | `usePollar().logout()` | Settings | Cierra sesión Pollar. |
 | `usePollar().wallet` | Identificar al usuario | `wallet.address` es el **G-address** que guardamos en `User.pollarWalletId`. El email/displayName: usar la sesión de Pollar — en el demo app oficial se lee del objeto de sesión; si `wallet.user` no existe en 0.11.3, usar `client.getUserProfile()` (server/client según disponibilidad). **Verificar en Bloque 1 con el demo app.** |
 | `getClient().refreshBalance()` / `getWalletBalance()` | Después de cada acción que afecte saldo | ⚠️ `balance` y `available` son **`string \| null`** — `null` = cadena no legible: renderizar "no disponible", **nunca 0**. Old docs tenían `walletBalance`/`refreshWalletBalance`; el nombre real es `refreshBalance`. |
@@ -555,7 +555,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 | Fondeo de seed user | Fundear cada wallet seed tras su primer login | ✅ Verificado: Server API `POST /v1/wallets/fund` con secret key (patrón KYC-simulated del demo app). Lo llama un route handler dev; nunca expone la secret al cliente. |
 | `openReceiveModal()` | Settings | ✅ Verificado (QR/recibir). Opcional — XLM es demo interno. |
 | Historial de transacciones (`txHistory` hook o modal) | Settings | Muestra historial del usuario (lo da Pollar, no construimos). |
-| `<ChainSelect />` | Header (red) | Selector de red Stellar/Solana (0.11.1+). En PumaTrade solo Stellar testnet — fijarlo y no exponerlo o mostrarlo deshabilitado. |
+| `<ChainSelect />` | Header (red) | Selector de red Stellar/Solana (0.11.1+). En Gremium solo Stellar testnet — fijarlo y no exponerlo o mostrarlo deshabilitado. |
 | `@pollar/core` (server-side) | API routes | Operaciones privilegiadas con secret key. **Dos clientes Pollar distintos**: `pollarUsers` (secret de la app Usuarios) y `pollarOps` (secret de la app Operacional). |
 
 ### 5.4a Servicio server-side de Pollar (`lib/pollar.ts`)
@@ -851,8 +851,8 @@ function subkey(info: string): Buffer {
   // info (string del dominio), length (32 bytes).
   return crypto.hkdfSync('sha256', MASTER, Buffer.alloc(0), Buffer.from(info), 32);
 }
-const KEY_ENC = subkey('pumatrade:v1:aes-gcm');       // cifrado simétrico (árbitro)
-const KEY_COOKIE = subkey('pumatrade:v1:hmac-cookie'); // firma de sesión
+const KEY_ENC = subkey('gremium:v1:aes-gcm');       // cifrado simétrico (árbitro)
+const KEY_COOKIE = subkey('gremium:v1:hmac-cookie'); // firma de sesión
 
 export function encryptSecret(plain: string): string {
   const iv = crypto.randomBytes(12);
@@ -1146,7 +1146,7 @@ import { cookies } from 'next/headers';   // ⚠️ Next 16: cookies() es async
 import { prisma } from './db';
 import { verifyCookie } from './crypto';
 
-const SESSION_COOKIE = 'pumatrade-session';
+const SESSION_COOKIE = 'gremium-session';
 
 // La cookie guarda `${email}.${hmac}` (firmada con APP_SECRET_KEY, ver §6.4): leer la
 // cookie NO es suficiente — un atacante podría forjar `email.firma` con un curl.
@@ -1545,11 +1545,11 @@ export function LoginButton() {
 > paso a paso para pegar las keys reales en `.env.local` — jamás un widget roto.
 
 **Sobre los correos temporales:** usamos servicios como `mail.tm` (que genera inboxes temporales sin signup). El implementador pre-crea 5 cuentas:
-- `maria.pumatrade+seed1@mail.tm` → María
-- `juan.pumatrade+seed1@mail.tm` → Juan
-- `andrea.pumatrade+seed1@mail.tm` → Andrea
-- `pablo.pumatrade+seed1@mail.tm` → Pablo
-- `sofia.pumatrade+seed1@mail.tm` → Sofía
+- `maria.gremium+seed1@mail.tm` → María
+- `juan.gremium+seed1@mail.tm` → Juan
+- `andrea.gremium+seed1@mail.tm` → Andrea
+- `pablo.gremium+seed1@mail.tm` → Pablo
+- `sofia.gremium+seed1@mail.tm` → Sofía
 
 Durante el demo, abre cada inbox en una pestaña, lee el código OTP, y entra. **Cero cuentas de Google que crear.**
 
@@ -1608,7 +1608,7 @@ export async function POST(req: Request) {
   });
 
   const cookieStore = await cookies();               // ⚠️ Next 16: await
-  cookieStore.set('pumatrade-session', signCookie(user.email), {
+  cookieStore.set('gremium-session', signCookie(user.email), {
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
@@ -2193,7 +2193,7 @@ PLATFORM_SECRET_KEY=S...                                          # Stellar secr
 PLATFORM_PUBLIC_KEY=G...                                          # público
 APP_SECRET_KEY=<hex 32 bytes, openssl rand -hex 32>               # cifrado árbitro + firma de cookies (§6.4)
 CRON_SECRET=<random>                                              # cron/prod + reset-demo (§11.3/11.5)
-ADMIN_EMAILS=maria.pumatrade+seed1@mail.tm                       # guard de la cola de disputas (no hay columna role)
+ADMIN_EMAILS=maria.gremium+seed1@mail.tm                       # guard de la cola de disputas (no hay columna role)
 ```
 
 ### 12.4 Lo que el cliente nunca debe ver
@@ -2207,7 +2207,7 @@ ADMIN_EMAILS=maria.pumatrade+seed1@mail.tm                       # guard de la c
 
 Configurar en el dashboard de Pollar (app Usuarios y app Operacional):
 - `localhost:3000` (dev)
-- El dominio de producción (deploy, ej. `pumatrade.vercel.app`)
+- El dominio de producción (deploy, ej. `gremium.vercel.app`)
 - **La IP de LAN de la máquina de dev** (ej. `http://192.168.1.23:3000`): el demo se prueba en **celulares** apuntando al mismo `next dev` por la red local ("Preparar ambos" — ver PRD §15). Sin esta entrada, Pollar rechaza el login desde el teléfono con CORS error.
 
 > ⚠️ **La IP de LAN solo se agrega cuando `NODE_ENV !== 'production'`.** El bloque `if (NODE_ENV !== 'production' && LAN_IP)` debe vivir en la config que arma el array de allowed origins en runtime (lib/cors.ts o equivalente) — **no se commitea con la IP hardcodeada a prod**. Si por error de config queda, el riesgo es: cualquier dispositivo en la LAN puede llamar la API. Aceptado en dev (es una red privada local); en prod se elimina.
@@ -2293,7 +2293,7 @@ Resultado de la pasada R3 (auditoría adversarial contra el blueprint). Severida
 
 | # | Vector | Sev | Estado / Mitigación (ubicación exacta) |
 |---|---|---|---|
-| A1 | **Suplantación de seed user vía mail.tm.** Las direcciones `maria.pumatrade+seed1@mail.tm` etc. son impersonables — un atacante externo puede crear las mismas en mail.tm y robar el OTP de email si los inboxes no están pre-creados y aislados antes del demo. | Alta | **Procedimiento pre-demo (§15 paso 10):** el implementador Crea LOS 5 INBOXES EN MAIL.TM en T-2h y conserva las credenciales de cada uno. El primer login de cada seed es la **ventana de bind** — el `pollarWalletId` se vincula por el bind de §9.4 (si un atacante externo entra después, recibe 409 al re-bind porque su wallet ≠ la del seed). Razonamiento: el seed está protegido por wallet binding; pero la OTP inicial es lo único que roba el atacante externo antes del bind. **No automatizable.** |
+| A1 | **Suplantación de seed user vía mail.tm.** Las direcciones `maria.gremium+seed1@mail.tm` etc. son impersonables — un atacante externo puede crear las mismas en mail.tm y robar el OTP de email si los inboxes no están pre-creados y aislados antes del demo. | Alta | **Procedimiento pre-demo (§15 paso 10):** el implementador Crea LOS 5 INBOXES EN MAIL.TM en T-2h y conserva las credenciales de cada uno. El primer login de cada seed es la **ventana de bind** — el `pollarWalletId` se vincula por el bind de §9.4 (si un atacante externo entra después, recibe 409 al re-bind porque su wallet ≠ la del seed). Razonamiento: el seed está protegido por wallet binding; pero la OTP inicial es lo único que roba el atacante externo antes del bind. **No automatizable.** |
 | A2 | **`/api/auth/dev-login` se vuelve bypass en prod** si Vercel no setea `NODE_ENV=production` o un middleware lo sobreescribe. | Alta | **Doble guarda (§8.3):** el handler responde 404 si `DEV_LOGIN_ENABLED !== 'true'` **o** si `NODE_ENV === 'production'`. Solo la combinación las dos negaciones (config explícita Y entorno de dev) lo habilita. |
 | A5_nuevo | **`disputed` frozen forever.** Si durante el demo (o un run de prueba) alguien dispara Rama C, el escrow queda en `disputed` sin ninguna ruta de salida en el MVP — buyer no recupera, seller no cobra, listing no vuelve a `active`. El subagente V2 flageó esto como Alta. | Alta | **Mitigación (Bloque 7):** se implementa `/api/admin/disputes/[id]` PATCH (admin guard por `ADMIN_EMAILS`) que permite al admin decidir `release` o `refund` y firmar la tx correspondiente con platform+árbitro. **Esta endpoint estaba listada en §8.3 como "fuera de scope MVP" — se trae al MVP por ser la única ruta de escape (§11.5 §sub-doc).**|
 | A3 | **Cuenta Stellar huérfana** si la DB tx post-create falla entre `createEscrowAccount()` y el `$transaction` en §8.4. | Alta | **Documentado y aceptado (§6.3, §7.2, §11.5):** testnet es gratis; el `reset-demo` limpia huérfanos. En prod cada huérfano deja ~3 XLM varados; mitigación `accountMerge` post-MVP. Razonamiento: la alternativa "crear Stellar DENTRO del Prisma `$transaction`" no es posible porque Stellar `submitTransaction()` espera confirmación sincrónica de Horizon (≈3–5 s) que excede el timeout de una Prisma tx serverless, y porque el create del Escrow row necesita el `publicKey` devuelto. |
@@ -2434,9 +2434,9 @@ PLATFORM_SECRET_KEY=SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 APP_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 # === Base de datos (Postgres — local Docker dev; cualquier serverless en prod) ===
-# Dev: npm run db:up (scripts/db-up.sh, contenedor pumatrade-db, puerto 5433).
+# Dev: npm run db:up (scripts/db-up.sh, contenedor gremium-db, puerto 5433).
 # Prod: Neon/Supabase/Railway — solo cambia esta línea.
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/gremium?sslmode=disable
 
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
@@ -2444,7 +2444,7 @@ DEMO_TTL_MINUTES=3
 CONFIRM_WINDOW_MINUTES=10     # ventana para confirmar/disputar tras registrar intercambio (prod: 8h = 480)
 HACKATHON_FREE_FEES=true
 ENABLE_CRON=true
-ADMIN_EMAILS=maria.pumatrade+seed1@mail.tm   # guard de /admin/disputes (separar con coma para varios)
+ADMIN_EMAILS=maria.gremium+seed1@mail.tm   # guard de /admin/disputes (separar con coma para varios)
 
 # === Deploy (Vercel) ===
 CRON_SECRET=genera-un-random-de-32-chars
@@ -2488,19 +2488,19 @@ Una sola persona hace esto ANTES de que el equipo empiece a codear. Tiempo estim
 
 **T-24h (dashboard + llaves):**
 
-1. [ ] Crear **app Usuarios** en dashboard.pollar.xyz ("PumaTrade Usuarios"): Chains → Stellar testnet; Auth providers → Google + email OTP; Funding mode → Immediate (XLM nativo: **no hay tokens ni trustlines que configurar**)
+1. [ ] Crear **app Usuarios** en dashboard.pollar.xyz ("Gremium Usuarios"): Chains → Stellar testnet; Auth providers → Google + email OTP; Funding mode → Immediate (XLM nativo: **no hay tokens ni trustlines que configurar**)
 2. [ ] Generar API keys app Usuarios (`pub_testnet_users_…` / `sec_testnet_users_…`)
-3. [ ] Crear **app Operacional** ("PumaTrade Operacional"): Stellar testnet, sin auth providers (solo server), Immediate
+3. [ ] Crear **app Operacional** ("Gremium Operacional"): Stellar testnet, sin auth providers (solo server), Immediate
 4. [ ] Generar API keys app Operacional (`sec_testnet_ops_…`; la publishable no se usa)
 5. [ ] Crear **treasury manual** (fuera de Pollar): `stellar keys generate platform-treasury --network testnet --fund` (o laboratorio.stellar.org) → guardar secret en `.env.local` como `PLATFORM_SECRET_KEY`, nunca al repo
 6. [ ] Fondear treasury con XLM testnet vía friendbot (`https://friendbot.stellar.org/?addr=G…`) → confirmar saldo XLM en stellar.expert
-7. [ ] Postgres local: `npm run db:up` (Docker, `localhost:5433`, contenedor `pumatrade-db`); `DATABASE_URL` ya viene en `.env.local` generado por `npm run setup:env`. En prod se apunta a un serverless (Neon/Supabase/Railway) con la misma línea
+7. [ ] Postgres local: `npm run db:up` (Docker, `localhost:5433`, contenedor `gremium-db`); `DATABASE_URL` ya viene en `.env.local` generado por `npm run setup:env`. En prod se apunta a un serverless (Neon/Supabase/Railway) con la misma línea
 8. [ ] (Opcional) Crear proyecto Vercel y conectar repo (deploy inicial automático en T+0)
 
 **T-2h (seed wallets + arranque):**
 
 9. [ ] (No requiere config) El fundeo seed va por **Server API `POST /v1/wallets/fund`** con XLM — config predefinida, ver §13.3
-10. [ ] Crear 5 emails temporales en `mail.tm` (`maria.pumatrade+seed1@…`, etc.)
+10. [ ] Crear 5 emails temporales en `mail.tm` (`maria.gremium+seed1@…`, etc.)
 11. [ ] `git clone` + `cp .env.example .env.local` + llenar vars
 12. [ ] `npm install` → `npx prisma migrate dev --name init` → `npm run db:seed`
 13. [ ] Login una vez por cada seed user (email OTP) → el dev helper fondea con XLM y captura `G-address` en `SEED_WALLET_IDS` (§13.3)

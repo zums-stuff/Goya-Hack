@@ -43,9 +43,9 @@ export default async function SettingsPage() {
         Volver al dashboard
       </Link>
 
-      <p className="eyebrow">MI CUENTA · PUMATRADE</p>
+      <p className="eyebrow">MI CUENTA · GREMIUM</p>
       <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Tu cuenta PumaTrade
+        Tu cuenta Gremium
       </h1>
       <p className="subcopy">
         Datos personales, wallet Stellar y herramientas de demo.
@@ -244,11 +244,34 @@ export default async function SettingsPage() {
         </form>
       </div>
 
+      <div
+        style={{
+          marginTop: 28,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          padding: '8px 12px',
+          background: '#faf5ff',
+          border: '1px solid #e9d5ff',
+          borderRadius: 8,
+          width: 'fit-content',
+        }}
+      >
+        <img
+          src="/GenesisPNG.png"
+          alt="Equipo Genesis"
+          style={{ height: 18, width: 18, objectFit: 'contain', borderRadius: '50%' }}
+        />
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8' }}>
+          Desarrollado por Equipo Genesis · Goya-Hack 2026
+        </span>
+      </div>
+
       <p
         className="subcopy"
-        style={{ marginTop: 24, fontSize: 10, fontFamily: 'var(--font-mono)' }}
+        style={{ marginTop: 12, fontSize: 10, fontFamily: 'var(--font-mono)' }}
       >
-        PumaTrade · v0.1.0 · Stellar Testnet · Goya-Hack 2026
+        Gremium · v0.1.0 · Stellar Testnet
       </p>
     </section>
   );

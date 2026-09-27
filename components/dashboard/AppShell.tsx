@@ -67,12 +67,44 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link href="/home" className="brand">
-          <span className="brand-mark">P</span>
-          <span>
-            Puma<span className="brand-accent">Trade</span>
-          </span>
+        <Link href="/home" className="brand" style={{ padding: '0 10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img
+            src="/Logo_Gremium.png"
+            alt="Logo Gremium"
+            style={{ height: '30px', width: 'auto', objectFit: 'contain' }}
+          />
+          <img
+            src="/Gremium.png"
+            alt="Gremium"
+            style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
+          />
         </Link>
+        {/* Espacio para el logo del equipo */}
+        <div
+          className="team-brand-slot"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '7px 10px',
+            background: '#faf5ff',
+            border: '1px solid #e9d5ff',
+            borderRadius: '8px',
+            marginBottom: '14px',
+          }}
+        >
+          <img
+            src="/GenesisPNG.png"
+            alt="Equipo Genesis"
+            style={{ height: '22px', width: '22px', objectFit: 'contain', borderRadius: '50%', flexShrink: 0 }}
+          />
+          <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#6b21a8' }}>
+              Equipo Genesis
+            </span>
+            <span style={{ fontSize: '9px', color: '#9333ea' }}>Hackathon UNAM 2026</span>
+          </div>
+        </div>
         <div className="campus-pill">
           <span className="status-dot" />
           UNAM · Facultad de Ingeniería

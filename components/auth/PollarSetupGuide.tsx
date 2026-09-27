@@ -88,12 +88,12 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
         </p>
         <ul className="list-disc pl-5 text-xs text-[var(--muted)] space-y-1">
           <li>
-            <strong className="text-[var(--ink)]">«PumaTrade Usuarios»</strong> —
+            <strong className="text-[var(--ink)]">«Gremium Usuarios»</strong> —
             Auth: Google + email OTP · Funding: Immediate · Stellar testnet
           </li>
           <li>
             <strong className="text-[var(--ink)]">
-              «PumaTrade Operacional»
+              «Gremium Operacional»
             </strong>{' '}
             — sin UI, solo server-side · Stellar testnet
           </li>
