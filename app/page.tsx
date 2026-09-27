@@ -1,25 +1,39 @@
-// app/page.tsx — Pre-login (light surface — see app/globals.css .prelogin-*).
+// app/page.tsx — Pre-login: Gremium-branded wrapper around a Pollar-styled
+// auth card that mirrors https://www.pollar.xyz/interactive-demo.
 //
-// Two routes:
-//   1. **Pollar** (producción): <LoginButton /> abre el modal social
-//      (Google / email OTP / passkey), crea una wallet Stellar embebida,
-//      y al volver sincroniza user + cookie vía /api/auth/sync.
-//   2. **Dev-login**: cuando NODE_ENV != production y DEV_LOGIN_ENABLED=true,
-//      se muestra como bloque secundario debajo de la CTA real.
+// Layout (top to bottom):
+//   1. Gremium brand mark + wordmark           (single, not double-stacked)
+//   2. Headline + subcopy                        (Gremium brand voice)
+//   3. .pollar-login-card                        (Pollar-styled: email +
+//                                                  social OAuth buttons +
+//                                                  outlined wallet button)
+//   4. Modo demo (only when DEV_LOGIN_ENABLED)
+//   5. Prelogin footer                           (Stellar Testnet / Pollar
+//                                                  ready badge or Setup
+//                                                  link)
 //
-// Pollar gated on `!pollar.needsSetup` — si las keys son marcadores locales
-// (setup:env), abrir el modal hace fetch a api.pollar.xyz → 403
-// API_KEY_TYPE_NOT_ALLOWED → modal "Could not load sign-in options".
-// El gate evita ese callejón sin salida.
+// Each of the Pollar-styled buttons calls openLoginModal() -- the actual
+// auth is delegated to Pollar's widget (which we configured with theme:
+// 'light' + accentColor: '#005DB4' so visually it merges with our card).
+// Email codes + OAuth both flow through the same modal because Pollar
+// owns that authentication surface; what we control is the visual hand-off.
 
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { ChevronRight, Mail, ShieldCheck } from 'lucide-react';
+import {
+  Apple,
+  ChevronRight,
+  
+  Mail,
+  ShieldCheck,
+  Wallet,
+} from 'lucide-react';
 import { tryGetUser } from '@/lib/auth';
 import { isDevLoginAvailable } from '@/lib/auth-env';
 import { computePollarSetupStatus } from '@/lib/pollar-status';
 import { seedUsers } from '@/lib/seed-data';
 import { LoginButton } from '@/components/auth/LoginButton';
+import { PollarLoginActions } from '@/components/auth/PollarLoginActions';
 import { DemoLoginPanel, type SeedUserRow } from '@/components/auth/DemoLoginPanel';
 
 export default async function HomePage() {
@@ -30,7 +44,6 @@ export default async function HomePage() {
   const pollar = computePollarSetupStatus(process.env);
   const pollarConfigured = !pollar.needsSetup;
 
-  // DemoLoginPanel is keyed off `SeedUserRow`. Map seed.users → that.
   const seedRows: SeedUserRow[] = devLogin
     ? seedUsers
         .map((u) => ({
@@ -45,9 +58,10 @@ export default async function HomePage() {
   return (
     <main className="prelogin-stage">
       <div className="prelogin-card">
-        {/* Brand row — reuses the sidebar's `.brand-mark` square (coral)
-            + the Gremium wordmark, with the team/student-line as a quiet
-            caption beneath. No double-stacked logos. */}
+        {/* Brand row -- single Logo_Gremium.png wordmark + caption.
+            The Pollar-blue login card below this sits inside the same
+            Gremium surface, so the surface is "Gremium" + the auth card
+            is "Pollar". Two distinct visual zones, on purpose. */}
         <div className="prelogin-brand">
           <span className="brand-mark" aria-hidden="true">
             G
@@ -64,8 +78,8 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* Headline — same scale and weight as `.welcome-row h1` on the
-            dashboard, so the type ramp stays continuous across the app. */}
+        {/* Headline -- same scale/weight as .welcome-row h1 so the type
+            ramp stays continuous with the in-app pages. */}
         <h1 className="prelogin-headline">
           Intercambia en la UNAM
           <br />
@@ -77,13 +91,18 @@ export default async function HomePage() {
           solo Stellar testnet firmado por dos partes.
         </p>
 
-        {/* Primary CTA — Pollar real button, or an inline hint when the
-            dashboard keys haven't been configured. */}
-        <div className="prelogin-cta" style={{ marginTop: 24 }}>
-          {pollarConfigured ? (
-            <LoginButton />
-          ) : (
-            <div className="prelogin-hint">
+        {/* The Pollar-styled auth card. When Pollar keys are placeholder,
+            we show the original .gre-pollar-btn pill + setup hint instead,
+            because Pollar's widget refuses to mount with placeholder keys
+            (returns APPLICATION_HAS_NO_REDIRECT_URIS-like errors). */}
+        {pollarConfigured ? (
+          <PollarLoginActions />
+        ) : (
+          <>
+            <div className="prelogin-cta" style={{ marginTop: 28 }}>
+              <LoginButton />
+            </div>
+            <div className="prelogin-hint prelogin-cta">
               <div className="hint-row">
                 <Mail
                   style={{
@@ -101,17 +120,19 @@ export default async function HomePage() {
                   modo dev debajo.
                 </span>
               </div>
-              <Link href="/setup" className="hint-cta">
+              <Link
+                href="/setup"
+                className="hint-cta"
+              >
                 Configurar Pollar
                 <ChevronRight style={{ width: 12, height: 12 }} />
               </Link>
             </div>
-          )}
-        </div>
+          </>
+        )}
 
-        {/* Dev-login: secondary block, quiet separator, same surface as
-            the rest of the app. DemoLoginPanel already renders the 5 seed
-            users as styled `.profile-row` items, so this stays consistent. */}
+        {/* Dev-login -- intentionally separate visual block so judges /
+            judges-without-Pollar can still enter the app for the demo. */}
         {devLogin && (
           <div className="prelogin-secondary">
             <p className="sec-eyebrow">Modo demo</p>
@@ -123,11 +144,9 @@ export default async function HomePage() {
           </div>
         )}
 
-        {/* Footer — quiet credit + secondary action. */}
+        {/* Footer -- quiet credit + Pollar status indicator. */}
         <footer className="prelogin-footer">
-          <span style={{ textTransform: 'uppercase' }}>
-            Stellar Testnet
-          </span>
+          <span style={{ textTransform: 'uppercase' }}>Stellar Testnet</span>
           {pollarConfigured ? (
             <span className="ready">
               <ShieldCheck style={{ width: 11, height: 11 }} />

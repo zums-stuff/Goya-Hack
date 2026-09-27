@@ -1796,3 +1796,247 @@ input[type="file"].form-field::file-selector-button {
 @media (prefers-reduced-motion: reduce) {
   .gre-pollar-btn-spinner { animation-duration: 1.5s; }
 }
+
+/* --- Pollar-styled auth card ----------------------------------------- */
+/* Mirrors https://www.pollar.xyz/interactive-demo. The card sits inside
+ * .prelogin-card and replaces the original "Continuar con Pollar" pill
+ * when a real Pollar apiKey is present. Pure CSS, no new tokens. */
+
+.prelogin-cta .pollar-login-card,
+.prelogin-card .pollar-login-card {
+  margin-top: 22px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.pollar-login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+  margin-top: 8px;
+}
+
+.pollar-login-brandrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+.pollar-login-brandrow svg {
+  display: block;
+  width: 30px;
+  height: 36px;
+}
+.pollar-login-wordmark {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.7px;
+  color: var(--ink);
+  line-height: 1;
+}
+.pollar-demo-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--primary);
+  background: #fff0ed;
+  border-radius: 999px;
+  padding: 3px 8px;
+  margin-left: 6px;
+}
+
+.pollar-login-h2 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  margin: 0 0 2px;
+}
+
+.pollar-email-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.pollar-email-input {
+  width: 100%;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 11px 13px;
+  font-size: 13px;
+  color: var(--ink);
+  font-family: inherit;
+  outline: none;
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+.pollar-email-input:focus {
+  border-color: #005DB4;
+  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.15);
+}
+.pollar-email-input[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.pollar-send-btn {
+  width: 100%;
+  background: #005DB4;
+  color: #fff;
+  border: 0;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  min-height: 40px;
+}
+.pollar-send-btn:hover { background: #004a92; }
+.pollar-send-btn:active { transform: translateY(1px); }
+.pollar-send-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.85), 0 0 0 6px rgba(0, 93, 180, 0.55);
+}
+.pollar-send-btn[disabled] { opacity: 0.55; cursor: not-allowed; }
+
+.pollar-divider {
+  position: relative;
+  text-align: center;
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pollar-divider::before,
+.pollar-divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: calc(50% - 30px);
+  height: 1px;
+  background: var(--line);
+}
+.pollar-divider::before { left: 0; }
+.pollar-divider::after { right: 0; }
+.pollar-divider span {
+  background: #fff;
+  padding: 0 8px;
+  position: relative;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.pollar-social-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0 2px;
+}
+.pollar-social-btn {
+  width: 100%;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  cursor: pointer;
+  letter-spacing: -0.1px;
+  transition: border-color .15s ease, transform .15s ease;
+}
+.pollar-social-btn svg {
+  display: inline-block;
+  flex-shrink: 0;
+}
+.pollar-social-btn:hover {
+  border-color: #d6d6da;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+}
+.pollar-social-btn:active { transform: translateY(0); }
+.pollar-social-btn:focus-visible {
+  outline: none;
+  border-color: #005DB4;
+  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.2);
+}
+.pollar-social-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.pollar-wallet-btn {
+  width: 100%;
+  background: transparent;
+  color: #005DB4;
+  border: 2px solid #005DB4;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  cursor: pointer;
+  letter-spacing: -0.1px;
+  margin-top: 6px;
+  transition: background .15s ease, color .15s ease, transform .15s ease;
+}
+.pollar-wallet-btn:hover {
+  background: rgba(0, 93, 180, 0.08);
+  transform: translateY(-1px);
+}
+.pollar-wallet-btn:active { transform: translateY(0); }
+.pollar-wallet-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.25);
+}
+.pollar-wallet-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+.pollar-login-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+.pollar-login-footer strong {
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+}
+.pollar-login-footer svg {
+  display: inline-block;
+}
+
+.gre-pillar-btn-retry {
+  border: 0;
+  background: transparent;
+  color: #c45f4e;
+  font-weight: 700;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
