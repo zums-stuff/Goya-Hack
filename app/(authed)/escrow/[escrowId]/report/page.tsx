@@ -74,7 +74,7 @@ export default async function DisputePage(props: {
         <div className="modal-spark" style={{ background: 'var(--lavender)', color: '#9a86dc' }}>
           <ShieldAlert />
         </div>
-        <p className="eyebrow">DISPUTA · PUMATRADE</p>
+        <p className="eyebrow">DISPUTA · GREMIUM</p>
         <h2>Reportar un problema</h2>
         <p>
           Cuéntale a un administrador qué pasó. Necesitas ser una de las dos

@@ -68,14 +68,12 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
     <div className="app-shell">
       <aside className="sidebar">
         <Link href="/home" className="brand">
-          <span className="brand-mark">P</span>
-          <span>
-            Puma<span className="brand-accent">Trade</span>
-          </span>
+          <img src="/Logo_Gremium.png" alt="Logo" style={{ height: '28px', width: 'auto' }} />
+          <img src="/Gremium.png" alt="Gremium" style={{ height: '24px', width: 'auto' }} />
         </Link>
-        <div className="campus-pill">
-          <span className="status-dot" />
-          UNAM · Facultad de Ingeniería
+        <div className="campus-pill" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img src="/GenesisPNG.png" alt="Genesis" style={{ height: '16px', width: 'auto', borderRadius: '4px' }} />
+          <span>UNAM · Facultad de Ingeniería</span>
         </div>
         <nav className="side-nav">
           {NAV.map(([href, name, Icon]) => (

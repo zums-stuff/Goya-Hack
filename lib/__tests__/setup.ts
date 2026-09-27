@@ -16,7 +16,7 @@ import { loadEnvOnce } from '@/lib/load-env';
 loadEnvOnce();
 
 // Fallbacks para CI/ambientes sin .env.local (solo si la var no existe).
-process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable';
+process.env.DATABASE_URL ??= 'postgresql://postgres:postgres@localhost:5433/Gremium?sslmode=disable';
 process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY ??= 'pk_demo';
 process.env.POLLAR_USERS_SECRET_KEY ??= 'sk_demo';
 process.env.POLLAR_OPS_SECRET_KEY ??= 'sk_demo';

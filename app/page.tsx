@@ -48,11 +48,14 @@ export default async function HomePage() {
       style={{ background: 'var(--bg)' }}
     >
       <div className="sell-modal">
-        <div className="modal-spark">
-          <Wallet />
+        <div className="modal-spark" style={{ background: 'none', border: 'none', padding: 0 }}>
+          <img src="/Logo_Gremium.png" alt="Gremium Logo" className="h-16 w-16 object-contain" style={{ display: 'inline-block' }} />
         </div>
-        <p className="eyebrow">PUMATRADE · UNAM</p>
+        <p className="eyebrow flex items-center justify-center gap-2">
+          GREMIUM — UNAM
+        </p>
         <h2>
+          <img src="/Gremium.png" alt="Gremium" style={{ height: '32px', display: 'inline-block' }} /> <br />
           Inicia sesión para <br />
           vender, comprar o truequear.
         </h2>

@@ -1,6 +1,6 @@
 // scripts/test-stellar-real.ts — Verifica el ciclo Stellar completo contra
 // Horizon testnet + friendbot. Crea un keypair aleatorio, lo fundea, verifica
-// el saldo, y ejecuta una payment Alice → Bob usando exactamente el patrón
+// el saldo, y ejecuta una payment Gremium → Bob usando exactamente el patrón
 // que el código producción sigue (`Operation.payment` + `TransactionBuilder`).
 //
 // AMBIENTE: corre sin credentials. Friendbot no requiere auth; Horizon
@@ -79,40 +79,40 @@ async function main(): Promise<void> {
   console.log('🪐 Test contra Horizon testnet + friendbot (sin credenciales)\n');
   console.log(`  HORIZON: ${HORIZON}\n`);
 
-  const alice = Keypair.random();
+  const gremium = Keypair.random();
   const bob = Keypair.random();
-  console.log(`  Alice: ${alice.publicKey()}`);
+  console.log(`  Gremium: ${gremium.publicKey()}`);
   console.log(`  Bob:   ${bob.publicKey()}\n`);
 
   // 1. Fondear ambas cuentas via friendbot.
-  await step('friendbot fund Alice', () => fundAccount(alice.publicKey()));
+  await step('friendbot fund Gremium', () => fundAccount(gremium.publicKey()));
   await step('friendbot fund Bob', () => fundAccount(bob.publicKey()));
 
   // 2. Verificar saldos iniciales (friendbot da ~10 000 XLM).
-  let aliceBefore = 0;
+  let gremiumBefore = 0;
   let bobBefore = 0;
-  await step('Horizon.loadAccount(Alice)', async () => {
-    aliceBefore = await getNativeBalance(alice.publicKey());
-    console.log(`     (Alice saldo: ${aliceBefore} XLM)`);
+  await step('Horizon.loadAccount(Gremium)', async () => {
+    gremiumBefore = await getNativeBalance(gremium.publicKey());
+    console.log(`     (Gremium saldo: ${gremiumBefore} XLM)`);
   });
   await step('Horizon.loadAccount(Bob)', async () => {
     bobBefore = await getNativeBalance(bob.publicKey());
     console.log(`     (Bob saldo:   ${bobBefore} XLM)`);
   });
 
-  if (aliceBefore < 5 || bobBefore < 5) {
+  if (gremiumBefore < 5 || bobBefore < 5) {
     throw new Error(`Saldos insuficientes — friendbot no fondeó correctamente`);
   }
 
-  // 3. Alice envía 1 XLM a Bob.
+  // 3. Gremium envía 1 XLM a Bob.
   let txHash = '';
-  await step('Alice → Bob 1 XLM', async () => {
-    const h = await payment({ source: alice, destination: bob.publicKey(), amountXlm: '1' });
+  await step('Gremium → Bob 1 XLM', async () => {
+    const h = await payment({ source: gremium, destination: bob.publicKey(), amountXlm: '1' });
     txHash = h;
     console.log(`     tx hash: ${h}`);
   });
 
-  // 4. Verificar que Bob recibió 1 XLM de más y Alice 1 menos (aprox
+  // 4. Verificar que Bob recibió 1 XLM de más y Gremium 1 menos (aprox
   //    descontando fees).
   await step('Verificar saldo Bob post-payment', async () => {
     const bobAfter = await getNativeBalance(bob.publicKey());
@@ -122,10 +122,10 @@ async function main(): Promise<void> {
       throw new Error(`Esperaba ~+1 XLM, observé ${diff}`);
     }
   });
-  await step('Verificar saldo Alice post-payment', async () => {
-    const aliceAfter = await getNativeBalance(alice.publicKey());
-    const diff = aliceAfter - aliceBefore;
-    console.log(`     Alice: ${aliceBefore} → ${aliceAfter} (diff: ${diff} XLM)`);
+  await step('Verificar saldo Gremium post-payment', async () => {
+    const gremiumAfter = await getNativeBalance(gremium.publicKey());
+    const diff = gremiumAfter - gremiumBefore;
+    console.log(`     Gremium: ${gremiumBefore} → ${gremiumAfter} (diff: ${diff} XLM)`);
     // diff ~ -1 menos la fee (~0.0003 XLM).
     if (diff > -0.99) {
       throw new Error(`Esperaba ~-1 XLM, observé ${diff}`);

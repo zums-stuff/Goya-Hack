@@ -20,7 +20,7 @@ const interTight = Inter_Tight({
 });
 
 export const metadata: Metadata = {
-  title: 'PumaTrade — marketplace P2P estudiantil',
+  title: 'Gremium — marketplace P2P estudiantil',
   description: 'Marketplace de intercambio flexible entre estudiantes con escrow Stellar.',
 };
 

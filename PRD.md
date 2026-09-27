@@ -1,4 +1,4 @@
-# PRD — PumaTrade (Goya-Hack) — MVP "El Ladrillo"
+# PRD — Gremium (Goya-Hack) — MVP "El Ladrillo"
 
 **Versión:** 3.4 — el evento central del escrow es **el intercambio físico de los objetos**
 **Fecha:** 2026-09-25
@@ -15,7 +15,7 @@
 
 ## 0. Resumen ejecutivo
 
-**PumaTrade** es un marketplace móvil-first donde los estudiantes universitarios pueden **publicar un artículo** y recibir propuestas en **3 formatos** (solo saldo en XLM, objeto por objeto, o una combinación de objeto + saldo). El vendedor **elige la oferta que mejor le conviene** desde un tablero.
+**Gremium** es un marketplace móvil-first donde los estudiantes universitarios pueden **publicar un artículo** y recibir propuestas en **3 formatos** (solo saldo en XLM, objeto por objeto, o una combinación de objeto + saldo). El vendedor **elige la oferta que mejor le conviene** desde un tablero.
 
 **El dinero se congela** en un smart contract (cuenta Stellar multi-sig 2-de-2: plataforma + llave de arbitraje). Cuando los estudiantes se encuentran en la facultad e **intercambian físicamente los objetos**, registran ese momento en la app. En ese instante arranca una **ventana de prueba (TTL)** — 48h en producción, 3 min en demo — durante la cual el comprador prueba el artículo. Tres caminos posibles:
 
@@ -40,7 +40,7 @@
 
 Se crean en el dashboard de Pollar ANTES del hackathon y se siembran en la DB local. Saldos fondeados desde el treasury de la app.
 
-> 📌 **Emails seed reales:** las cuentas `@unam.mx` son los *perfiles de diseño* de esta sección; en el demo se entra con correos temporales de `mail.tm` (`maria.pumatrade+seed1@mail.tm`, etc. — ARCHITECTURE §9.4). Los saldos en XLM de cada persona (1,250 / 2,000 / 800 / 500 / 1,800) son los que siembra el seed (§8).
+> 📌 **Emails seed reales:** las cuentas `@unam.mx` son los *perfiles de diseño* de esta sección; en el demo se entra con correos temporales de `mail.tm` (`maria.Gremium+seed1@mail.tm`, etc. — ARCHITECTURE §9.4). Los saldos en XLM de cada persona (1,250 / 2,000 / 800 / 500 / 1,800) son los que siembra el seed (§8).
 
 ### 1.1 María — `maria@unam.mx` (vendedora con varias ofertas)
 - **Carrera:** Ing. en Computación, 5º semestre
@@ -483,7 +483,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 
 ```
 ┌─────────────────────────────────────┐
-│          🐆 PUMATRADE                │
+│          🐆 Gremium                │
 │     Marketplace Universitario      │
 │                                     │
 │   Vende, cambia o intercambia      │
@@ -505,7 +505,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 
 ```
 ┌─────────────────────────────────────┐
-│ 🐆 PumaTrade         💰 1,250 XLM  👤│
+│ 🐆 Gremium         💰 1,250 XLM  👤│
 ├─────────────────────────────────────┤
 │  Hola, María 👋                     │
 │                                     │
@@ -810,7 +810,7 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 │ ← Atrás                             │
 ├─────────────────────────────────────┤
 │  👤 María R.                        │
-│  maria.pumatrade+seed1@mail.tm      │
+│  maria.Gremium+seed1@mail.tm      │
 │                                     │
 │  Balance: 💰 1,544 XLM [Actualizar]  │
 │  Dirección: GABC...XYZ [Copiar]     │
@@ -856,11 +856,11 @@ Dos ejes: **Carrera** (multi-select) × **Tipo de item** (libros / calculadoras 
 //    la DB los guarda como INT en CENTAVOS (×100). El seed hace el ×100.
 {
   "users": [
-    { "id": "usr_maria",  "email": "maria.pumatrade+seed1@mail.tm",  "displayName": "María R.",  "major": "Ing. en Computación", "balanceXlm": 1250 },
-    { "id": "usr_juan",   "email": "juan.pumatrade+seed1@mail.tm",   "displayName": "Juan P.",   "major": "Ing. Eléctrica",      "balanceXlm": 2000 },
-    { "id": "usr_andrea", "email": "andrea.pumatrade+seed1@mail.tm", "displayName": "Andrea L.", "major": "Matemáticas",         "balanceXlm": 800 },
-    { "id": "usr_pablo",  "email": "pablo.pumatrade+seed1@mail.tm",  "displayName": "Pablo M.",  "major": "Física",              "balanceXlm": 500 },
-    { "id": "usr_sofia",  "email": "sofia.pumatrade+seed1@mail.tm",  "displayName": "Sofía C.",  "major": "Ing. en Computación", "balanceXlm": 1800 }
+    { "id": "usr_maria",  "email": "maria.Gremium+seed1@mail.tm",  "displayName": "María R.",  "major": "Ing. en Computación", "balanceXlm": 1250 },
+    { "id": "usr_juan",   "email": "juan.Gremium+seed1@mail.tm",   "displayName": "Juan P.",   "major": "Ing. Eléctrica",      "balanceXlm": 2000 },
+    { "id": "usr_andrea", "email": "andrea.Gremium+seed1@mail.tm", "displayName": "Andrea L.", "major": "Matemáticas",         "balanceXlm": 800 },
+    { "id": "usr_pablo",  "email": "pablo.Gremium+seed1@mail.tm",  "displayName": "Pablo M.",  "major": "Física",              "balanceXlm": 500 },
+    { "id": "usr_sofia",  "email": "sofia.Gremium+seed1@mail.tm",  "displayName": "Sofía C.",  "major": "Ing. en Computación", "balanceXlm": 1800 }
   ],
   "listings": [
     { "id": "lst_ti89",   "sellerId": "usr_maria",  "title": "Calculadora TI-89 Titanium", "priceXlm": 800,  "type": "calculadoras",    "videoVerified": true },
@@ -979,14 +979,14 @@ PLATFORM_SECRET_KEY=S...
 # === Cifrado llave árbitro + firma cookies (openssl rand -hex 32) ===
 APP_SECRET_KEY=0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 # === DB (Postgres: local Docker dev / serverless prod) ===
-DATABASE_URL=postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable
+DATABASE_URL=postgresql://postgres:postgres@localhost:5433/Gremium?sslmode=disable
 # === App ===
 NEXT_PUBLIC_PLATFORM_FEE_BPS=200
 DEMO_TTL_MINUTES=3                  # demo: 3 min; producción: omitir (default 2880)
 CONFIRM_WINDOW_MINUTES=10           # ventana awaiting-exchange (prod: 8h = 480)
 HACKATHON_FREE_FEES=true
 ENABLE_CRON=true
-ADMIN_EMAILS=maria.pumatrade+seed1@mail.tm
+ADMIN_EMAILS=maria.Gremium+seed1@mail.tm
 # === Deploy (Vercel) ===
 CRON_SECRET=random-32-chars
 BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...   # solo prod
@@ -1073,7 +1073,7 @@ componentes… que quedan arrumbados. El trueque tradicional falla
 porque es difícil encontrar equivalencia exacta. Y comprar usado
 es ruleta rusa: ¿está quemado? ¿me van a estafar?
 
-PumaTrade resuelve las dos cosas: intercambio flexible con el
+Gremium resuelve las dos cosas: intercambio flexible con el
 saldo cubriendo la diferencia, y dinero protegido durante una
 ventana de prueba."
 
@@ -1112,7 +1112,7 @@ la ventana de prueba."
 "Juan la probó, funciona. Acepta. Mira: 294 XLM para María,
 recibo público en Stellar, saldos actualizados al instante.
 
-Eso es PumaTrade: trueque justo, dinero protegido, cero
+Eso es Gremium: trueque justo, dinero protegido, cero
 estafas — sin que tengas que aprender qué es blockchain."
 
 [NOTA: si da tiempo, mencionar la alerta de precios: "Y la
@@ -1161,6 +1161,6 @@ cada artículo contra precios reales del mercado."]
 
 **FIN DEL PRD v3.4** — El intercambio físico es el evento central: ambas partes lo registran, el TTL arranca, y de ahí vienen las tres salidas posibles. Listo para implementar.
 
-> **v3.3 (2026-09-25):** moneda = **Lumens (XLM) nativos de testnet** (fuera PumaDolar/USDC); cantidades en **enteros centavos**; ofertas del tipo `saldo-only` (antes `pollar-only`); IDs `cuid()`; ofertas por listing públicas y cancel devuelve la oferta a `pending`. El resto del contenido no cambió — **excepto lo de v3.4:**
+> **v3.3 (2026-09-25):** moneda = **Lumens (XLM) nativos de testnet** (fuera GremiumDolar/USDC); cantidades en **enteros centavos**; ofertas del tipo `saldo-only` (antes `pollar-only`); IDs `cuid()`; ofertas por listing públicas y cancel devuelve la oferta a `pending`. El resto del contenido no cambió — **excepto lo de v3.4:**
 >
 > **v3.4 (2026-09-25):** escrow **2-de-2 plataforma + llave de arbitraje** por-escrow (el comprador no es signer — su llave vive custodiada en el AWS KMS de Pollar, sin API de firma ajena; detalle en ARCHITECTURE §6.2); **ventana de confirmación** en `awaiting-exchange` (si la otra parte no confirma ni disputa, el cron auto-cancela y el dinero vuelve al comprador); **1 escrow por listing** con estado `Pendiente`. Checkout del escrow con `runTx('payment', …)` (reemplaza al `SendModal`, verificado en el demo app de Pollar).

@@ -3,8 +3,8 @@
 // Diseño de claves (§6.4):
 //   APP_SECRET_KEY es el master, único secret en .env local.
 //   Por HKDF-SHA256 (RFC 5869) derivamos DOS sub-llaves con `info` distintos:
-//     KEY_ENC    = HKDF(...info='pumatrade:v1:aes-gcm')     ← cifrado árbitro
-//     KEY_COOKIE = HKDF(...info='pumatrade:v1:hmac-cookie') ← firma de sesión
+//     KEY_ENC    = HKDF(...info='Gremium:v1:aes-gcm')     ← cifrado árbitro
+//     KEY_COOKIE = HKDF(...info='Gremium:v1:hmac-cookie') ← firma de sesión
 //   Si una se compromete, la otra no se puede inferir.
 
 import crypto from 'node:crypto';
@@ -21,8 +21,8 @@ function subkey(info: string): Buffer {
   return crypto.hkdfSync('sha256', MASTER, Buffer.alloc(0), Buffer.from(info), 32);
 }
 
-const KEY_ENC = subkey('pumatrade:v1:aes-gcm');
-const KEY_COOKIE = subkey('pumatrade:v1:hmac-cookie');
+const KEY_ENC = subkey('Gremium:v1:aes-gcm');
+const KEY_COOKIE = subkey('Gremium:v1:hmac-cookie');
 
 // ─── AES-256-GCM cifrado simétrico (Escrow.arbiterSecretEnc) ─────────────────
 
@@ -50,7 +50,7 @@ export function decryptSecret(blob: string): string {
   ]).toString('utf8');
 }
 
-// ─── HMAC-SHA256 firma de sesión (cookie 'pumatrade-session') ───────────────
+// ─── HMAC-SHA256 firma de sesión (cookie 'Gremium-session') ───────────────
 // Cookie guarda `${email}.${sig}` — KEY_COOKIE separada de KEY_ENC (HKDF).
 export function signCookie(email: string): string {
   const sig = crypto.createHmac('sha256', KEY_COOKIE).update(email).digest('hex');

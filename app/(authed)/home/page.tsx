@@ -132,7 +132,7 @@ const fmt = (cents: number) =>
     <section className="home-view">
       <div className="welcome-row">
         <div>
-          <p className="eyebrow">PUMATRADE · UNAM FI</p>
+          <p className="eyebrow">Gremium · UNAM FI</p>
           <h1>
             Qué gusto verte, <span>{me.displayName.split(' ')[0]}</span>
           </h1>

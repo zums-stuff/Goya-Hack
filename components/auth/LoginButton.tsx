@@ -46,7 +46,7 @@ export function LoginButton() {
   const fired = useRef(false);
 
   // Pick the Stellar wallet specifically — Pollar supports multi-chain and
-  // PumaTrade is Stellar-only. The /api/auth/sync route also validates the
+  // Gremium is Stellar-only. The /api/auth/sync route also validates the
   // address as /^G[A-Z0-9]{55}$/, so a non-Stellar wallet would 422.
   const stellarAddress =
     wallets.find((w) => w.chain === 'STELLAR')?.address ?? wallet?.address ?? null;

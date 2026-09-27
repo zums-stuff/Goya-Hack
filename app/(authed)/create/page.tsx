@@ -20,7 +20,7 @@ export default async function CreateListingPage() {
         <div className="modal-spark">
           <Plus />
         </div>
-        <p className="eyebrow">PUBLICAR · PUMATRADE</p>
+        <p className="eyebrow">PUBLICAR · Gremium</p>
         <h2>Sube un artículo al marketplace</h2>
         <p>
           Describe brevemente el artículo, indica la condición y propone un
