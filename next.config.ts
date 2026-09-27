@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // activo para nuestro carga de `instrumentation.ts` (cron dev, §11.2).
   reactStrictMode: true,
   poweredByHeader: false,
+  output: 'standalone',
   experimental: {
     // Next 16: nada experimental extra hoy.
   },

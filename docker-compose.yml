@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY: ${NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY}
+        NEXT_PUBLIC_PLATFORM_FEE_BPS: ${NEXT_PUBLIC_PLATFORM_FEE_BPS:-200}
+    container_name: pumatrade-web
+    restart: unless-stopped
+    ports:
+      - "3096:3000"
+    env_file: .env.production
+    networks:
+      - light-proxy-net
+
+networks:
+  light-proxy-net:
+    external: true
