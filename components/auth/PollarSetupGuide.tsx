@@ -136,7 +136,7 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
                   </code>
                   {statusBadge(status[r.key])}
                 </div>
-                <p style={{ fontSize: 9, color: '#94a0b0', marginTop: 4 }}>
+                <p style={{ fontSize: 9, color: 'var(--muted)', marginTop: 4 }}>
                   {r.source}
                 </p>
               </div>
@@ -203,8 +203,7 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
           href="https://dashboard.pollar.xyz"
           target="_blank"
           rel="noreferrer"
-          className="sell-button"
-          style={{ background: '#fff', color: 'var(--primary)', boxShadow: 'none' }}
+          className="outline-button"
         >
           Ir a dashboard.pollar.xyz
           <ChevronRight />

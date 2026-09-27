@@ -81,9 +81,7 @@ export default function MapPage() {
   return (
     <section className="map-view">
       <p className="eyebrow">PUNTOS ALIADOS · CDMX</p>
-      <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Red de pickup points Gremium
-      </h1>
+      <h1>Red de pickup points Gremium</h1>
       <p className="subcopy">
         Mapa de CDMX con 3 puntos aliados. Los púlsares marcan tiendas
         físicas donde puedes ver un artículo antes de aceptar el escrow.
@@ -150,7 +148,7 @@ export default function MapPage() {
                   fontSize="9"
                   fontWeight="800"
                   textAnchor="middle"
-                  fill="#5a7488"
+                  style={{ fill: 'var(--muted)' }}
                   letterSpacing="1.1"
                 >
                   {z.name}
@@ -183,18 +181,18 @@ export default function MapPage() {
               <g key={s.id} transform={`translate(${s.cx}, ${s.cy})`}>
                 <circle
                   r="22"
-                  fill="rgba(238, 112, 93, 0.18)"
+                  style={{ fill: 'var(--primary)', opacity: 0.18 }}
                 />
                 <circle
                   r="11"
-                  fill="#ee705d"
+                  style={{ fill: 'var(--primary)' }}
                   stroke="#fff"
                   strokeWidth="2"
                   filter="url(#softShadow)"
                 />
                 <path
                   d="M -8 8 L 0 16 L 8 8 Z"
-                  fill="#ee705d"
+                  style={{ fill: 'var(--primary)' }}
                   stroke="#fff"
                   strokeWidth="1.5"
                   filter="url(#softShadow)"
@@ -216,8 +214,7 @@ export default function MapPage() {
                   textAnchor="middle"
                   fontSize="9"
                   fontWeight="800"
-                  fill="#26364c"
-                  style={{ paintOrder: 'stroke' }}
+                  style={{ fill: 'var(--ink)', paintOrder: 'stroke' }}
                   stroke="#fff"
                   strokeWidth="3"
                   strokeLinejoin="round"
@@ -240,7 +237,14 @@ export default function MapPage() {
                   style={{
                     marginLeft: 'auto',
                     background: s.status === 'Abierto' ? 'var(--mint)' : 'var(--yellow)',
-                    color: s.status === 'Abierto' ? '#369671' : '#a17a18',
+                    color: s.status === 'Abierto' ? '#369671' : '#b47b1f',
+                    borderRadius: 999,
+                    padding: '2px 7px',
+                    fontSize: 9,
+                    fontWeight: 800,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 3,
                   }}
                 >
                   {s.status === 'Abierto' ? (
@@ -286,7 +290,7 @@ export default function MapPage() {
               </small>
               <small style={{ color: 'var(--muted)' }}>{s.hours}</small>
               {s.note && (
-                <small style={{ color: '#7f8c9d', fontStyle: 'italic' }}>{s.note}</small>
+                <small style={{ color: 'var(--muted)', fontStyle: 'italic' }}>{s.note}</small>
               )}
               <div className="shop-meta">
                 <ChevronRight

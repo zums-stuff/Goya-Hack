@@ -29,7 +29,14 @@ export default async function ReceiptPage(props: {
   });
   if (!escrow) notFound();
   if (escrow.buyerId !== me.id && escrow.sellerId !== me.id) {
-    return <p className="p-6">No autorizado.</p>;
+    return (
+      <section style={{ maxWidth: 520 }}>
+        <div className="empty-state">
+          <strong>No autorizado</strong>
+          Solo las partes del escrow pueden ver el recibo.
+        </div>
+      </section>
+    );
   }
   if (!['released', 'auto-released', 'refunded'].includes(escrow.status)) {
     return (
@@ -79,7 +86,8 @@ export default async function ReceiptPage(props: {
           fontSize: 27,
           letterSpacing: '-1px',
           margin: '0 0 14px',
-          color: '#26364c',
+          fontWeight: 800,
+          color: 'var(--ink)',
         }}
       >
         {isRelease ? 'Intercambio completado' : 'Reembolso emitido'}

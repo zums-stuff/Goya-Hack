@@ -122,7 +122,7 @@ export default async function ListingDetailPage(props: {
           <span className="product-type" style={{ marginTop: 14, fontSize: 9 }}>
             {listingType.toUpperCase().replace('-', ' ')}
           </span>
-          <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px' }}>
+          <h1 style={{ fontSize: 27, fontWeight: 800, letterSpacing: '-1px', margin: '0 0 8px' }}>
             {listing.title}
           </h1>
           <p className="subcopy">
@@ -144,7 +144,7 @@ export default async function ListingDetailPage(props: {
             </span>
           </div>
           {listing.description && (
-            <p style={{ fontSize: 12, color: '#68778a', lineHeight: 1.55, marginTop: 16 }}>
+            <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.55, margin: '16px 0 0' }}>
               {listing.description}
             </p>
           )}
@@ -155,18 +155,15 @@ export default async function ListingDetailPage(props: {
           />
           {isPending && (
             <div
-              style={{
-                marginTop: 18,
-                borderLeft: '3px solid var(--primary)',
-                background: '#fff0ed',
-                borderRadius: 8,
-                padding: '12px 14px',
-                color: '#d95d4b',
-                fontSize: 12,
-              }}
+              className="detail-trust"
+              style={{ background: '#fff0ed', borderColor: '#f3c8bf', color: '#c45f4e' }}
             >
-              ⏳ <strong>Pendiente</strong> — transacción en curso. El vendedor no
-              acepta nuevas ofertas hasta que el escrow concluya.
+              <span>
+                <strong>⏳ Pendiente</strong>
+                <small style={{ color: '#c45f4e' }}>
+                  Transacción en curso. El vendedor no acepta nuevas ofertas hasta que el escrow concluya.
+                </small>
+              </span>
             </div>
           )}
         </div>

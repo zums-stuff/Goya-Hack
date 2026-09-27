@@ -7,9 +7,7 @@ export default function AssistantPage() {
   return (
     <section className="assistant-view" style={{ maxWidth: 760 }}>
       <p className="eyebrow">GREMIUM AI · UNAM</p>
-      <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Encuentra justo lo que necesitas
-      </h1>
+      <h1>Encuentra justo lo que necesitas</h1>
       <p className="subcopy">
         Describe lo que buscas y comparo precio, calidad y confianza entre
         los listings del marketplace. Las respuestas devuelven links

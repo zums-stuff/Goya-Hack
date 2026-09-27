@@ -1290,3 +1290,453 @@ input[type="file"].form-field::file-selector-button {
   .prelogin-card,
   .prelogin-cta { animation: none; }
 }
+
+/* ─── Page-level phantom classes (settings, map, assistant, admin, setup) ─── */
+
+/* Back-button — inline link with arrow, used on settings + admin */
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.2px;
+}
+.back-button svg { width: 14px; height: 14px; }
+.back-button:hover { color: var(--primary); }
+
+/* Outline button — secondary action, border + transparent bg */
+.outline-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease;
+}
+.outline-button svg { width: 13px; height: 13px; }
+.outline-button:hover:not(:disabled) { border-color: #f0b1a6; color: var(--primary); }
+.outline-button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Account view wrapper */
+.account-view {
+  display: flex;
+  flex-direction: column;
+}
+.account-view > h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+/* Profile panel — row with avatar + info + action */
+.profile-panel {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.profile-panel > div { flex: 1; min-width: 0; }
+.profile-panel > div h2 { font-size: 16px; font-weight: 800; letter-spacing: -0.3px; margin: 0 0 4px; }
+.profile-panel > div p { font-size: 11px; color: var(--muted); margin: 0; line-height: 1.5; }
+
+/* Wallet panel — similar to profile-panel but narrower */
+.wallet-panel {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px 18px;
+}
+.wallet-panel > span {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.wallet-panel > span svg { width: 19px; color: #9a86dc; flex-shrink: 0; }
+.wallet-panel > span strong { font-size: 12px; letter-spacing: -0.2px; }
+.wallet-panel > span small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+/* Large avatar for profile panels */
+.large-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #dce8ff;
+  color: #5876bb;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.large-avatar svg { width: 20px; height: 20px; }
+
+/* Account verified badge */
+.account-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #369671;
+  background: var(--mint);
+  border-radius: 999px;
+  padding: 3px 8px;
+  margin-top: 6px;
+}
+.account-verified svg { width: 11px; height: 11px; }
+
+/* Warning text (pollar setup) */
+.warning-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #b47b1f;
+}
+.warning-text svg { width: 12px; height: 12px; }
+
+/* Map view */
+.map-view {
+  display: flex;
+  flex-direction: column;
+}
+.map-view > h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.map-layout {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .map-layout { grid-template-columns: 1fr; }
+}
+.map-canvas {
+  position: relative;
+  aspect-ratio: 800 / 480;
+  background: #eef5f0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Admin view */
+.admin-view {
+  display: flex;
+  flex-direction: column;
+}
+.admin-view > h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+/* Detail trust — inline trust banner variant used across pages */
+.detail-trust {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--mint);
+  border: 1px solid #d8f0e7;
+  border-radius: 10px;
+  padding: 14px 18px;
+}
+.detail-trust > svg { width: 19px; color: #49ae91; flex-shrink: 0; }
+.detail-trust > span { flex: 1; }
+.detail-trust > span strong { display: block; font-size: 12px; margin-bottom: 3px; color: var(--ink); }
+.detail-trust > span small { display: block; font-size: 10px; color: #789489; line-height: 1.45; }
+.detail-trust > span small code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10px;
+  background: #fff;
+  border: 1px solid var(--line);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+.detail-trust > button,
+.detail-trust > a { margin-left: auto; flex-shrink: 0; }
+
+/* Offer card — used in disputes + offers list */
+.offer-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  list-style: none;
+}
+.offer-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.offer-kind {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.listing-meta {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 0.2px;
+}
+
+/* Assistant chat panel */
+.chat-panel {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  overflow: hidden;
+  min-height: 380px;
+}
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #fbfcfe;
+}
+.chat-head strong { display: block; font-size: 12px; font-weight: 800; }
+.chat-head small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.ai-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #fff0ed;
+  color: var(--primary);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.ai-avatar svg { width: 17px; height: 17px; }
+.chat-bubble.ai-bubble {
+  background: #f5f7fa;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 78%;
+}
+.ai-result {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color .15s ease;
+}
+.ai-result:hover { border-color: #f0b1a6; }
+.ai-result strong { display: block; font-size: 11px; }
+.ai-result span { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; }
+.ai-result > svg { width: 13px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+.mini-product {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.mini-product svg { width: 14px; height: 14px; }
+
+/* Assistant view */
+.assistant-view {
+  display: flex;
+  flex-direction: column;
+}
+.assistant-view > h1 {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+
+/* ── Detail / marketplace shared classes (used across many pages) ─── */
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #68778a;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 14px;
+  transition: color .15s ease;
+}
+.back-button:hover { color: var(--primary); }
+.back-button svg { width: 15px; height: 15px; }
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .detail-layout { grid-template-columns: 1fr; gap: 22px; }
+}
+
+.detail-visual {
+  height: 320px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.detail-visual > svg { width: 90px; height: 90px; stroke-width: 1.1; }
+.detail-visual > span {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  background: #ffffffc7;
+  color: #49a98d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.detail-visual > span svg { width: 13px; height: 13px; }
+
+.detail-price {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 18px 0 16px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.detail-price strong {
+  font-size: 20px;
+  letter-spacing: -0.5px;
+}
+
+.detail-trust {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #eaf8f3;
+  border: 1px solid #d8f0e7;
+  border-radius: 10px;
+  padding: 13px 16px;
+  margin: 14px 0;
+  font-size: 11px;
+  color: #3d7a66;
+  line-height: 1.5;
+}
+.detail-trust > svg,
+.detail-trust > .trust-icon { width: 18px; height: 18px; flex-shrink: 0; color: #49ae91; margin-top: 1px; }
+.detail-trust strong { display: block; font-size: 12px; color: var(--ink); margin-bottom: 3px; }
+.detail-trust small { color: #6b8f82; font-size: 10.5px; }
+
+.offer-button {
+  margin-top: 12px;
+  width: 100%;
+  justify-content: center;
+}
+
+.listing-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+.listing-filters select,
+.listing-filters .filter-button {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: #55647b;
+  font-size: 11px;
+  font-family: inherit;
+}
+.listing-filters select:focus,
+.listing-filters .filter-button:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px #ee705d22;
+}
+.listing-filters label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #55647b;
+}
+.listing-filters label input[type="checkbox"] {
+  accent-color: var(--primary);
+  width: 14px;
+  height: 14px;
+}
+
+.marketplace-view {
+  /* wrapper — inherits content-wrap padding from layout */
+}
+
+/* Offer total — right-aligned amount in offer-card rows */
+.offer-total {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: -0.2px;
+}
+
+/* Recommended modifier — subtle coral border highlight */
+.offer-card.recommended {
+  border-color: #f4c2ba;
+  box-shadow: 0 2px 8px #ee705d10;
+}

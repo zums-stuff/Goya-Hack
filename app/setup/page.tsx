@@ -33,11 +33,8 @@ export default async function SetupPage() {
         <PollarSetupGuide status={pollar} />
 
         <div className="mt-6 pt-5 border-t border-[var(--line)]">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-xs font-bold text-[var(--primary)] hover:underline"
-          >
-            <ArrowLeft className="w-3 h-3" />
+          <Link href="/" className="back-button">
+            <ArrowLeft />
             Volver al login
           </Link>
         </div>

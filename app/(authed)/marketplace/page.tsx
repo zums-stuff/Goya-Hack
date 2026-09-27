@@ -61,13 +61,13 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
         </Link>
       </div>
 
-      <form method="GET" className="listing-filters" style={{ margin: '0 0 22px' }}>
+      <form method="GET" className="listing-filters">
         <input
           name="search"
           defaultValue={Array.isArray(sp.search) ? sp.search[0] : sp.search ?? ''}
           placeholder="Buscar…"
           className="filter-button"
-          style={{ width: 220, fontSize: 11 }}
+          style={{ width: 220 }}
           aria-label="Buscar"
         />
         <select
@@ -151,22 +151,20 @@ export default async function MarketplacePage(props: { searchParams: Promise<Sea
           </Link>
         ))}
         {listings.length === 0 && (
-          <div
-            className="stat-card"
-            style={{ gridColumn: '1 / -1', minHeight: 110, justifyContent: 'center' }}
-          >
-            <div>
-              <span>Sin resultados</span>
-              <strong>Prueba otros filtros</strong>
-              <small>O publica el primero tú mismo. <Link href="/create">+ Publicar artículo</Link></small>
-            </div>
+          <div className="empty-state" style={{ gridColumn: '1 / -1' }}>
+            <strong>Sin resultados</strong>
+            Prueba otros filtros o{' '}
+            <Link href="/create" style={{ color: 'var(--primary)', fontWeight: 700 }}>
+              publica el primero tú mismo
+            </Link>.
           </div>
         )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 18 }}>
-        <Link href="/home" className="filter-button">
-          Volver a Inicio <ChevronRight />
+        <Link href="/home" className="back-button" style={{ marginBottom: 0 }}>
+          <ChevronRight />
+          Volver a Inicio
         </Link>
       </div>
     </section>

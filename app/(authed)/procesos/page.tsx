@@ -92,7 +92,7 @@ export default async function ProcesosPage(props: {
       </Link>
 
       <p className="eyebrow">PROCESOS · GREMIUM</p>
-      <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
+      <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px', fontWeight: 800, color: 'var(--ink)' }}>
         Tus intercambios en curso
       </h1>
       <p className="subcopy">
@@ -205,7 +205,7 @@ export default async function ProcesosPage(props: {
                           <span
                             style={{
                               fontSize: 9,
-                              color: '#94a0b0',
+                              color: 'var(--muted)',
                               marginLeft: 'auto',
                               fontFamily: 'var(--font-mono)',
                             }}

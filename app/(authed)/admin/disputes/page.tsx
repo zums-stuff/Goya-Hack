@@ -58,16 +58,7 @@ export default async function AdminDisputesPage() {
   return (
     <section className="admin-view">
       <p className="eyebrow">ADMIN · GREMIUM</p>
-      <h1
-        style={{
-          fontSize: 27,
-          letterSpacing: '-1px',
-          margin: '0 0 8px',
-          color: '#26364c',
-        }}
-      >
-        Disputas pendientes
-      </h1>
+      <h1>Disputas pendientes</h1>
       <p className="subcopy">
         {disputes.length} caso(s) esperando revisión. Resuelve liberando al
         vendedor o reembolsando al comprador.
@@ -102,7 +93,7 @@ export default async function AdminDisputesPage() {
             <strong style={{ display: 'block', fontSize: 13 }}>
               {d.escrow.listing.title}
             </strong>
-            <p style={{ margin: '10px 0', fontSize: 11, color: '#7f8c9d', lineHeight: 1.5 }}>
+            <p style={{ margin: '10px 0', fontSize: 11, color: 'var(--muted)', lineHeight: 1.5 }}>
               “{d.description}”
             </p>
             <code

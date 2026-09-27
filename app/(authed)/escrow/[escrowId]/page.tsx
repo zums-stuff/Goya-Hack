@@ -73,7 +73,7 @@ export default async function EscrowDetailPage(props: {
             El escrow <code className="font-mono">{escrowId}</code> no se
             encuentra en la base de datos. Esto puede pasar si:
           </p>
-          <ul style={{ paddingLeft: 18, fontSize: 12, color: '#4a5568', lineHeight: 1.7 }}>
+          <ul style={{ paddingLeft: 18, fontSize: 12, color: 'var(--muted)', lineHeight: 1.7 }}>
             <li>Otro dispositivo lo cerró mientras navegabas.</li>
             <li>El ID se corrompió (prueba a recargar con Ctrl+Shift+R).</li>
             <li>Ya pasó el TTL y el sistema lo cerró (raro en demo).</li>
@@ -127,10 +127,11 @@ export default async function EscrowDetailPage(props: {
       <p className="eyebrow">ESCROW · GREMIUM</p>
       <h1
         style={{
-          fontSize: 29,
+          fontSize: 27,
           letterSpacing: '-1px',
           margin: '0 0 10px',
-          color: '#26364c',
+          fontWeight: 800,
+          color: 'var(--ink)',
         }}
       >
         {escrow.listing.title}

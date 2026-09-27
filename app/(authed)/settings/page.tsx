@@ -44,9 +44,7 @@ export default async function SettingsPage() {
       </Link>
 
       <p className="eyebrow">MI CUENTA · GREMIUM</p>
-      <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Tu cuenta Gremium
-      </h1>
+      <h1>Tu cuenta Gremium</h1>
       <p className="subcopy">
         Datos personales, wallet Stellar y herramientas de demo.
       </p>
@@ -69,38 +67,36 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* Fila de "stats" — 2 stat-card balanceados */}
-      <div className="balance-grid" style={{ marginTop: 22 }}>
-        <div className="balance-grid">
-          <div className="stat-card">
-            <div className="stat-icon" style={{ background: 'var(--lavender)', color: '#9a86dc' }}>
-              <Sparkles />
-            </div>
-            <div>
-              <span>Intercambios totales</span>
-              <strong>0</strong>
-              <small>Aún no has completado ninguno</small>
-            </div>
+      {/* Fila de "stats" — 3 stat-card balanceados */}
+      <div className="balance-grid" style={{ marginTop: 22, gridTemplateColumns: 'repeat(3, 1fr)' }}>
+        <div className="stat-card">
+          <div className="stat-icon purple-bg">
+            <Sparkles />
           </div>
-          <div className="stat-card">
-            <div className="stat-icon purple-bg">
-              <ShieldCheck />
-            </div>
-            <div>
-              <span>Identidad verificada</span>
-              <strong>ON</strong>
-              <small>Stellar testnet · cuenta seed</small>
-            </div>
+          <div>
+            <span>Intercambios totales</span>
+            <strong>0</strong>
+            <small>Aún no has completado ninguno</small>
           </div>
-          <div className="stat-card">
-            <div className="stat-icon yellow-bg">
-              <RotateCw />
-            </div>
-            <div>
-              <span>Sesiones activas</span>
-              <strong>1</strong>
-              <small>Esta ventana del navegador</small>
-            </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon purple-bg">
+            <ShieldCheck />
+          </div>
+          <div>
+            <span>Identidad verificada</span>
+            <strong>ON</strong>
+            <small>Stellar testnet · cuenta seed</small>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon yellow-bg">
+            <RotateCw />
+          </div>
+          <div>
+            <span>Sesiones activas</span>
+            <strong>1</strong>
+            <small>Esta ventana del navegador</small>
           </div>
         </div>
       </div>
@@ -251,8 +247,8 @@ export default async function SettingsPage() {
           alignItems: 'center',
           gap: 8,
           padding: '8px 12px',
-          background: '#faf5ff',
-          border: '1px solid #e9d5ff',
+          background: 'var(--lavender)',
+          border: '1px solid #ddd4fb',
           borderRadius: 8,
           width: 'fit-content',
         }}
@@ -262,7 +258,7 @@ export default async function SettingsPage() {
           alt="Equipo Genesis"
           style={{ height: 18, width: 18, objectFit: 'contain', borderRadius: '50%' }}
         />
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#6b21a8' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#6b5aab' }}>
           Desarrollado por Equipo Genesis · Goya-Hack 2026
         </span>
       </div>

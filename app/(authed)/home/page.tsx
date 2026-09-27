@@ -202,15 +202,15 @@ const fmt = (cents: number) =>
         </Link>
       </div>
 
-      <form method="GET" className="listing-filters">
-        <select name="major" defaultValue={major} aria-label="Filtrar por carrera">
+      <form method="GET" className="listing-filters" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <select name="major" defaultValue={major} aria-label="Filtrar por carrera" className="form-field" style={{ width: 'auto', minWidth: 150 }}>
           <option>Todas</option>
           <option>Ing. en Computación</option>
           <option>Ing. Eléctrica</option>
           <option>Matemáticas</option>
           <option>Física</option>
         </select>
-        <select name="type" defaultValue={type} aria-label="Filtrar por tipo">
+        <select name="type" defaultValue={type} aria-label="Filtrar por tipo" className="form-field" style={{ width: 'auto', minWidth: 130 }}>
           <option value="Todos">Todos</option>
           <option value="libros">Libros</option>
           <option value="calculadoras">Calculadoras</option>
@@ -223,10 +223,10 @@ const fmt = (cents: number) =>
           defaultValue={search}
           placeholder="Buscar…"
           aria-label="Buscar"
-          className="filter-button"
+          className="form-field"
           style={{ width: 180, fontSize: 11 }}
         />
-        <label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)', cursor: 'pointer' }}>
           <input type="checkbox" name="verifiedOnly" value="true" defaultChecked={verifiedOnly} />
           Solo verificados
         </label>
@@ -279,14 +279,11 @@ const fmt = (cents: number) =>
         ))}
         {listings.length === 0 && (
           <div
-            className="stat-card"
-            style={{ gridColumn: '1 / -1', minHeight: 110, justifyContent: 'center' }}
+            className="empty-state"
+            style={{ gridColumn: '1 / -1' }}
           >
-            <div>
-              <span>Sin resultados</span>
-              <strong>Prueba otros filtros</strong>
-              <small>O publica el primero tú mismo.</small>
-            </div>
+            <strong>Prueba otros filtros</strong>
+            O publica el primero tú mismo.
           </div>
         )}
       </div>
@@ -358,7 +355,7 @@ const fmt = (cents: number) =>
                     <strong style={{ display: 'block', fontSize: 12, marginTop: 8 }}>
                       {o.listing.title}
                     </strong>
-                    <p style={{ fontSize: 10, color: '#7f8c9d', marginTop: 4, lineHeight: 1.45 }}>
+                    <p style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, lineHeight: 1.45 }}>
                       {o.message || <em style={{ opacity: 0.6 }}>(sin mensaje)</em>}
                     </p>
                     <div
@@ -383,7 +380,7 @@ const fmt = (cents: number) =>
                                 ? 'Retirada'
                                 : o.status}
                       </span>
-                      <span style={{ fontSize: 9, color: '#94a0b0', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
+                      <span style={{ fontSize: 9, color: 'var(--muted)', marginLeft: 'auto', fontFamily: 'var(--font-mono)' }}>
                         ↗ Ver listing
                       </span>
                     </div>

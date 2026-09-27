@@ -60,7 +60,14 @@ export default async function DisputePage(props: {
   }
 
   if (escrow.buyerId !== me.id && escrow.sellerId !== me.id) {
-    return <p className="p-6">No autorizado.</p>;
+    return (
+      <section style={{ maxWidth: 520 }}>
+        <div className="empty-state">
+          <strong>No autorizado</strong>
+          Necesitas ser comprador o vendedor del escrow para abrir una disputa.
+        </div>
+      </section>
+    );
   }
 
   return (

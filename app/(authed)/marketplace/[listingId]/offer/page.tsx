@@ -28,34 +28,44 @@ export default async function OfferPage(props: {
 
   if (listing.status !== 'active') {
     return (
-      <section className="sell-modal">
-        <div className="section-heading">
-          <div>
-            <h1 style={{ fontSize: 24 }}>Artículo no disponible</h1>
-            <p>Este artículo ya no acepta ofertas porque su estado es "{listing.status}".</p>
+      <section style={{ maxWidth: 600, margin: '40px auto' }}>
+        <div className="sell-modal" style={{ width: '100%' }}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">ARTÍCULO NO DISPONIBLE</p>
+              <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-0.7px', margin: '0 0 7px' }}>Artículo no disponible</h1>
+              <p style={{ color: '#8793a3', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                Este artículo ya no acepta ofertas porque su estado es &ldquo;{listing.status}&rdquo;.
+              </p>
+            </div>
+            <AlertCircle size={28} color="#c45f4e" />
           </div>
-          <AlertCircle size={32} color="#c45f4e" />
+          <Link href={`/marketplace/${listingId}`} className="sell-button offer-button">
+            Volver al artículo
+          </Link>
         </div>
-        <Link href={`/marketplace/${listingId}`} className="cancel-button">
-          Volver al artículo
-        </Link>
       </section>
     );
   }
 
   if (listing.sellerId === me.id) {
     return (
-      <section className="sell-modal">
-        <div className="section-heading">
-          <div>
-            <h1 style={{ fontSize: 24 }}>No puedes ofertar</h1>
-            <p>Este artículo fue publicado por ti.</p>
+      <section style={{ maxWidth: 600, margin: '40px auto' }}>
+        <div className="sell-modal" style={{ width: '100%' }}>
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">OFERTA NO PERMITIDA</p>
+              <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-0.7px', margin: '0 0 7px' }}>No puedes ofertar</h1>
+              <p style={{ color: '#8793a3', fontSize: 12, margin: 0, lineHeight: 1.5 }}>
+                Este artículo fue publicado por ti.
+              </p>
+            </div>
+            <AlertCircle size={28} color="#c45f4e" />
           </div>
-          <AlertCircle size={32} color="#c45f4e" />
+          <Link href={`/marketplace/${listingId}`} className="sell-button offer-button">
+            Volver a tu publicación
+          </Link>
         </div>
-        <Link href={`/marketplace/${listingId}`} className="cancel-button">
-          Volver a tu publicación
-        </Link>
       </section>
     );
   }
@@ -63,48 +73,47 @@ export default async function OfferPage(props: {
   const listingType = listing.type as ListingType;
 
   return (
-    <section className="sell-modal" style={{ maxWidth: 600, margin: '40px auto' }}>
-      <div className="welcome-row">
-        <Link 
-          href={`/marketplace/${listingId}`} 
-          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, color: '#68778a', fontSize: 13, fontWeight: 500 }}
-        >
-          <ArrowLeft size={16} />
+    <section style={{ maxWidth: 600, margin: '40px auto' }}>
+      <div className="sell-modal" style={{ width: '100%' }}>
+        <Link href={`/marketplace/${listingId}`} className="back-button">
+          <ArrowLeft />
           Volver al artículo
         </Link>
-      </div>
 
-      <div className="section-heading" style={{ marginTop: 24 }}>
-        <div>
-          <p className="eyebrow">NUEVA OFERTA</p>
-          <h1 style={{ fontSize: 24, letterSpacing: '-0.5px' }}>Hacer una oferta</h1>
-          <p>Ofrece saldo, trueque o una combinación por este artículo.</p>
+        <div className="section-heading" style={{ marginTop: 8 }}>
+          <div>
+            <p className="eyebrow">NUEVA OFERTA</p>
+            <h1 style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-0.7px', margin: '0 0 7px' }}>Hacer una oferta</h1>
+            <p style={{ color: '#8793a3', fontSize: 12, margin: '0 0 4px', lineHeight: 1.5 }}>
+              Ofrece saldo, trueque o una combinación por este artículo.
+            </p>
+          </div>
+          <Tag />
         </div>
-        <Tag />
-      </div>
 
-      <div style={{ background: '#f8fafc', borderRadius: 12, padding: 16, marginBottom: 24, border: '1px solid #e2e8f0' }}>
-        <div className="kv-row">
-          <span className="kv-key">Artículo</span>
-          <span className="kv-value" style={{ fontWeight: 500 }}>{listing.title}</span>
+        <div style={{ background: '#f8fafc', borderRadius: 11, padding: '13px 14px', marginBottom: 22, border: '1px solid var(--line)' }}>
+          <div className="kv-row">
+            <span className="kv-key">Artículo</span>
+            <span className="kv-val" style={{ fontWeight: 600 }}>{listing.title}</span>
+          </div>
+          <div className="kv-row">
+            <span className="kv-key">Tipo</span>
+            <span className="kv-val">{listingType.toUpperCase().replace('-', ' ')}</span>
+          </div>
+          <div className="kv-row">
+            <span className="kv-key">Vendedor</span>
+            <span className="kv-val">{listing.seller.displayName}</span>
+          </div>
+          <div className="kv-row">
+            <span className="kv-key">Precio listado</span>
+            <span className="kv-val" style={{ fontWeight: 700, color: 'var(--primary)' }}>
+              {await fmtXlm(listing.priceXlm)}
+            </span>
+          </div>
         </div>
-        <div className="kv-row">
-          <span className="kv-key">Tipo</span>
-          <span className="kv-value">{listingType.toUpperCase().replace('-', ' ')}</span>
-        </div>
-        <div className="kv-row">
-          <span className="kv-key">Vendedor</span>
-          <span className="kv-value">{listing.seller.displayName}</span>
-        </div>
-        <div className="kv-row">
-          <span className="kv-key">Precio listado</span>
-          <span className="kv-value" style={{ fontWeight: 600, color: 'var(--primary)' }}>
-            {await fmtXlm(listing.priceXlm)}
-          </span>
-        </div>
-      </div>
 
-      <OfferForm listingId={listing.id} maxXlmCents={listing.priceXlm} />
+        <OfferForm listingId={listing.id} maxXlmCents={listing.priceXlm} />
+      </div>
     </section>
   );
 }

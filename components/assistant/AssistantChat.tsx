@@ -183,6 +183,7 @@ export function AssistantChat() {
 
       <form className="chat-input-row" onSubmit={send}>
         <input
+          className="form-field"
           aria-label="Escribe tu pregunta"
           placeholder='Ej. "mejor calculadora barata" o "laptop para mi carrera"'
           value={draft}
