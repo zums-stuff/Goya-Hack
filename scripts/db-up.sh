@@ -20,12 +20,12 @@ IMAGE="${PT_DB_IMAGE:-postgres:16}"
 
 case "${1:-up}" in
   up)
-    if docker ps --filter "name=^/${NAME}$" --format "{{.Names}}" | grep -q "^${NAME}$"; then
+    if docker ps --filter "name=^${NAME}$" --format "{{.Names}}" | grep -q "^${NAME}$"; then
       echo "✅ ${NAME} ya está corriendo en localhost:${PORT}"
-      docker ps --filter name="^/${NAME}$" --format "  {{.Status}} → {{.Ports}}"
+      docker ps --filter name="^${NAME}$" --format "  {{.Status}} → {{.Ports}}"
       exit 0
     fi
-    if docker ps -a --filter "name=^/${NAME}$" --format "{{.Names}}" | grep -q "^${NAME}$"; then
+    if docker ps -a --filter "name=^${NAME}$" --format "{{.Names}}" | grep -q "^${NAME}$"; then
       echo "▶️  Arrancando ${NAME} (creado previamente)..."
       docker start "${NAME}" >/dev/null
     else

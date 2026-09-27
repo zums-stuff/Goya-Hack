@@ -2,7 +2,8 @@
 # scripts/boot.sh — Arranque completo de PumaTrade tras un reboot / desde cero.
 #
 # Idempotente: se puede correr siempre y no rompe nada:
-#   - Si Docker no está, intenta arrancar el daemon (systemctl).
+#   - Si Docker no está, intenta arrancar el daemon (systemctl en Linux,
+#     Docker Desktop.app en macOS, Docker Desktop.exe en Windows/Git Bash).
 #   - Levanta el Postgres local `pumatrade-db` (puerto 5433) si hace falta.
 #   - Genera el client Prisma y aplica migraciones pendientes.
 #   - Siembra el demo solo si la DB está vacía (nunca duplica).
@@ -32,7 +33,9 @@ for arg in "$@"; do
     -r|--reset-db)  RESET_DB=1 ;;
     -s|--smoke)     RUN_SMOKE=1 ;;
     -t|--typecheck) RUN_TYPECHECK=1 ;;
-    -h|--help) sed -n '2,22p' "$0"; exit 0 ;;
+    # Extrae la cabecera por contenido, no por numeros de linea: editar el
+    # bloque de comentario ya no puede romper la ayuda.
+    -h|--help) awk 'NR>1 && /^#/ { sub(/^# ?/, ""); print; next } NR>1 { exit }' "$0"; exit 0 ;;
     *) echo "❌ Flag desconocido: $arg (-h para ayuda)"; exit 1 ;;
   esac
 done
@@ -42,6 +45,46 @@ ok()   { printf '\033[32m  ✔\033[0m %s\n' "$*"; }
 warn() { printf '\033[33m  ⚠\033[0m %s\n' "$*"; }
 die()  { printf '\033[31m  ✖ %s\033[0m\n' "$*" >&2; exit 1; }
 
+# Espera maxima (segundos) a que el daemon responda. Docker Desktop en frio
+# tarda bastante mas que systemd, asi que el default es holgado.
+# Override con DOCKER_WAIT=<segundos>.
+DOCKER_WAIT="${DOCKER_WAIT:-90}"
+
+# Arranca el daemon de Docker segun la plataforma.
+# La rama de Linux es exactamente la que existia antes (systemd); las demas
+# son aditivas y no alteran el comportamiento en Linux ni en macOS.
+start_docker() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    Linux)
+      if command -v systemctl >/dev/null 2>&1; then
+        sudo -n systemctl start docker >/dev/null 2>&1 \
+          || systemctl start docker >/dev/null 2>&1 \
+          || { sudo systemctl start docker >/dev/null 2>&1; }
+      fi
+      ;;
+    Darwin)
+      open -a Docker >/dev/null 2>&1 || true
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      # Git Bash en Windows: no hay systemd. El daemon lo provee Docker
+      # Desktop, que es una app GUI y hay que lanzar como proceso suelto.
+      local exe win
+      for exe in \
+        "/c/Program Files/Docker/Docker/Docker Desktop.exe" \
+        "${LOCALAPPDATA:-/c/Users/${USER}/AppData/Local}/Docker/Docker Desktop.exe"
+      do
+        [[ -f "$exe" ]] || continue
+        win="$(cygpath -w "$exe" 2>/dev/null || printf '%s' "$exe")"
+        # //c y no /c: MSYS reinterpretaria "/c" como ruta.
+        cmd //c start "" "$win" >/dev/null 2>&1 && return 0
+        powershell -NoProfile -Command "Start-Process -FilePath '$win'" \
+          >/dev/null 2>&1 && return 0
+      done
+      ;;
+  esac
+  return 0
+}
+
 echo
 echo "🚀 PumaTrade · arranque (puerto ${PORT})"
 echo "──────────────────────────────────────────────────────────"
@@ -49,12 +92,10 @@ echo "────────────────────────�
 # ───────────────────────── 1. Docker daemon ─────────────────────────
 if ! docker info >/dev/null 2>&1; then
   warn "Docker no responde — intentando arrancar el daemon..."
-  if command -v systemctl >/dev/null 2>&1; then
-    sudo -n systemctl start docker >/dev/null 2>&1 \
-      || systemctl start docker >/dev/null 2>&1 \
-      || { sudo systemctl start docker >/dev/null 2>&1; }
-  fi
-  for _ in $(seq 1 30); do
+  # `|| true`: si arrancar el daemon falla, queremos que el flujo siga hasta
+  # el chequeo final (que da el mensaje de error), no que `set -e` aborte ya.
+  start_docker || true
+  for _ in $(seq 1 "${DOCKER_WAIT}"); do
     docker info >/dev/null 2>&1 && break
     sleep 1
   done
