@@ -24,18 +24,17 @@ const STATUS_LABEL: Record<string, { label: string; tone: 'pending' | 'funded' |
     icon: <Hourglass />,
   },
   funded: { label: 'Fondeado · coordinando encuentro', tone: 'pending', icon: <Coins /> },
-  'exchange-pending': {
+  'awaiting-exchange': {
     label: 'Una parte registró el intercambio',
     tone: 'alert',
     icon: <ArrowRightLeft />,
   },
-  'exchange-confirmed': {
+  'exchange-recorded': {
     label: 'Ambas partes confirmaron',
     tone: 'alert',
     icon: <CheckCircle2 />,
   },
   disputed: { label: 'En disputa · revisando admin', tone: 'alert', icon: <ShieldAlert /> },
-  completed: { label: 'Completado', tone: 'success', icon: <CheckCircle2 /> },
   released: { label: 'Liberado', tone: 'success', icon: <CheckCircle2 /> },
   'auto-released': {
     label: 'Liberado (auto)',

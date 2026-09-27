@@ -22,13 +22,12 @@ function statusLabel(s: string): { label: string; tone: 'positive' | 'soon' | 'a
       return { label: 'Esperando fondeo', tone: 'soon' };
     case 'funded':
       return { label: 'Fondeado', tone: 'positive' };
-    case 'exchange-pending':
+    case 'awaiting-exchange':
       return { label: 'Intercambio pendiente', tone: 'soon' };
-    case 'exchange-confirmed':
+    case 'exchange-recorded':
       return { label: 'Intercambio confirmado', tone: 'soon' };
     case 'disputed':
       return { label: 'En disputa', tone: 'alert' };
-    case 'completed':
     case 'released':
     case 'auto-released':
       return { label: 'Liberado', tone: 'positive' };

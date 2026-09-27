@@ -74,13 +74,21 @@ export default async function HomeView(props: { searchParams: Promise<SearchPara
     prisma.escrow.count({
       where: {
         OR: [{ buyerId: me.id }, { sellerId: me.id }],
-        status: 'completed',
+        status: { in: ['released', 'auto-released'] },
       },
     }),
     prisma.escrow.count({
       where: {
         OR: [{ buyerId: me.id }, { sellerId: me.id }],
-        status: { in: ['awaiting-funding', 'funded', 'exchange-pending', 'exchange-confirmed', 'disputed'] },
+        status: {
+          in: [
+            'awaiting-funding',
+            'funded',
+            'awaiting-exchange',
+            'exchange-recorded',
+            'disputed',
+          ],
+        },
       },
     }),
     prisma.offer.findMany({
