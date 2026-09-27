@@ -228,6 +228,41 @@ describe('accept', () => {
 
     await expect(EscrowService.accept(escrow.id, seller.id)).rejects.toThrow(/buyer/i);
   });
+
+  // ─── Saga: chain failure rolls DB back to original state ────────────────
+  // This is the test that proves the fix: before the refactor, the chain
+  // submit sat inside prisma.$transaction; if Horizon rejected, Prisma
+  // rolled back — but the chain attempt had already moved (or wasn't
+  // idempotent). Now the chain call is OUTSIDE any DB tx, and on failure
+  // Phase 3a reverts the row to the pre-accept state so the buyer can
+  // retry safely.
+  it('saga: Phase 1 holds, chain fails → DB reverts to exchange-recorded', async () => {
+    const seller = await seedUser();
+    const buyer = await seedUser();
+    const listing = await seedListing(seller, { status: 'pending' });
+    const offer = await seedOffer(listing, buyer, { xlmAmount: 30_000, status: 'accepted' });
+    const escrow = await seedFundedEscrow({ buyer, seller, listing, offer });
+    await EscrowService.recordExchange(escrow.id, buyer.id);
+    await EscrowService.confirmExchange(escrow.id, seller.id);
+
+    releaseSpy.mockRejectedValueOnce(new Error('Horizon tx_bad_seq'));
+
+    await expect(EscrowService.accept(escrow.id, buyer.id)).rejects.toThrow(
+      /Horizon tx_bad_seq/,
+    );
+
+    // Phase 3a should have reverted: row back to 'exchange-recorded',
+    // hash and acceptedAt cleared, listing/offer untouched.
+    const after = await prisma.escrow.findUniqueOrThrow({ where: { id: escrow.id } });
+    expect(after.status).toBe('exchange-recorded');
+    expect(after.stellarTxHashRelease).toBeNull();
+    expect(after.acceptedAt).toBeNull();
+
+    const listingAfter = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(listingAfter.status).toBe('pending'); // not 'sold' — chain never paid
+    const offerAfter = await prisma.offer.findUniqueOrThrow({ where: { id: offer.id } });
+    expect(offerAfter.status).toBe('accepted'); // not 'completed'
+  });
 });
 
 // ───────────────────────────────────────────────────────────────────────────
@@ -302,6 +337,41 @@ describe('cancel', () => {
     const escrow = await seedExchangeRecorded({ buyer, seller, listing, offer });
 
     await expect(EscrowService.cancel(escrow.id, seller.id)).rejects.toThrow(/Cannot|invalid|exchange-recorded/i);
+  });
+
+  // Saga: cancellation with chain failure reverts to the original cancellable
+  // state so that the buyer/seller can retry from the same 'awaiting-funding'.
+  it('saga: cancel chain failure → DB reverts to awaiting-funding', async () => {
+    const seller = await seedUser();
+    const buyer = await seedUser();
+    const listing = await seedListing(seller);
+    const offer = await seedOffer(listing, buyer, { xlmAmount: 30_000, status: 'accepted' });
+    // Seed an escrow in awaiting-funding (the earliest cancellable state).
+    const escrow = await prisma.escrow.create({
+      data: {
+        id: 'esc_saga_fail',
+        offerId: offer.id,
+        listingId: listing.id,
+        buyerId: buyer.id,
+        sellerId: seller.id,
+        amountXlm: 30_000,
+        stellarEscrowAccount: 'G_saga_fail',
+        arbiterSecretEnc: null,
+        platformFeeBps: 200,
+        status: 'awaiting-funding',
+      },
+    });
+
+    refundSpy.mockRejectedValueOnce(new Error('Network unreachable'));
+
+    await expect(EscrowService.cancel(escrow.id, seller.id)).rejects.toThrow(
+      /Network unreachable/,
+    );
+
+    const after = await prisma.escrow.findUniqueOrThrow({ where: { id: escrow.id } });
+    expect(after.status).toBe('awaiting-funding');
+    expect(after.stellarTxHashRelease).toBeNull();
+    expect(after.refundedAt).toBeNull();
   });
 });
 

@@ -22,6 +22,7 @@ import {
 import { EscrowForbidden, EscrowInvalidTransition, ApiError } from './errors';
 import { addMinutes } from 'date-fns';
 import type { Prisma } from '@/generated/prisma/client';
+import crypto from 'node:crypto';
 
 export const DEMO_MODE =
   process.env.DEMO_FUNDING_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
@@ -37,6 +38,76 @@ function expectBuyerOrSeller(
   if (escrow.buyerId === actorId) return 'buyer';
   if (escrow.sellerId === actorId) return 'seller';
   throw new EscrowForbidden('Solo buyer o seller pueden operar este escrow');
+}
+
+// Pendiente-saga: el hash real todavía no existe cuando hacemos DB lock.
+// PENDING-<random> ocupa stellarTxHashRelease mientras corre Phase 2 (Stellar).
+// Phase 3a lo limpia en el rollback. Phase 3b lo reemplaza por el hash real.
+// Cualquier fila con hash que empieza por 'PENDING-' indica una operación
+// de cadena a medio camino (proceso murió, Horizon timeout, etc.) y debe
+// limpiarse manualmente o vía cron de reconciliación (futuro Bloque 8).
+const PENDING_PREFIX = 'PENDING-';
+function makePendingToken(): string {
+  return `${PENDING_PREFIX}${crypto.randomBytes(8).toString('hex')}`;
+}
+function isPendingToken(value: string | null | undefined): boolean {
+  return typeof value === 'string' && value.startsWith(PENDING_PREFIX);
+}
+
+// submitReleaseChain / submitRefundChain: encapsulan la llamada real a
+// Horizon (o al treasury mock en DEMO_MODE). Se ejecutan FUERA de cualquier
+// transacción Prisma — si Horizon rechaza, nunca modificamos DB.
+async function submitReleaseChain(
+  escrow: {
+    stellarEscrowAccount: string;
+    arbiterSecretEnc: string | null;
+    amountXlm: number;
+    seller: { pollarWalletId: string };
+  },
+  feeCents: number,
+  memo: string,
+): Promise<{ hash: string }> {
+  if (DEMO_MODE) {
+    return runReleaseOnTreasury({
+      escrowAccount: escrow.stellarEscrowAccount,
+      arbiterSecretEnc: escrow.arbiterSecretEnc!,
+      amountCents: escrow.amountXlm,
+      memo,
+    });
+  }
+  return releaseEscrowWithBarterGuard({
+    escrowAccount: escrow.stellarEscrowAccount,
+    arbiterSecretEnc: escrow.arbiterSecretEnc!,
+    sellerPublic: escrow.seller.pollarWalletId,
+    amountCents: escrow.amountXlm,
+    feeCents,
+    memo,
+  });
+}
+async function submitRefundChain(
+  escrow: {
+    stellarEscrowAccount: string;
+    arbiterSecretEnc: string | null;
+    amountXlm: number;
+    buyer: { pollarWalletId: string };
+  },
+  memo: string,
+): Promise<{ hash: string }> {
+  if (DEMO_MODE) {
+    return runRefundOnTreasury({
+      escrowAccount: escrow.stellarEscrowAccount,
+      arbiterSecretEnc: escrow.arbiterSecretEnc!,
+      amountCents: escrow.amountXlm,
+      memo,
+    });
+  }
+  return refundEscrowWithBarterGuard({
+    escrowAccount: escrow.stellarEscrowAccount,
+    arbiterSecretEnc: escrow.arbiterSecretEnc!,
+    buyerPublic: escrow.buyer.pollarWalletId,
+    amountCents: escrow.amountXlm,
+    memo,
+  });
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────
@@ -120,7 +191,11 @@ export class EscrowService {
     });
   }
 
-  // accept (Rama A) — firma release on-chain y actualiza estado.
+  // accept (Rama A) — multi-phase saga. Keeps DB and Stellar independent:
+  //   Phase 1: DB lock to 'released' with hash=PENDING-<token>, listing/offer untouched.
+  //   Phase 2: Stellar submit, OUTSIDE any DB tx.
+  //   Phase 3a: chain failed → DB rollback to 'exchange-recorded' + clear pending.
+  //   Phase 3b: chain success → DB finalize hash + listing/offer + (DEMO) balances.
   static async accept(escrowId: string, buyerId: string) {
     const escrow = await prisma.escrow.findUniqueOrThrow({
       where: { id: escrowId },
@@ -128,12 +203,9 @@ export class EscrowService {
     });
     if (escrow.buyerId !== buyerId) throw new EscrowForbidden('Solo el buyer puede aceptar.');
     if (escrow.status !== 'exchange-recorded') {
-      throw new EscrowInvalidTransition(
-        `Cannot accept from status ${escrow.status}.`,
-      );
+      throw new EscrowInvalidTransition(`Cannot accept from status ${escrow.status}.`);
     }
 
-    // 1. Calcular distribución y memo.
     const fee = feeCents(escrow.amountXlm);
     const memo = buildMemoText({
       escrowId: escrow.id,
@@ -141,63 +213,67 @@ export class EscrowService {
       sellerId: escrow.sellerId,
       amountCents: escrow.amountXlm,
     });
+    const pendingToken = makePendingToken();
 
-    // 2. Idempotencia pre-firma (regla #2 §7.3): marca hash provisional
-    //    SOLO si todavía no hay tx hash. Si count === 0, otro request ya firmó.
-    //    ⚠️ preLock con hash="PENDING-<uuid>" para no perder la transición si
-    //    la firma falló — actually mejor: usamos updateMany que requiere status
-    //    correcto, y al final sobrescribimos el hash si la firma succeed.
-    //    Aquí simplificamos: transacción que marca `released` solo si stellarTxHashRelease IS NULL.
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const lock = await tx.escrow.updateMany({
-        where: { id: escrowId, status: 'exchange-recorded', stellarTxHashRelease: null },
+    // Phase 1 — DB lock (regla #2). Exactly-one winner; the loser sees
+    // count=0 and throws an invalid-transition. Listing/offer stay in
+    // 'pending' until Phase 3b confirms the chain actually moved money.
+    const lock1 = await prisma.escrow.updateMany({
+      where: {
+        id: escrowId,
+        status: 'exchange-recorded',
+        stellarTxHashRelease: null,
+      },
+      data: {
+        status: 'released',
+        acceptedAt: new Date(),
+        stellarTxHashRelease: pendingToken,
+      },
+    });
+    if (lock1.count !== 1) {
+      throw new EscrowInvalidTransition(
+        'Release ya enviada o estado inconsistente (otro request ganó).',
+      );
+    }
+
+    // Phase 2 — Stellar submit. If Horizon errors or times out, revert in
+    // Phase 3a and re-raise so the route handler returns a 5xx and the
+    // buyer can retry from the same 'exchange-recorded' state.
+    let stellarHash: { hash: string };
+    try {
+      stellarHash = await submitReleaseChain(escrow, fee, memo);
+    } catch (e) {
+      await prisma.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
         data: {
-          status: 'released',
-          acceptedAt: new Date(),
+          status: 'exchange-recorded',
+          acceptedAt: null,
+          stellarTxHashRelease: null,
         },
       });
-      if (lock.count !== 1) {
-        throw new EscrowInvalidTransition(
-          'Release ya enviada o estado inconsistente (otro request ganó).',
-        );
-      }
+      throw e;
+    }
 
-      // 3. Firma Stellar FUERA de la tx de DB — si falla, hacemos rollback manual
-      //    (el caller de accept-api debe re-leer y, si count=0, revertir el estado).
-      //    En realidad esta firma se hace dentro de un bloque try/catch que en
-      //    caso de error revierte el puto (lo vemos en el route handler).
-      // Aquí el caller controla el try/catch; nosotros solo orquestamos.
-      //
-      // En DEMO_MODE (D8: seed users con wallet placeholder), paga al platform
-      // treasury y reconcilia los balances locales. En producción paga a la
-      // wallet real del seller (Pollar).
-      let stellarHash: { hash: string };
-      if (DEMO_MODE) {
-        stellarHash = await runReleaseOnTreasury({
-          escrowAccount: escrow.stellarEscrowAccount,
-          arbiterSecretEnc: escrow.arbiterSecretEnc!,
-          amountCents: escrow.amountXlm,
-          memo,
-        });
-      } else {
-        stellarHash = await releaseEscrowWithBarterGuard({
-          escrowAccount: escrow.stellarEscrowAccount,
-          arbiterSecretEnc: escrow.arbiterSecretEnc!,
-          sellerPublic: escrow.seller.pollarWalletId,
-          amountCents: escrow.amountXlm,
-          feeCents: fee,
-          memo,
-        });
-      }
-
-      await tx.escrow.update({
-        where: { id: escrowId },
+    // Phase 3b — DB finalize. Listing/offer/balances move in one tx so a
+    // crash mid-update keeps all dependent rows consistent (Prisma
+    // rollback restores them as a unit).
+    return prisma.$transaction(async (tx) => {
+      const lock3 = await tx.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
         data: {
           stellarTxHashRelease: stellarHash.hash,
           stellarMemoReceipt: memo,
           platformFeeXlm: fee,
         },
       });
+      if (lock3.count !== 1) {
+        // pendingToken is unique per call. If this lock ever fails the row
+        // has been mutated outside our control — bail loudly so a human
+        // reconciles.
+        throw new Error(
+          `[escrow.service] accept phase-3 lock lost for ${escrowId}; manual reconciliation needed`,
+        );
+      }
       await tx.listing.update({
         where: { id: escrow.listingId },
         data: { status: 'sold' },
@@ -206,9 +282,6 @@ export class EscrowService {
         where: { id: escrow.offerId },
         data: { status: 'completed' },
       });
-
-      // DEMO: reconcilia balances internos (la tesorería custodia los fondos
-      // en nombre del seller; debitamos al buyer para cerrar la simetría).
       if (DEMO_MODE) {
         const netToSellerCents = escrow.amountXlm - fee;
         await tx.user.update({
@@ -227,17 +300,15 @@ export class EscrowService {
     });
   }
 
-  // auto-resolve (Rama B — cron)
+  // auto-resolve (Rama B — cron) — multi-phase saga. Same shape as accept.
   static async autoResolve(escrowId: string) {
     const escrow = await prisma.escrow.findUniqueOrThrow({
       where: { id: escrowId },
       include: { seller: true, buyer: true },
     });
-    // Cron ya filtra por ttlExpiresAt < now; releemos por seguridad.
-    if (escrow.status !== 'exchange-recorded') {
-      // Si ya está released/auto-released, no hacemos nada (idempotente).
-      return escrow;
-    }
+    // Pre-check: idempotent if the row already left the exchange-recorded state.
+    // Cron already filtered by ttlExpiresAt < now; this is defense in depth.
+    if (escrow.status !== 'exchange-recorded') return escrow;
 
     const fee = feeCents(escrow.amountXlm);
     const memo = buildMemoText({
@@ -246,32 +317,59 @@ export class EscrowService {
       sellerId: escrow.sellerId,
       amountCents: escrow.amountXlm,
     });
+    const pendingToken = makePendingToken();
 
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const lock = await tx.escrow.updateMany({
-        where: { id: escrowId, status: 'exchange-recorded', stellarTxHashRelease: null },
-        data: { status: 'auto-released', autoReleasedAt: new Date() },
-      });
-      if (lock.count !== 1) return escrow;
+    const lock1 = await prisma.escrow.updateMany({
+      where: {
+        id: escrowId,
+        status: 'exchange-recorded',
+        stellarTxHashRelease: null,
+      },
+      data: {
+        status: 'auto-released',
+        autoReleasedAt: new Date(),
+        stellarTxHashRelease: pendingToken,
+      },
+    });
+    if (lock1.count !== 1) return escrow; // another caller / past run won
 
-      const stellarHash = await releaseEscrowWithBarterGuard({
-        escrowAccount: escrow.stellarEscrowAccount,
-        arbiterSecretEnc: escrow.arbiterSecretEnc!,
-        sellerPublic: escrow.seller.pollarWalletId,
-        amountCents: escrow.amountXlm,
-        feeCents: fee,
-        memo,
+    let stellarHash: { hash: string };
+    try {
+      stellarHash = await submitReleaseChain(escrow, fee, memo);
+    } catch (e) {
+      await prisma.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
+        data: {
+          status: 'exchange-recorded',
+          autoReleasedAt: null,
+          stellarTxHashRelease: null,
+        },
       });
-      await tx.escrow.update({
-        where: { id: escrowId },
+      throw e;
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const lock3 = await tx.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
         data: {
           stellarTxHashRelease: stellarHash.hash,
           stellarMemoReceipt: memo,
           platformFeeXlm: fee,
         },
       });
-      await tx.listing.update({ where: { id: escrow.listingId }, data: { status: 'sold' } });
-      await tx.offer.update({ where: { id: escrow.offerId }, data: { status: 'completed' } });
+      if (lock3.count !== 1) {
+        throw new Error(
+          `[escrow.service] autoResolve phase-3 lock lost for ${escrowId}; manual reconciliation needed`,
+        );
+      }
+      await tx.listing.update({
+        where: { id: escrow.listingId },
+        data: { status: 'sold' },
+      });
+      await tx.offer.update({
+        where: { id: escrow.offerId },
+        data: { status: 'completed' },
+      });
       await tx.transactionLog.create({
         data: { escrowId, actorId: escrow.buyerId, action: 'auto-released' },
       });
@@ -279,13 +377,12 @@ export class EscrowService {
     });
   }
 
-  // cancel — manual o auto-cancel (ventana confirmación vencida)
+  // cancel — manual o auto-cancel (ventana confirmación vencida). Multi-phase.
   static async cancel(escrowId: string, actorId: string | null) {
     const escrow = await prisma.escrow.findUniqueOrThrow({
       where: { id: escrowId },
       include: { buyer: true, seller: true },
     });
-    // actorId null → auto-cancel (cron).
     if (actorId && actorId !== escrow.buyerId && actorId !== escrow.sellerId) {
       throw new EscrowForbidden('Solo buyer o seller pueden cancelar.');
     }
@@ -296,44 +393,66 @@ export class EscrowService {
       );
     }
 
+    // Capture the original state so Phase 3a can revert to it on chain failure.
+    const originalState = escrow.status as 'awaiting-funding' | 'funded' | 'awaiting-exchange';
     const memo = `PT-REFUND-${escrow.id.slice(0, 7)}-${escrow.amountXlm}`;
+    const pendingToken = makePendingToken();
 
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const lock = await tx.escrow.updateMany({
-        where: {
-          id: escrowId,
-          status: { in: cancellableStates },
+    // Phase 1 — DB lock to 'refunded' with pending token; listing/offer stay.
+    const lock1 = await prisma.escrow.updateMany({
+      where: {
+        id: escrowId,
+        status: { in: cancellableStates },
+        stellarTxHashRelease: null,
+      },
+      data: {
+        status: 'refunded',
+        refundedAt: new Date(),
+        stellarTxHashRelease: pendingToken,
+      },
+    });
+    if (lock1.count !== 1) {
+      throw new EscrowInvalidTransition('Cancel ya procesado (carrera o estado roto).');
+    }
+
+    // Phase 2 — Stellar refund, OUTSIDE the DB tx.
+    let stellarHash: { hash: string };
+    try {
+      stellarHash = await submitRefundChain(escrow, memo);
+    } catch (e) {
+      // Phase 3a — DB revert to originalState. Listing/offer stay so a
+      // follow-up offer can pick up the listing.
+      await prisma.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
+        data: {
+          status: originalState,
+          refundedAt: null,
           stellarTxHashRelease: null,
         },
-        data: { status: 'refunded', refundedAt: new Date() },
       });
-      if (lock.count !== 1) {
-        throw new EscrowInvalidTransition('Cancel ya procesado (carrera o estado roto).');
-      }
+      throw e;
+    }
 
-      const stellarHash = DEMO_MODE
-        ? await runRefundOnTreasury({
-            escrowAccount: escrow.stellarEscrowAccount,
-            arbiterSecretEnc: escrow.arbiterSecretEnc!,
-            amountCents: escrow.amountXlm,
-            memo,
-          })
-        : await refundEscrowWithBarterGuard({
-            escrowAccount: escrow.stellarEscrowAccount,
-            arbiterSecretEnc: escrow.arbiterSecretEnc!,
-            buyerPublic: escrow.buyer.pollarWalletId,
-            amountCents: escrow.amountXlm,
-            memo,
-          });
-      await tx.escrow.update({
-        where: { id: escrowId },
+    // Phase 3b — DB finalize: revert listing/offer to actionable states,
+    // (DEMO) refund the buyer's internal balance, log it.
+    return prisma.$transaction(async (tx) => {
+      const lock3 = await tx.escrow.updateMany({
+        where: { id: escrowId, stellarTxHashRelease: pendingToken },
         data: { stellarTxHashRelease: stellarHash.hash },
       });
-      await tx.listing.update({ where: { id: escrow.listingId }, data: { status: 'active' } });
-      await tx.offer.update({ where: { id: escrow.offerId }, data: { status: 'pending' } });
-
-      // DEMO: reconcilia balances — al refund, el seller recibe 0 y el
-      // buyer recupera los fondos en su internal balance (custodia tesorería).
+      if (lock3.count !== 1) {
+        throw new Error(
+          `[escrow.service] cancel phase-3 lock lost for ${escrowId}; manual reconciliation needed`,
+        );
+      }
+      await tx.listing.update({
+        where: { id: escrow.listingId },
+        data: { status: 'active' },
+      });
+      await tx.offer.update({
+        where: { id: escrow.offerId },
+        data: { status: 'pending' },
+      });
       if (DEMO_MODE) {
         await tx.user.update({
           where: { id: escrow.buyerId },
@@ -341,7 +460,11 @@ export class EscrowService {
         });
       }
       await tx.transactionLog.create({
-        data: { escrowId, actorId: actorId ?? escrow.buyerId, action: 'refunded' },
+        data: {
+          escrowId,
+          actorId: actorId ?? escrow.buyerId,
+          action: 'refunded',
+        },
       });
       return tx.escrow.findUniqueOrThrow({ where: { id: escrowId } });
     });
@@ -421,50 +544,95 @@ export class EscrowService {
   }
 
   // admin-resolve (A5 §12.7 §11.5 hotfix): resuelve disputed manualmente.
+// Multi-phase saga with two branches: release or refund.
   static async adminResolve(params: {
     disputeId: string;
     adminId: string;
     decision: 'release' | 'refund';
   }) {
-    return prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-      const dispute = await tx.disputeEvidence.findUniqueOrThrow({
-        where: { id: params.disputeId },
-        include: { escrow: { include: { buyer: true, seller: true, offer: true, listing: true } } },
+    // Pre-checks (read-only).
+    const dispute = await prisma.disputeEvidence.findUniqueOrThrow({
+      where: { id: params.disputeId },
+      include: {
+        escrow: {
+          include: { buyer: true, seller: true, offer: true, listing: true },
+        },
+      },
+    });
+    if (dispute.status !== 'pending') {
+      throw new ApiError(
+        409,
+        'dispute_already_resolved',
+        `Dispute status: ${dispute.status}`,
+      );
+    }
+    if (dispute.escrow.status !== 'disputed') {
+      throw new EscrowInvalidTransition(
+        `Escrow status: ${dispute.escrow.status} (no disputed).`,
+      );
+    }
+
+    const newEscrowStatus = params.decision === 'release' ? 'released' : 'refunded';
+    const fee = feeCents(dispute.escrow.amountXlm);
+    const memo = `PT-ADMIN-${params.decision === 'release' ? 'REL' : 'REF'}-${dispute.escrow.id.slice(0, 7)}`;
+    const pendingToken = makePendingToken();
+
+    // Phase 1 — DB lock escrow from 'disputed' → terminal status with pending token.
+    const lock1 = await prisma.escrow.updateMany({
+      where: {
+        id: dispute.escrowId,
+        status: 'disputed',
+        stellarTxHashRelease: null,
+      },
+      data: {
+        status: newEscrowStatus,
+        [params.decision === 'release' ? 'acceptedAt' : 'refundedAt']: new Date(),
+        stellarTxHashRelease: pendingToken,
+      },
+    });
+    if (lock1.count !== 1) {
+      throw new EscrowInvalidTransition(
+        'Admin-resolve ya procesada o estado inconsistente.',
+      );
+    }
+
+    // Phase 2 — Stellar submit, OUTSIDE the DB tx.
+    let stellarHash: { hash: string };
+    try {
+      stellarHash =
+        params.decision === 'release'
+          ? await submitReleaseChain(dispute.escrow, fee, memo)
+          : await submitRefundChain(dispute.escrow, memo);
+    } catch (e) {
+      // Phase 3a — revert to 'disputed' so dispute row can be re-resolved.
+      await prisma.escrow.updateMany({
+        where: { id: dispute.escrowId, stellarTxHashRelease: pendingToken },
+        data: {
+          status: 'disputed',
+          stellarTxHashRelease: null,
+          acceptedAt: null,
+          refundedAt: null,
+        },
       });
-      if (dispute.status !== 'pending') {
-        throw new ApiError(
-          409,
-          'dispute_already_resolved',
-          `Dispute status: ${dispute.status}`,
+      throw e;
+    }
+
+    // Phase 3b — DB finalize with hash + dependent rows (listing/offer/dispute).
+    return prisma.$transaction(async (tx) => {
+      const lock3 = await tx.escrow.updateMany({
+        where: { id: dispute.escrowId, stellarTxHashRelease: pendingToken },
+        data: {
+          stellarTxHashRelease: stellarHash.hash,
+          stellarMemoReceipt: memo,
+          platformFeeXlm: params.decision === 'release' ? fee : 0,
+        },
+      });
+      if (lock3.count !== 1) {
+        throw new Error(
+          `[escrow.service] adminResolve phase-3 lock lost for ${dispute.escrowId}; manual reconciliation needed`,
         );
       }
-      if (dispute.escrow.status !== 'disputed') {
-        throw new EscrowInvalidTransition(
-          `Escrow status: ${dispute.escrow.status} (no disputed).`,
-        );
-      }
-
-      const fee = feeCents(dispute.escrow.amountXlm);
-      const memo = `PT-ADMIN-${params.decision === 'release' ? 'REL' : 'REF'}-${dispute.escrow.id.slice(0, 7)}`;
-
       if (params.decision === 'release') {
-        const stellarHash = await releaseEscrowWithBarterGuard({
-          escrowAccount: dispute.escrow.stellarEscrowAccount,
-          arbiterSecretEnc: dispute.escrow.arbiterSecretEnc!,
-          sellerPublic: dispute.escrow.seller.pollarWalletId,
-          amountCents: dispute.escrow.amountXlm,
-          feeCents: fee,
-          memo,
-        });
-        await tx.escrow.update({
-          where: { id: dispute.escrowId },
-          data: {
-            status: 'released',
-            stellarTxHashRelease: stellarHash.hash,
-            stellarMemoReceipt: memo,
-            platformFeeXlm: fee,
-          },
-        });
         await tx.listing.update({
           where: { id: dispute.escrow.listingId },
           data: { status: 'sold' },
@@ -474,17 +642,6 @@ export class EscrowService {
           data: { status: 'completed' },
         });
       } else {
-        const stellarHash = await refundEscrowWithBarterGuard({
-          escrowAccount: dispute.escrow.stellarEscrowAccount,
-          arbiterSecretEnc: dispute.escrow.arbiterSecretEnc!,
-          buyerPublic: dispute.escrow.buyer.pollarWalletId,
-          amountCents: dispute.escrow.amountXlm,
-          memo,
-        });
-        await tx.escrow.update({
-          where: { id: dispute.escrowId },
-          data: { status: 'refunded', refundedAt: new Date(), stellarTxHashRelease: stellarHash.hash },
-        });
         await tx.listing.update({
           where: { id: dispute.escrow.listingId },
           data: { status: 'active' },
@@ -494,10 +651,11 @@ export class EscrowService {
           data: { status: 'pending' },
         });
       }
-
       await tx.disputeEvidence.update({
         where: { id: params.disputeId },
-        data: { status: params.decision === 'release' ? 'resolved' : 'rejected' },
+        data: {
+          status: params.decision === 'release' ? 'resolved' : 'rejected',
+        },
       });
       await tx.transactionLog.create({
         data: {
