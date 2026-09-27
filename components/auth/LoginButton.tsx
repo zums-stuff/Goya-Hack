@@ -8,15 +8,17 @@
 //     con nuestro modelo `User` y setea el cookie HMAC. Sin esto, nadie
 //     puede loguearse más allá de dev-login.
 //
-// El componente está cableado para devolver un error suave cuando las keys
-// de Pollar son placeholders (Pollar rechaza la API): el ÚNICO camino
-// con placeholders sigue siendo dev-login, pero el botón en sí es visible
-// para que el demo muestre dónde va la pieza cuando las keys se rotan.
+// ⚠️ El botón solo debe renderizarse cuando `!needsSetup` (keys reales del
+// dashboard de Pollar). Si las keys son placeholders de `setup:env`, el
+// SDK de Pollar hace fetch sobre api.pollar.xyz → 403 API_KEY_TYPE_NOT_ALLOWED
+// → modal mostrando "Could not load sign-in options". El gating vive en
+// app/page.tsx (pollar.needsSetup === false); si ves este botón en pantalla,
+// las keys YA están configuradas.
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Wallet, CircleAlert } from 'lucide-react';
+import { Sparkles, ShieldCheck, CircleAlert } from 'lucide-react';
 import { usePollar } from '@pollar/react';
 
 type Status =
@@ -108,15 +110,38 @@ export function LoginButton() {
   if (isAuthenticated && wallet?.address) {
     const short = `${wallet.address.slice(0, 4)}…${wallet.address.slice(-4)}`;
     return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="inline-flex items-center gap-1.5 text-[var(--muted)]">
-            <Wallet className="w-3.5 h-3.5" />
+      <div
+        className="rounded-xl p-3 flex flex-col gap-1.5"
+        style={{
+          background: 'var(--bg)',
+          border: '1px solid #005DB4',
+        }}
+      >
+        <div className="flex items-center justify-between text-[11px]">
+          <span
+            className="inline-flex items-center gap-1.5 font-bold"
+            style={{ color: '#005DB4' }}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
             Pollar · {short}
+            <span
+              style={{
+                background: '#005DB4',
+                color: '#fff',
+                fontSize: 9,
+                fontWeight: 700,
+                padding: '1px 5px',
+                borderRadius: 4,
+                marginLeft: 4,
+                letterSpacing: 0.2,
+              }}
+            >
+              stellar
+            </span>
           </span>
           {status === 'syncing' && (
             <span className="text-[var(--primary)] text-[11px] animate-pulse">
-              Sincronizando con PumaTrade…
+              Sincronizando…
             </span>
           )}
         </div>
@@ -143,7 +168,13 @@ export function LoginButton() {
   }
 
   return (
-    <div className="space-y-1.5">
+    <div
+      className="rounded-xl p-3 flex flex-col gap-2"
+      style={{
+        background: 'var(--bg)',
+        border: '1px solid #005DB4',
+      }}
+    >
       <button
         type="button"
         onClick={() => {
@@ -156,27 +187,37 @@ export function LoginButton() {
             setError((e as Error).message);
           }
         }}
-        className="sell-button"
+        className="w-full inline-flex items-center justify-center gap-2 text-[13px] font-bold"
         style={{
-          width: '100%',
-          justifyContent: 'center',
-          padding: '14px 18px',
+          background: '#005DB4',
+          color: '#fff',
+          padding: '12px 16px',
+          borderRadius: 8,
+          border: 'none',
+          cursor: 'pointer',
+          letterSpacing: 0.2,
         }}
       >
-        <Wallet className="w-4 h-4 mr-1.5" />
+        <Sparkles className="w-4 h-4" />
         Continuar con Pollar
       </button>
+      <p className="text-[10px] text-[var(--muted)] text-center leading-snug">
+        Google, email o passkey · wallet embebida sin seed phrases
+      </p>
+      <p
+        className="text-[9px] text-center uppercase tracking-wider font-bold"
+        style={{ color: '#005DB4', letterSpacing: 0.4 }}
+      >
+        powered by Pollar · Stellar testnet
+      </p>
       {status === 'authenticating' && (
-        <p className="text-[10px] text-[var(--muted)] text-center animate-pulse">
+        <p className="text-[10px] text-[var(--primary)] text-center animate-pulse">
           Sigue el modal de Pollar …
         </p>
       )}
       {status === 'error' && (
         <p className="text-[10px] text-[var(--primary)] text-center">{error}</p>
       )}
-      <p className="text-[10px] text-[var(--muted)] text-center leading-snug">
-        Google, email o passkey. Wallet embebida — sin seed phrases.
-      </p>
     </div>
   );
 }

@@ -35,8 +35,12 @@ export default async function HomePage() {
         .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'))
     : [];
 
-  const showRealLogin =
-    process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY ? true : false;
+  // Pollar's login CTA must NOT render when the keys are placeholders (setup:env
+  // markers), because clicking it triggers their SDK to fetch /applications/config
+  // on api.pollar.xyz → 403 API_KEY_TYPE_NOT_ALLOWED → the modal shows the
+  // generic "Could not load sign-in options" error. Gate on the actual key
+  // shape (`!pollar.needsSetup`), not just env-truthiness.
+  const pollarConfigured = !pollar.needsSetup;
 
   return (
     <main
@@ -57,26 +61,49 @@ export default async function HomePage() {
           escrow Stellar hasta que recibas el artículo.
         </p>
 
-        {/* Camino real (producción): Pollar → sync → /home. */}
-        {showRealLogin && <LoginButton />}
+        {/* Camino real (producción): Pollar → sync → /home. Renderizado SOLO
+            cuando las keys del dashboard de Pollar están configuradas. */}
+        {pollarConfigured && <LoginButton />}
 
-        {/* Camino dev (jueces en laptops sin Pollar): 1-click seed user. */}
-        {devLogin && <DemoLoginPanel users={seedRows} />}
-
-        {/* Sin dev y sin keys reales: instrucción para configurarlas. */}
-        {!showRealLogin && !devLogin && pollar.needsSetup && (
-          <div className="border border-dashed border-[var(--line)] rounded-xl p-4 text-center mb-2">
-            <p className="text-xs text-[var(--muted)] mb-2">
-              Activa el modo dev o configura Pollar.
+        {/* Cuando Pollar NO está configurado (keys placeholders del setup:env),
+            mostramos una pista clara en lugar del botón roto. */}
+        {!pollarConfigured && (
+          <div
+            className="rounded-xl p-4 mb-1 text-center"
+            style={{
+              background: 'var(--bg)',
+              border: '1px dashed var(--line)',
+            }}
+          >
+            <p className="text-[11px] text-[var(--muted)] leading-relaxed">
+              <span className="font-bold text-[var(--ink)] block">
+                Login con Pollar no está activo
+              </span>
+              Las keys del dashboard de{' '}
+              <a
+                href="https://dashboard.pollar.xyz"
+                target="_blank"
+                rel="noreferrer"
+                className="underline text-[var(--ink)] font-bold"
+                style={{ color: '#005DB4' }}
+              >
+                Pollar
+              </a>{' '}
+              son marcadores locales. Pega las reales en{' '}
+              <code className="font-mono text-[10px]">.env.local</code> o usa el
+              modo dev debajo.
             </p>
             <Link
               href="/setup"
-              className="text-xs font-bold text-[var(--primary)] underline underline-offset-2"
+              className="text-[11px] font-bold text-[var(--primary)] underline underline-offset-2 mt-2 inline-block"
             >
-              Ir a configuración →
+              Ver guía de configuración →
             </Link>
           </div>
         )}
+
+        {/* Camino dev (jueces en laptops sin Pollar): 1-click seed user. */}
+        {devLogin && <DemoLoginPanel users={seedRows} />}
 
         <div className="mt-6 pt-5 border-t border-[var(--line)] text-center text-xs text-[var(--muted)]">
           Demo estudiantil · Stellar testnet
