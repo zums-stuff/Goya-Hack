@@ -1740,3 +1740,59 @@ input[type="file"].form-field::file-selector-button {
   border-color: #f4c2ba;
   box-shadow: 0 2px 8px #ee705d10;
 }
+
+/* Pollar-branded primary button (login CTA) -- mirrors the primary CTA
+ * at pollar.xyz/interactive-demo: Pollar Blue (#005DB4) solid pill, white
+ * bold text, ~14px corner radius, subtle depth. Distinct from .sell-button
+ * (coral) which is Gremium-owned actions. The two pills coexist because the
+ * user can see at a glance which surface they are handing off to. */
+.gre-pollar-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  padding: 13px 22px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  color: #ffffff;
+  background: #005DB4;
+  cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 6px 16px -6px rgba(0, 93, 180, 0.45);
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 160ms ease,
+              box-shadow 160ms ease;
+}
+.gre-pollar-btn:hover { background: #004a92; }
+.gre-pollar-btn:active { transform: translateY(1px); background: #004a92; }
+.gre-pollar-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.18) inset,
+    0 6px 16px -6px rgba(0, 93, 180, 0.45),
+    0 0 0 3px rgba(255, 255, 255, 0.85),
+    0 0 0 6px rgba(0, 93, 180, 0.55);
+}
+.gre-pollar-btn[disabled] { opacity: 0.65; cursor: not-allowed; transform: none; }
+.gre-pollar-btn svg { width: 16px; height: 16px; }
+
+.gre-pollar-btn-spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-top-color: #ffffff;
+  display: inline-block;
+  animation: gre-pollar-spin 0.7s linear infinite;
+}
+@keyframes gre-pollar-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .gre-pollar-btn-spinner { animation-duration: 1.5s; }
+}

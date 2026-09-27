@@ -1,4 +1,4 @@
-// components/auth/LoginButton.tsx — Botón de login real con Pollar.
+// components/auth/LoginButton.tsx — Botón de login con Pollar.
 //
 // Por qué este componente existía solo en ARCHITECTURE:
 //   - El provider Pollar maneja el modal (Google / email OTP / passkey).
@@ -12,13 +12,14 @@
 // fetch sobre api.pollar.xyz → 403 API_KEY_TYPE_NOT_ALLOWED → modal mostrando
 // "Could not load sign-in options". El gating vive en app/page.tsx.
 //
-// UI: hereda `.sell-button` (coral pill, hover a `--primary-dark`,
-// box-shadow coral sutil) — el mismo lenguaje que el resto del app shell.
+// UI: hereda `.gre-pollar-btn` — Pollar Blue (#005DB4) que coincide con el
+// demo en https://www.pollar.xyz/interactive-demo. La pill deja claro que
+// "el botón abre Pollar" sin romper la superficie Gremium.
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { LogIn, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react';
+import { AlertCircle, RefreshCw, ShieldCheck, Wallet } from 'lucide-react';
 import { usePollar } from '@pollar/react';
 
 type Status =
@@ -105,9 +106,8 @@ export function LoginButton() {
     }
   }
 
-  // Verified wallet bound — render a quiet "vinculando…" pill in the same
-  // slot (so the layout doesn't jump). The reload to /home takes over from
-  // here once /api/auth/sync succeeds.
+  // Verified wallet bound — quiet pill in the same slot (no layout jump).
+  // The reload to /home takes over from here once /api/auth/sync succeeds.
   if (isAuthenticated && wallet?.address && status !== 'error') {
     return (
       <div
@@ -116,16 +116,18 @@ export function LoginButton() {
           alignItems: 'center',
           justifyContent: 'center',
           gap: 9,
-          padding: '12px 17px',
-          background: 'var(--mint)',
-          border: '1px solid #b9e2d0',
-          borderRadius: 8,
-          color: '#2c6b56',
-          fontSize: 12,
+          padding: '13px 18px',
+          background: 'rgba(0, 93, 180, 0.08)',
+          border: '1px solid rgba(0, 93, 180, 0.22)',
+          borderRadius: 11,
+          color: '#003e80',
+          fontSize: 13,
           fontWeight: 700,
         }}
       >
-        <ShieldCheck style={{ width: 14, height: 14, color: '#49a98d' }} />
+        <ShieldCheck
+          style={{ width: 14, height: 14, color: '#005DB4' }}
+        />
         <span
           style={{
             fontFamily:
@@ -133,10 +135,11 @@ export function LoginButton() {
             fontSize: 12,
           }}
         >
-          {wallet.address.slice(0, 6)}…{wallet.address.slice(-4)}
+          {wallet.address.slice(0, 6)}…
+          {wallet.address.slice(-4)}
         </span>
         {status === 'syncing' && (
-          <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.75 }}>
+          <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.7 }}>
             vinculando…
           </span>
         )}
@@ -144,19 +147,16 @@ export function LoginButton() {
     );
   }
 
-  // Pre-click, error, or just-verified-but-error: the primary CTA.
-  const label =
-    status === 'authenticating'
-      ? 'Abriendo Pollar…'
-      : 'Continuar con Pollar';
+  const isBusy = status === 'authenticating';
+  const label = isBusy ? 'Abriendo Pollar…' : 'Continuar con Pollar';
 
   return (
     <>
       <button
         type="button"
-        className="sell-button prelogin-cta"
-        style={{ width: '100%', justifyContent: 'center' }}
-        disabled={status === 'authenticating'}
+        className="gre-pollar-btn"
+        // stagger fade-in matches the rest of the prelogin card.
+        disabled={isBusy}
         onClick={() => {
           setStatus('authenticating');
           setError(null);
@@ -168,18 +168,19 @@ export function LoginButton() {
           }
         }}
       >
-        {status === 'authenticating' ? (
-          <Sparkles style={{ width: 16, height: 16 }} />
+        {isBusy ? (
+          <span
+            className="gre-pollar-btn-spinner"
+            aria-hidden="true"
+          />
         ) : (
-          <LogIn style={{ width: 16, height: 16 }} />
+          <Wallet style={{ width: 16, height: 16 }} />
         )}
         {label}
       </button>
       {status === 'error' && (
-        <div
-          className="form-error prelogin-cta"
-          style={{ marginTop: 10 }}
-        >
+        <div className="form-error prelogin-cta" style={{ marginTop: 10 }}>
+          <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
           <span style={{ flex: 1 }}>{error}</span>
           <button
             type="button"

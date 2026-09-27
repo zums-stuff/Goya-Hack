@@ -4,8 +4,14 @@
 //   - `client={{ apiKey: ... }}` SIN `network` (la red se fija en dashboard Pollar).
 //   - Verificado contra pollar-xyz/template-nextjs 2026-09-25.
 //
-// Fuente: Inter Tight variable (python-like clarity, sans with personality).
+// Fuente: Inter Tight variable (python-like clarity, sans con personalidad).
 // Aplica a toda la app — no solo a / — para que el sistema visual sea coherente.
+//
+// Pollar: dejamos `appConfig` undefined para que el SDK haga fetch de
+// /applications/config y refleje el dashboard de Pollar al recargar la
+// página. Los defaults del SDK (`theme: 'light'`, `accentColor: '#005DB4'`)
+// coinciden con la estética de pollar.xyz/interactive-demo, así que el modal
+// se ve azul/light sin que tengamos que pasar nada extra.
 import type { Metadata } from 'next';
 import { Inter_Tight } from 'next/font/google';
 import { PollarProvider } from '@pollar/react';

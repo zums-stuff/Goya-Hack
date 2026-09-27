@@ -11,10 +11,10 @@ import { Check, Copy, ChevronRight, CircleAlert, ShieldCheck } from 'lucide-reac
 import type { PollarKeyStatus, PollarSetupStatus } from '@/lib/pollar-status';
 
 const ENV_TEMPLATE = [
-  '# PumaTrade — reemplaza los <TU_KEY_AQUÍ> por tus keys reales del dashboard',
-  'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_<TU_KEY_AQUÍ>',
-  'POLLAR_USERS_SECRET_KEY=sec_testnet_users_<TU_KEY_AQUÍ>',
-  'POLLAR_OPS_SECRET_KEY=sec_testnet_ops_<TU_KEY_AQUÍ>',
+  '# Gremium — pega las 3 keys reales del dashboard',
+  'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_<TU_KEY_AQUÍ>',
+  'POLLAR_USERS_SECRET_KEY=sec_testnet_<TU_KEY_AQUÍ>',
+  'POLLAR_OPS_SECRET_KEY=sec_testnet_<TU_KEY_AQUÍ>',
 ].join('\n');
 
 const ROWS: Array<{
@@ -25,17 +25,17 @@ const ROWS: Array<{
   {
     key: 'usersPub',
     varName: 'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY',
-    source: 'App "PumaTrade Usuarios" → Build → API Keys → Publishable key',
+    source: 'App "PumaTrade Usuarios" -> Build -> API Keys -> Publishable key',
   },
   {
     key: 'usersSec',
     varName: 'POLLAR_USERS_SECRET_KEY',
-    source: 'App "PumaTrade Usuarios" → Build → API Keys → Secret key',
+    source: 'App "PumaTrade Usuarios" -> Build -> API Keys -> Secret key',
   },
   {
     key: 'opsSec',
     varName: 'POLLAR_OPS_SECRET_KEY',
-    source: 'App "PumaTrade Operacional" → Build → API Keys → Secret key',
+    source: 'App "PumaTrade Operacional" -> Build -> API Keys -> Secret key',
   },
 ];
 
@@ -71,13 +71,13 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      // No permiso — el usuario copia a mano.
+      // No permiso -- el usuario copia a mano.
     }
   }
 
   return (
     <ol className="space-y-7 mt-2">
-      {/* Paso 1 — crear las apps */}
+      {/* Paso 1 -- crear las apps */}
       <li>
         <p className="eyebrow">PASO 1</p>
         <p
@@ -88,19 +88,52 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
         </p>
         <ul className="list-disc pl-5 text-xs text-[var(--muted)] space-y-1">
           <li>
-            <strong className="text-[var(--ink)]">«Gremium Usuarios»</strong> —
-            Auth: Google + email OTP · Funding: Immediate · Stellar testnet
+            <strong className="text-[var(--ink)]">PumaTrade Usuarios</strong>
+            {' '}
+            -- Auth: Google + email OTP, Funding: Immediate, Stellar testnet
           </li>
           <li>
             <strong className="text-[var(--ink)]">
-              «Gremium Operacional»
+              PumaTrade Operacional
             </strong>{' '}
-            — sin UI, solo server-side · Stellar testnet
+            -- sin UI, solo server-side, Stellar testnet
           </li>
         </ul>
+
+        {/* Aviso crítico: redirect URIs. Sin esto Google falla con
+            APPLICATION_HAS_NO_REDIRECT_URIS. Cada proveedor OAuth requiere
+            al menos una URL de callback autorizada. */}
+        <div
+          className="form-error"
+          style={{ marginTop: 12, fontSize: 11, lineHeight: 1.55 }}
+        >
+          <CircleAlert style={{ width: 13, height: 13, flexShrink: 0 }} />
+          <span>
+            <strong>Antes de habilitar Google o cualquier OAuth:</strong>{' '}
+            configura el redirect URI de cada proveedor en la app{' '}
+            <em>PumaTrade Usuarios</em> (Settings -&gt; OAuth / Redirect
+            URIs). Sin esto Google devuelve{' '}
+            <code
+              style={{
+                fontFamily:
+                  'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                fontSize: 10.5,
+              }}
+            >
+              APPLICATION_HAS_NO_REDIRECT_URIS
+            </code>
+            .
+          </span>
+        </div>
+        <p className="mt-2 text-[10px] text-[var(--muted)]">
+          Como punto de partida, registra{' '}
+          <code className="font-mono">http://localhost:3000</code> (dev) y
+          tambien el dominio de produccion{' '}
+          <code className="font-mono">https://...</code> cuando despliegues.
+        </p>
       </li>
 
-      {/* Paso 2 — pegar las keys */}
+      {/* Paso 2 -- pegar las keys */}
       <li>
         <p className="eyebrow">PASO 2</p>
         <p
@@ -171,12 +204,15 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
           </button>
         </div>
         <p className="mt-2 text-[10px] text-[var(--muted)]">
-          Reemplaza <code className="font-mono">&lt;TU_KEY_AQUÍ&gt;</code> por
-          el valor exacto que copiaste del dashboard.
+          Reemplaza los marcadores por los valores exactos que copiaste del
+          dashboard (los prefijos reales son{' '}
+          <code className="font-mono">pub_testnet_users_</code>,{' '}
+          <code className="font-mono">sec_testnet_users_</code>,{' '}
+          <code className="font-mono">sec_testnet_ops_</code> segun la app).
         </p>
       </li>
 
-      {/* Paso 3 — reiniciar */}
+      {/* Paso 3 -- reiniciar */}
       <li>
         <p className="eyebrow">PASO 3</p>
         <p
@@ -190,9 +226,10 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
           <span>
             <strong>Modo dev sigue funcionando</strong>
             <small>
-              Re-correr <code className="font-mono">npm run setup:env</code> ya no
-              pisa tus keys reales (las preserva si empiezan con{' '}
-              <code className="font-mono">pub_</code>/<code className="font-mono">sec_</code>).
+              Re-correr <code className="font-mono">npm run setup:env</code>{' '}
+              ya no pisa tus keys reales (las preserva si empiezan con{' '}
+              <code className="font-mono">pub_</code>/
+              <code className="font-mono">sec_</code>).
             </small>
           </span>
         </div>
