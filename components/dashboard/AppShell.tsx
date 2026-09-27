@@ -67,17 +67,40 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <Link href="/home" className="brand" style={{ padding: '0 10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Brand: single wordmark — no double-stacked logos. */}
+        <Link
+          href="/home"
+          style={{
+            padding: '0 10px 22px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            textDecoration: 'none',
+          }}
+        >
           <img
             src="/Logo_Gremium.png"
-            alt="Logo Gremium"
-            style={{ height: '30px', width: 'auto', objectFit: 'contain' }}
-          />
-          <img
-            src="/Gremium.png"
             alt="Gremium"
-            style={{ height: '22px', width: 'auto', objectFit: 'contain' }}
+            width={120}
+            height={26}
+            style={{ height: 26, width: 'auto', display: 'block' }}
           />
+          <span
+            style={{
+              fontSize: 9,
+              fontWeight: 800,
+              letterSpacing: 0.6,
+              color: '#9ba7b8',
+              textTransform: 'uppercase',
+              lineHeight: 1.2,
+              borderLeft: '1px solid var(--line)',
+              paddingLeft: 9,
+            }}
+          >
+            Goya-Hack
+            <br />
+            2026
+          </span>
         </Link>
         {/* Espacio para el logo del equipo */}
         <div

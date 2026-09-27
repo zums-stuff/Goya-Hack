@@ -181,7 +181,7 @@ button { cursor: pointer; }
 .top-actions { margin-left: auto; display: flex; align-items: center; gap: 22px; }
 .icon-button { position: relative; background: transparent; border: 0; color: #7c899b; padding: 4px; }
 .icon-button svg { width: 18px; }
-.notification-dot { position: absolute; right: 2px; top: 1px; width: 6px; height: 6px; background: var(--primary); border: 2px solid white; border-radius: 50%; }
+.notification-dot { position: absolute; right: 2px; top: 2px; width: 6px; height: 6px; background: var(--primary); border: 2px solid white; border-radius: 50%; }
 .top-avatar { width: 31px; height: 31px; background: #dce8ff; color: #5876bb; font-size: 10px; }
 .mobile-menu { display: none; background: none; border: 0; }
 
@@ -871,7 +871,6 @@ input[type="file"].form-field::file-selector-button {
   align-items: center;
   padding: 12px 0;
   border-bottom: 1px solid var(--line);
-  font-size: 12px;
 }
 .account-row:last-child { border-bottom: 0; }
 .account-row > .kv-key { color: var(--muted); font-weight: 700; text-transform: uppercase; font-size: 10px; letter-spacing: 0.4px; }
@@ -1149,3 +1148,145 @@ input[type="file"].form-field::file-selector-button {
   padding: 0 6px;
 }
 .amount-input-row .form-field { padding-right: 52px; }
+
+/* ─── Pre-login surface (light, inherits the rest of the app's tokens) ─── */
+/* Same `var(--bg)` as the dashboard, same coral primary, same `.sell-button`
+ * CTA shape, same `.eyebrow`/`.subcopy` typography. The login screen just
+ * becomes a centered card-instead-of-sidebar layout, with one orchestrated
+ * card-rise entry. No tonal shift; same surface as the rest of the app. */
+.prelogin-stage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--bg);
+}
+.prelogin-card {
+  width: min(100%, 460px);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 36px 32px 28px;
+  box-shadow: 0 14px 40px -22px #27374c1f;
+  animation: prelogin-card-in 520ms cubic-bezier(0.22, 1, 0.36, 1) 80ms both;
+  will-change: opacity, transform;
+}
+@keyframes prelogin-card-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.prelogin-cta {
+  animation: prelogin-cta-in 480ms cubic-bezier(0.22, 1, 0.36, 1) 220ms both;
+}
+@keyframes prelogin-cta-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.prelogin-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 22px;
+}
+.prelogin-brand small {
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #a4adba;
+  font-weight: 700;
+  display: block;
+  margin-top: 3px;
+}
+.prelogin-headline {
+  font-size: 27px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1.18;
+  margin: 0 0 10px;
+  color: var(--ink);
+}
+.prelogin-headline .accent {
+  color: var(--primary);
+  font-weight: 800;
+}
+.prelogin-footer {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #94a0b0;
+  letter-spacing: 0.3px;
+}
+.prelogin-footer .ready {
+  color: #49a98d;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.prelogin-hint {
+  margin-top: 6px;
+  padding: 13px 14px;
+  background: #fff7f5;
+  border: 1px dashed #f4c2ba;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #55647b;
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.prelogin-hint .hint-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.prelogin-hint code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px;
+  color: #18222f;
+  background: #ffffff;
+  border: 1px solid var(--line);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.prelogin-hint a.hint-cta {
+  align-self: flex-start;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 11px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+.prelogin-hint a.hint-cta:hover { text-decoration: underline; }
+.prelogin-secondary {
+  margin-top: 32px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.prelogin-secondary .sec-eyebrow {
+  color: #9ba7b8;
+  font-size: 10px;
+  letter-spacing: 1.1px;
+  font-weight: 800;
+  margin: 0 0 7px;
+  text-transform: uppercase;
+}
+.prelogin-secondary .sec-sub {
+  font-size: 11px;
+  color: #94a0b0;
+  margin: 0 0 15px;
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prelogin-card,
+  .prelogin-cta { animation: none; }
+}

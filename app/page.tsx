@@ -1,21 +1,26 @@
-// app/page.tsx — Pre-login: modal centrada.
-// Dos rutas:
+// app/page.tsx — Pre-login (light surface — see app/globals.css .prelogin-*).
+//
+// Two routes:
 //   1. **Pollar** (producción): <LoginButton /> abre el modal social
-//      (Google / email / passkey), crea una wallet Stellar embebida,
+//      (Google / email OTP / passkey), crea una wallet Stellar embebida,
 //      y al volver sincroniza user + cookie vía /api/auth/sync.
 //   2. **Dev-login**: cuando NODE_ENV != production y DEV_LOGIN_ENABLED=true,
-//      además (o en lugar) mostramos la lista de seed users con un click.
-//      Ideal para demos de jueces en laptops sin cuenta de Pollar.
-// Sin sidebar porque no hay sesión.
+//      se muestra como bloque secundario debajo de la CTA real.
+//
+// Pollar gated on `!pollar.needsSetup` — si las keys son marcadores locales
+// (setup:env), abrir el modal hace fetch a api.pollar.xyz → 403
+// API_KEY_TYPE_NOT_ALLOWED → modal "Could not load sign-in options".
+// El gate evita ese callejón sin salida.
+
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Wallet } from 'lucide-react';
+import { ChevronRight, Mail, ShieldCheck } from 'lucide-react';
 import { tryGetUser } from '@/lib/auth';
 import { isDevLoginAvailable } from '@/lib/auth-env';
 import { computePollarSetupStatus } from '@/lib/pollar-status';
 import { seedUsers } from '@/lib/seed-data';
-import { DemoLoginPanel, type SeedUserRow } from '@/components/auth/DemoLoginPanel';
 import { LoginButton } from '@/components/auth/LoginButton';
+import { DemoLoginPanel, type SeedUserRow } from '@/components/auth/DemoLoginPanel';
 
 export default async function HomePage() {
   const user = await tryGetUser();
@@ -23,7 +28,9 @@ export default async function HomePage() {
 
   const devLogin = isDevLoginAvailable();
   const pollar = computePollarSetupStatus(process.env);
+  const pollarConfigured = !pollar.needsSetup;
 
+  // DemoLoginPanel is keyed off `SeedUserRow`. Map seed.users → that.
   const seedRows: SeedUserRow[] = devLogin
     ? seedUsers
         .map((u) => ({
@@ -35,118 +42,116 @@ export default async function HomePage() {
         .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'))
     : [];
 
-  // Pollar's login CTA must NOT render when the keys are placeholders (setup:env
-  // markers), because clicking it triggers their SDK to fetch /applications/config
-  // on api.pollar.xyz → 403 API_KEY_TYPE_NOT_ALLOWED → the modal shows the
-  // generic "Could not load sign-in options" error. Gate on the actual key
-  // shape (`!pollar.needsSetup`), not just env-truthiness.
-  const pollarConfigured = !pollar.needsSetup;
-
   return (
-    <main
-      className="min-h-screen flex items-center justify-center px-4 py-10"
-      style={{ background: 'var(--bg)' }}
-    >
-      <div className="sell-modal">
-        {/* Espacio para el logo del equipo Genesis */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '4px 10px',
-            borderRadius: '20px',
-            background: '#faf5ff',
-            border: '1px solid #e9d5ff',
-            marginBottom: '14px',
-          }}
-        >
-          <img
-            src="/GenesisPNG.png"
-            alt="Equipo Genesis"
-            style={{ height: '16px', width: '16px', objectFit: 'contain', borderRadius: '50%' }}
-          />
-          <span style={{ fontSize: '10px', fontWeight: 700, color: '#6b21a8' }}>
-            Equipo Genesis · Goya-Hack
+    <main className="prelogin-stage">
+      <div className="prelogin-card">
+        {/* Brand row — reuses the sidebar's `.brand-mark` square (coral)
+            + the Gremium wordmark, with the team/student-line as a quiet
+            caption beneath. No double-stacked logos. */}
+        <div className="prelogin-brand">
+          <span className="brand-mark" aria-hidden="true">
+            G
           </span>
+          <div>
+            <img
+              src="/Logo_Gremium.png"
+              alt="Gremium"
+              width={120}
+              height={26}
+              style={{ height: 26, width: 'auto', display: 'block' }}
+            />
+            <small>Goya-Hack · UNAM 2026</small>
+          </div>
         </div>
 
-        {/* Logos Gremium */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-          <img
-            src="/Logo_Gremium.png"
-            alt="Logo Gremium"
-            style={{ height: '36px', width: 'auto', objectFit: 'contain' }}
-          />
-          <img
-            src="/Gremium.png"
-            alt="Gremium"
-            style={{ height: '26px', width: 'auto', objectFit: 'contain' }}
-          />
-        </div>
-
-        <p className="eyebrow">GREMIUM · UNAM</p>
-        <h2>
-          Inicia sesión para <br />
-          vender, comprar o truequear.
-        </h2>
-        <p>
-          Marketplace P2P entre estudiantes. Tu dinero queda protegido en
-          escrow Stellar hasta que recibas el artículo.
+        {/* Headline — same scale and weight as `.welcome-row h1` on the
+            dashboard, so the type ramp stays continuous across the app. */}
+        <h1 className="prelogin-headline">
+          Intercambia en la UNAM
+          <br />
+          <span className="accent">sin perder un peso.</span>
+        </h1>
+        <p className="subcopy">
+          Tu pago se queda retenido en escrow Stellar hasta que confirmes
+          recibir el artículo. Sin seed phrases, sin custodia intermedia —
+          solo Stellar testnet firmado por dos partes.
         </p>
 
-        {/* Camino real (producción): Pollar → sync → /home. Renderizado SOLO
-            cuando las keys del dashboard de Pollar están configuradas. */}
-        {pollarConfigured && <LoginButton />}
+        {/* Primary CTA — Pollar real button, or an inline hint when the
+            dashboard keys haven't been configured. */}
+        <div className="prelogin-cta" style={{ marginTop: 24 }}>
+          {pollarConfigured ? (
+            <LoginButton />
+          ) : (
+            <div className="prelogin-hint">
+              <div className="hint-row">
+                <Mail
+                  style={{
+                    width: 14,
+                    height: 14,
+                    color: 'var(--primary)',
+                    flexShrink: 0,
+                    marginTop: 2,
+                  }}
+                />
+                <span>
+                  Las keys de Pollar son marcadores locales. Pega las
+                  reales (<code>pub_testnet_users_*</code> +{' '}
+                  <code>sec_*</code>) en <code>.env.local</code> o usa el
+                  modo dev debajo.
+                </span>
+              </div>
+              <Link href="/setup" className="hint-cta">
+                Configurar Pollar
+                <ChevronRight style={{ width: 12, height: 12 }} />
+              </Link>
+            </div>
+          )}
+        </div>
 
-        {/* Cuando Pollar NO está configurado (keys placeholders del setup:env),
-            mostramos una pista clara en lugar del botón roto. */}
-        {!pollarConfigured && (
-          <div
-            className="rounded-xl p-4 mb-1 text-center"
-            style={{
-              background: 'var(--bg)',
-              border: '1px dashed var(--line)',
-            }}
-          >
-            <p className="text-[11px] text-[var(--muted)] leading-relaxed">
-              <span className="font-bold text-[var(--ink)] block">
-                Login con Pollar no está activo
-              </span>
-              Las keys del dashboard de{' '}
-              <a
-                href="https://dashboard.pollar.xyz"
-                target="_blank"
-                rel="noreferrer"
-                className="underline text-[var(--ink)] font-bold"
-                style={{ color: '#005DB4' }}
-              >
-                Pollar
-              </a>{' '}
-              son marcadores locales. Pega las reales en{' '}
-              <code className="font-mono text-[10px]">.env.local</code> o usa el
-              modo dev debajo.
+        {/* Dev-login: secondary block, quiet separator, same surface as
+            the rest of the app. DemoLoginPanel already renders the 5 seed
+            users as styled `.profile-row` items, so this stays consistent. */}
+        {devLogin && (
+          <div className="prelogin-secondary">
+            <p className="sec-eyebrow">Modo demo</p>
+            <p className="sec-sub">
+              Jueces sin Pollar configurado pueden entrar como uno de los
+              cinco seed users. Las wallets pre-fondeadas son de prueba.
             </p>
-            <Link
-              href="/setup"
-              className="text-[11px] font-bold text-[var(--primary)] underline underline-offset-2 mt-2 inline-block"
-            >
-              Ver guía de configuración →
-            </Link>
+            <DemoLoginPanel users={seedRows} />
           </div>
         )}
 
-        {/* Camino dev (jueces en laptops sin Pollar): 1-click seed user. */}
-        {devLogin && <DemoLoginPanel users={seedRows} />}
-
-        <div className="mt-6 pt-5 border-t border-[var(--line)] text-center text-xs text-[var(--muted)] flex items-center justify-center gap-2">
-          <img
-            src="/GenesisPNG.png"
-            alt="Equipo Genesis"
-            style={{ height: '16px', width: '16px', objectFit: 'contain', borderRadius: '50%' }}
-          />
-          <span>Desarrollado por <strong>Equipo Genesis</strong> · Stellar Testnet</span>
-        </div>
+        {/* Footer — quiet credit + secondary action. */}
+        <footer className="prelogin-footer">
+          <span style={{ textTransform: 'uppercase' }}>
+            Stellar Testnet
+          </span>
+          {pollarConfigured ? (
+            <span className="ready">
+              <ShieldCheck style={{ width: 11, height: 11 }} />
+              Pollar listo
+            </span>
+          ) : (
+            <Link
+              href="/setup"
+              style={{
+                color: 'var(--primary)',
+                textDecoration: 'none',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              Setup guide
+              <ChevronRight style={{ width: 11, height: 11 }} />
+            </Link>
+          )}
+        </footer>
       </div>
     </main>
   );
