@@ -1,0 +1,19 @@
+services:
+  goyahack:
+    build: .
+    container_name: goyahack
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATA_DIR=/data
+    volumes:
+      - goyahack-data:/data
+    networks:
+      - light-proxy-net
+
+networks:
+  light-proxy-net:
+    external: true
+
+volumes:
+  goyahack-data:
