@@ -1,4 +1,4 @@
-# TEST_RESULTS — Gremium v1.3
+# TEST_RESULTS — PumaTrade v1.3
 
 Resultado de las pasadas de verificación. Cada check es REPRODUCIBLE.
 
@@ -31,7 +31,7 @@ Todas las versiones fijadas en `package.json` existen en npm:
 - RESULTADO: ✅ (con secret real)
 
 ### 6. Postgres local en Docker (`npm run db:up`)
-- Contenedor `Gremium-db` (postgres:16) en `localhost:5433` (evita chocar con un Postgres existente en 5432)
+- Contenedor `pumatrade-db` (postgres:16) en `localhost:5433` (evita chocar con un Postgres existente en 5432)
 - `npx prisma migrate dev --name init` → migration `20260926035051_init` aplicada ✅
 - `npm run db:seed` → 5 users · 10 listings · 4 offers ✅; `npm run demo:check` → saldos exactos (1,250/2,000/800/500/1,800 XLM) ✅
 - RESULTADO: ✅ — el seed y el demo-check corren en el Postgres real
@@ -49,7 +49,7 @@ Todas las versiones fijadas en `package.json` existen en npm:
 
 ### 8. Stellar cycle end-to-end (`npm run test:stellar`)
 - Sin CLI de Stellar — usa `@stellar/stellar-sdk 17.1.0` directo + friendbot HTTP.
-- 1. `Keypair.random()` → Gremium/Bob; 2. `friendbot fund` → 10000 XLM; 3. `loadAccount` balance verificado; 4. `TransactionBuilder` + `Operation.payment` 1 XLM; 5. Deltas: Bob +1, Gremium −1.00001.
+- 1. `Keypair.random()` → Alice/Bob; 2. `friendbot fund` → 10000 XLM; 3. `loadAccount` balance verificado; 4. `TransactionBuilder` + `Operation.payment` 1 XLM; 5. Deltas: Bob +1, Alice −1.00001.
 - RESULTADO: ✅ — mismo patrón que `lib/stellar.ts.releaseEscrow` ejecuta en producción.
 
 ### 9. HTTP live (`next dev` + curl con DB real)
@@ -74,7 +74,7 @@ Todas las versiones fijadas en `package.json` existen en npm:
 
 ```bash
 # 1. Infra DB local (Docker) + semilla
-npm run db:up          # levanta Gremium-db en localhost:5433
+npm run db:up          # levanta pumatrade-db en localhost:5433
 npx prisma migrate dev # idempotente una vez aplicado
 npm run db:seed        # 5 users + 10 listings + 4 offers
 

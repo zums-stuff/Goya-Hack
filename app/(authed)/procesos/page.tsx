@@ -91,7 +91,7 @@ export default async function ProcesosPage(props: {
         Volver
       </Link>
 
-      <p className="eyebrow">PROCESOS · Gremium</p>
+      <p className="eyebrow">PROCESOS · PUMATRADE</p>
       <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
         Tus intercambios en curso
       </h1>

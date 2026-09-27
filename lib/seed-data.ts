@@ -55,7 +55,7 @@ export type SeedOffer = {
 export const seedUsers: SeedUser[] = [
   {
     id: 'usr_maria',
-    email: 'maria.Gremium+seed1@mail.tm',
+    email: 'maria.pumatrade+seed1@mail.tm',
     displayName: 'María R.',
     major: 'Ing. en Computación',
     bio: 'Vendo cosas que ya no uso — calculadora en 5º semestre.',
@@ -64,7 +64,7 @@ export const seedUsers: SeedUser[] = [
   },
   {
     id: 'usr_juan',
-    email: 'juan.Gremium+seed1@mail.tm',
+    email: 'juan.pumatrade+seed1@mail.tm',
     displayName: 'Juan P.',
     major: 'Ing. Eléctrica',
     bio: 'Compro componentes electrónicos. Trueques bienvenidos.',
@@ -73,7 +73,7 @@ export const seedUsers: SeedUser[] = [
   },
   {
     id: 'usr_andrea',
-    email: 'andrea.Gremium+seed1@mail.tm',
+    email: 'andrea.pumatrade+seed1@mail.tm',
     displayName: 'Andrea L.',
     major: 'Matemáticas',
     bio: 'Libros de cálculo y física. Trueque puro.',
@@ -82,7 +82,7 @@ export const seedUsers: SeedUser[] = [
   },
   {
     id: 'usr_pablo',
-    email: 'pablo.Gremium+seed1@mail.tm',
+    email: 'pablo.pumatrade+seed1@mail.tm',
     displayName: 'Pablo M.',
     major: 'Física',
     bio: 'Nuevo ingreso. Empiezo a vender lo de los semestres anteriores.',
@@ -91,7 +91,7 @@ export const seedUsers: SeedUser[] = [
   },
   {
     id: 'usr_sofia',
-    email: 'sofia.Gremium+seed1@mail.tm',
+    email: 'sofia.pumatrade+seed1@mail.tm',
     displayName: 'Sofía C.',
     major: 'Ing. en Computación',
     bio: 'Laptop y componentes high-end.',

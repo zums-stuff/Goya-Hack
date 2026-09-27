@@ -43,9 +43,9 @@ export default async function SettingsPage() {
         Volver al dashboard
       </Link>
 
-      <p className="eyebrow">MI CUENTA · Gremium</p>
+      <p className="eyebrow">MI CUENTA · PUMATRADE</p>
       <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Tu cuenta Gremium
+        Tu cuenta PumaTrade
       </h1>
       <p className="subcopy">
         Datos personales, wallet Stellar y herramientas de demo.
@@ -248,7 +248,7 @@ export default async function SettingsPage() {
         className="subcopy"
         style={{ marginTop: 24, fontSize: 10, fontFamily: 'var(--font-mono)' }}
       >
-        Gremium · v0.1.0 · Stellar Testnet · Goya-Hack 2026
+        PumaTrade · v0.1.0 · Stellar Testnet · Goya-Hack 2026
       </p>
     </section>
   );

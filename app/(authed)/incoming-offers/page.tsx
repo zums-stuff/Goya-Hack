@@ -44,7 +44,7 @@ export default async function IncomingOffersPage() {
         Volver
       </Link>
 
-      <p className="eyebrow">OFERTAS RECIBIDAS · Gremium</p>
+      <p className="eyebrow">OFERTAS RECIBIDAS · PUMATRADE</p>
       <h1 style={{ fontSize: 29, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
         Propuestas sobre tus productos
       </h1>

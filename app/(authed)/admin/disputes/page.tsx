@@ -57,7 +57,7 @@ export default async function AdminDisputesPage() {
 
   return (
     <section className="admin-view">
-      <p className="eyebrow">ADMIN · Gremium</p>
+      <p className="eyebrow">ADMIN · PUMATRADE</p>
       <h1
         style={{
           fontSize: 27,

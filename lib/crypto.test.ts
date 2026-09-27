@@ -85,7 +85,7 @@ describe('lib/crypto (sin DB)', () => {
   });
 
   it('signCookie + verifyCookie (roundtrip)', () => {
-    const email = 'maria.Gremium+seed1@mail.tm';
+    const email = 'maria.pumatrade+seed1@mail.tm';
     const cookie = signCookie(email);
     expect(cookie.includes(email)).toBe(true);
     expect(verifyCookie(cookie)).toBe(email);

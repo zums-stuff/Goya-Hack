@@ -124,7 +124,7 @@ export default async function EscrowDetailPage(props: {
         Volver al dashboard
       </Link>
 
-      <p className="eyebrow">ESCROW · GREMIUM</p>
+      <p className="eyebrow">ESCROW · PUMATRADE</p>
       <h1
         style={{
           fontSize: 29,

@@ -1,4 +1,4 @@
-// app/api/assistant/route.ts — Asistente Gremium (heurístico, no LLM real).
+// app/api/assistant/route.ts — Asistente PumaTrade (heurístico, no LLM real).
 //
 // Recibe { message: string, typeHint?: string } y devuelve:
 //   { reply: string, listings: Listing[] }

@@ -109,7 +109,7 @@ async function main(): Promise<void> {
     !isRealPollarKey(pollarOpsSecret, 'sec');
 
   // Email admin is arbitrary but must be a valid email.
-  const adminEmail = 'admin@Gremium.local';
+  const adminEmail = 'admin@pumatrade.local';
 
   // DATABASE_URL: apunta al Postgres local de Docker que levanta
   // `npm run db:up` (scripts/db-up.sh, puerto 5433 por defecto para no
@@ -118,14 +118,14 @@ async function main(): Promise<void> {
   // esta línea — el resto del stack es idéntico.
   const databaseUrl =
     process.env.PT_DATABASE_URL ??
-    'postgresql://postgres:postgres@localhost:5433/Gremium?sslmode=disable';
+    'postgresql://postgres:postgres@localhost:5433/pumatrade?sslmode=disable';
 
   const envContent = `# Generado por scripts/gen-test-env.ts — verificado ✅ friendbot funded 2 accounts.
 # ⚠️ NO USAR EN PRODUCCIÓN. Las keys de Stellar son de testnet (gratis).
 
 # === Pollar ===
 # ⚠️ El login NO funciona hasta pegar las keys reales del dashboard
-# dashboard.pollar.xyz (app "Gremium Usuarios" → pub_testnet_users_… /
+# dashboard.pollar.xyz (app "PumaTrade Usuarios" → pub_testnet_users_… /
 # sec_testnet_users_…; app "Operacional" → sec_testnet_ops_…). Estas son
 # marcadores generados por setup:env.
 NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=${pollarUsersPublishable}

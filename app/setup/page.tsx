@@ -19,13 +19,13 @@ export default async function SetupPage() {
         <div className="modal-spark">
           <Wallet />
         </div>
-        <p className="eyebrow">CONFIGURACIÓN · Gremium</p>
+        <p className="eyebrow">CONFIGURACIÓN · PUMATRADE</p>
         <h2>
           Pegar las keys de <span style={{ color: 'var(--primary)' }}>Pollar</span>
           <br /> en .env.local
         </h2>
         <p>
-          Gremium usa las wallets embebidas de Pollar. Para que el login
+          PumaTrade usa las wallets embebidas de Pollar. Para que el login
           funcione con un usuario real (no el modo dev), crea dos apps en
           dashboard.pollar.xyz y pega las keys aquí.
         </p>

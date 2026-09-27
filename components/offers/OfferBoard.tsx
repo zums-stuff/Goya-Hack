@@ -23,7 +23,7 @@ export function OfferBoard({ offers, listingPriceCents }: Props) {
     <div data-testid="offer-board">
       <div className="section-heading" style={{ marginBottom: 16, alignItems: 'flex-start' }}>
         <div>
-          <p className="eyebrow">TABLERO · Gremium</p>
+          <p className="eyebrow">TABLERO · PUMATRADE</p>
           <h2 style={{ marginBottom: 4 }}>Ofertas pendientes ({offers.length})</h2>
           <p>Elige la propuesta que más te convenga. Verás primero las más cercanas al precio pedido.</p>
         </div>

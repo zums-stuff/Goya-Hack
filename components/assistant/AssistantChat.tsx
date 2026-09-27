@@ -79,7 +79,7 @@ export function AssistantChat() {
           <Bot />
         </span>
         <div>
-          <strong>Asistente Gremium</strong>
+          <strong>Asistente PumaTrade</strong>
           <small>En línea · analiza precio y calidad</small>
         </div>
       </div>
