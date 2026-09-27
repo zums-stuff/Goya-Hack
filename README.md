@@ -59,7 +59,7 @@ npm run capture:wallets                # valida las 5 wallets seed en Horizon
 - **[`PRD.md`](PRD.md)** — Product Requirements Document completo (v3.4): QUÉ construimos — modelo de datos, los 3 tipos de oferta, máquina de estados del escrow (intercambio registrado → TTL → 3 ramas), wireframes, seed data, variables de entorno, checklist pre-hackathon y guión de demo de 3 minutos.
 - **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — Blueprint de implementación (v1.3): CÓMO lo construimos — versiones exactas pinned, Prisma schema completo, Stellar SDK 17 (multi-sig 2-de-2, reserva, operaciones), máquina de estados con carrera-safe `updateMany`, endpoints, componentes clave, cron, seguridad, plan en 10 bloques. **Este es el documento que sigue el implementador.**
 
-- **[Documento MVP ](https://docs.google.com/document/d/1ut08s4x3h_ELaW86xqLz0RL17Ytuf7euiq6waGZi5yo/edit) — Especificación del Producto Mínimo Viable: EL LADRILLO — alcance funcional para el hackathon, validación de la hipótesis crítica y flujo presencial de intercambio protegido sin tecnicismos.
+- [Documento MVP ](https://docs.google.com/document/d/1ut08s4x3h_ELaW86xqLz0RL17Ytuf7euiq6waGZi5yo/edit) — Especificación del Producto Mínimo Viable: EL LADRILLO — alcance funcional para el hackathon, validación de la hipótesis crítica y flujo presencial de intercambio protegido sin tecnicismos.
 
 ---
 
