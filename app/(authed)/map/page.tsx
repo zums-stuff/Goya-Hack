@@ -1,4 +1,4 @@
-// app/(authed)/map/page.tsx — Red de puntos aliados Gremium (CDMX demo).
+// app/(authed)/map/page.tsx — Red de puntos aliados PumaTrade (CDMX demo).
 // Dibuja el mapa como SVG con zonas CDMX reales y 3 tiendas posicionadas
 // por coords aproximadas.
 import Link from 'next/link';
@@ -44,7 +44,7 @@ const ZONES: Zone[] = [
 const SHOPS: Shop[] = [
   {
     id: 'cu',
-    name: 'Gremium CU',
+    name: 'PumaTrade CU',
     address: 'Av. Universidad 3000, Coyoacán',
     hours: 'Lun–Vie · 10:00–18:00',
     status: 'Abierto',
@@ -55,7 +55,7 @@ const SHOPS: Shop[] = [
   },
   {
     id: 'copilco',
-    name: 'Gremium Copilco',
+    name: 'PumaTrade Copilco',
     address: 'Av. Federico T de la Chica 12, Copilco',
     hours: 'Lun–Sáb · 11:00–19:00',
     status: 'Abierto',
@@ -66,7 +66,7 @@ const SHOPS: Shop[] = [
   },
   {
     id: 'delvalle',
-    name: 'Gremium Del Valle',
+    name: 'PumaTrade Del Valle',
     address: 'Av. Insurgentes Sur 1234, Del Valle',
     hours: 'Mar–Sáb · 12:00–20:00',
     status: 'Por abrir',
@@ -82,7 +82,7 @@ export default function MapPage() {
     <section className="map-view">
       <p className="eyebrow">PUNTOS ALIADOS · CDMX</p>
       <h1 style={{ fontSize: 27, letterSpacing: '-1px', margin: '0 0 8px', color: '#26364c' }}>
-        Red de pickup points Gremium
+        Red de pickup points PumaTrade
       </h1>
       <p className="subcopy">
         Mapa de CDMX con 3 puntos aliados. Los púlsares marcan tiendas
@@ -340,5 +340,5 @@ function centroid(points: string): { x: number; y: number } {
 }
 
 function shortName(name: string): string {
-  return name.replace(/Gremium\s+/, '');
+  return name.replace(/PumaTrade\s+/, '');
 }

@@ -11,7 +11,7 @@ import { Check, Copy, ChevronRight, CircleAlert, ShieldCheck } from 'lucide-reac
 import type { PollarKeyStatus, PollarSetupStatus } from '@/lib/pollar-status';
 
 const ENV_TEMPLATE = [
-  '# Gremium — reemplaza los <TU_KEY_AQUÍ> por tus keys reales del dashboard',
+  '# PumaTrade — reemplaza los <TU_KEY_AQUÍ> por tus keys reales del dashboard',
   'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=pub_testnet_users_<TU_KEY_AQUÍ>',
   'POLLAR_USERS_SECRET_KEY=sec_testnet_users_<TU_KEY_AQUÍ>',
   'POLLAR_OPS_SECRET_KEY=sec_testnet_ops_<TU_KEY_AQUÍ>',
@@ -25,17 +25,17 @@ const ROWS: Array<{
   {
     key: 'usersPub',
     varName: 'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY',
-    source: 'App "Gremium Usuarios" → Build → API Keys → Publishable key',
+    source: 'App "PumaTrade Usuarios" → Build → API Keys → Publishable key',
   },
   {
     key: 'usersSec',
     varName: 'POLLAR_USERS_SECRET_KEY',
-    source: 'App "Gremium Usuarios" → Build → API Keys → Secret key',
+    source: 'App "PumaTrade Usuarios" → Build → API Keys → Secret key',
   },
   {
     key: 'opsSec',
     varName: 'POLLAR_OPS_SECRET_KEY',
-    source: 'App "Gremium Operacional" → Build → API Keys → Secret key',
+    source: 'App "PumaTrade Operacional" → Build → API Keys → Secret key',
   },
 ];
 
@@ -88,12 +88,12 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
         </p>
         <ul className="list-disc pl-5 text-xs text-[var(--muted)] space-y-1">
           <li>
-            <strong className="text-[var(--ink)]">«Gremium Usuarios»</strong> —
+            <strong className="text-[var(--ink)]">«PumaTrade Usuarios»</strong> —
             Auth: Google + email OTP · Funding: Immediate · Stellar testnet
           </li>
           <li>
             <strong className="text-[var(--ink)]">
-              «Gremium Operacional»
+              «PumaTrade Operacional»
             </strong>{' '}
             — sin UI, solo server-side · Stellar testnet
           </li>

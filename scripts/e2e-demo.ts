@@ -77,7 +77,7 @@ function summarize(body: unknown): string {
 }
 
 async function main() {
-  console.log(`\n  Gremium · E2E smoke (${BASE})\n  ${'─'.repeat(48)}\n`);
+  console.log(`\n  PumaTrade · E2E smoke (${BASE})\n  ${'─'.repeat(48)}\n`);
   console.log('  Waiting for server…\n');
 
   // 1. Server up
@@ -122,7 +122,7 @@ async function main() {
       redirect: 'manual',
     });
     const setCookie = loginResp.headers.get('set-cookie') ?? '';
-    const m = /Gremium-session=[^;]+/.exec(setCookie);
+    const m = /pumatrade-session=[^;]+/.exec(setCookie);
     cookie = m ? m[0] : '';
     if (![200, 303, 307].includes(loginResp.status) || !cookie) {
       recordFailure('dev-login', `no session cookie in response`, loginResp.status);

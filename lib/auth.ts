@@ -1,6 +1,6 @@
 // lib/auth.ts — Server-side session helpers.
 //
-// Sesión = cookie HMAC (`Gremium-session`) con shape `email.signature`.
+// Sesión = cookie HMAC (`pumatrade-session`) con shape `email.signature`.
 // El backend la verifica con KEY_COOKIE (HKDF de APP_SECRET_KEY, §6.4) y
 // resuelve el User desde la DB.
 //
@@ -12,7 +12,7 @@ import { verifyCookie, signCookie } from './crypto';
 import type { User } from '@/generated/prisma/client';
 import { AuthRequired } from './errors';
 
-const COOKIE_NAME = 'Gremium-session';
+const COOKIE_NAME = 'pumatrade-session';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 días
 
 /** Lee la cookie y devuelve el email si la firma es válida; null si no. */

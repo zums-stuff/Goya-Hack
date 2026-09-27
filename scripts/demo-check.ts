@@ -22,7 +22,7 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log('🔍 Demo check — Gremium\n');
+  console.log('🔍 Demo check — PumaTrade\n');
 
   const userCount = await prisma.user.count();
   const listingCount = await prisma.listing.count();
