@@ -1,17 +1,21 @@
-// app/page.tsx — Pre-login: modal centrada para elegir seed user.
-//
-// Cuando el usuario está logueado, redirect a /home. Antes, la misma
-// pantalla de siempre pero usando el sistema de diseño del frontend
-// example (importado por el usuario) — modal `.sell-modal`, tipografía
-// 11–13px densa, color primary coral. Sin sidebar porque no hay sesión.
+// app/page.tsx — Pre-login: modal centrada.
+// Dos rutas:
+//   1. **Pollar** (producción): <LoginButton /> abre el modal social
+//      (Google / email / passkey), crea una wallet Stellar embebida,
+//      y al volver sincroniza user + cookie vía /api/auth/sync.
+//   2. **Dev-login**: cuando NODE_ENV != production y DEV_LOGIN_ENABLED=true,
+//      además (o en lugar) mostramos la lista de seed users con un click.
+//      Ideal para demos de jueces en laptops sin cuenta de Pollar.
+// Sin sidebar porque no hay sesión.
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Wallet, ChevronRight } from 'lucide-react';
+import { Wallet } from 'lucide-react';
 import { tryGetUser } from '@/lib/auth';
 import { isDevLoginAvailable } from '@/lib/auth-env';
 import { computePollarSetupStatus } from '@/lib/pollar-status';
 import { seedUsers } from '@/lib/seed-data';
 import { DemoLoginPanel, type SeedUserRow } from '@/components/auth/DemoLoginPanel';
+import { LoginButton } from '@/components/auth/LoginButton';
 
 export default async function HomePage() {
   const user = await tryGetUser();
@@ -30,6 +34,9 @@ export default async function HomePage() {
         }))
         .sort((a, b) => a.displayName.localeCompare(b.displayName, 'es'))
     : [];
+
+  const showRealLogin =
+    process.env.NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY ? true : false;
 
   return (
     <main
@@ -50,9 +57,14 @@ export default async function HomePage() {
           escrow Stellar hasta que recibas el artículo.
         </p>
 
+        {/* Camino real (producción): Pollar → sync → /home. */}
+        {showRealLogin && <LoginButton />}
+
+        {/* Camino dev (jueces en laptops sin Pollar): 1-click seed user. */}
         {devLogin && <DemoLoginPanel users={seedRows} />}
 
-        {!devLogin && pollar.needsSetup && (
+        {/* Sin dev y sin keys reales: instrucción para configurarlas. */}
+        {!showRealLogin && !devLogin && pollar.needsSetup && (
           <div className="border border-dashed border-[var(--line)] rounded-xl p-4 text-center mb-2">
             <p className="text-xs text-[var(--muted)] mb-2">
               Activa el modo dev o configura Pollar.
@@ -66,14 +78,8 @@ export default async function HomePage() {
           </div>
         )}
 
-        <div className="mt-6 pt-5 border-t border-[var(--line)] flex items-center justify-between text-xs text-[var(--muted)]">
-          <span>Demo estudiantil · Stellar testnet</span>
-          <Link
-            href="/setup"
-            className="font-bold text-[var(--primary)] hover:underline"
-          >
-            Crear cuenta con Pollar <ChevronRight className="inline w-3 h-3 -mt-0.5" />
-          </Link>
+        <div className="mt-6 pt-5 border-t border-[var(--line)] text-center text-xs text-[var(--muted)]">
+          Demo estudiantil · Stellar testnet
         </div>
       </div>
     </main>
