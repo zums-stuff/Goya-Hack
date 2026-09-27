@@ -111,11 +111,13 @@ export default async function AdminDisputesPage() {
             >
               escrow {d.escrowId}
             </code>
-            {d.disputePhotoUrl ?? d.photoUrl ? (
+            {d.photoUrl ? (
               <a
                 style={{ display: 'block', fontSize: 10, color: 'var(--primary)', marginTop: 6 }}
-                href={`/disputes/${d.id}.jpg`}
+                href={d.photoUrl}
                 className="text-button"
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 Ver evidencia fotográfica
               </a>

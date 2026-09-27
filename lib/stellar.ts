@@ -339,37 +339,60 @@ export async function runRefundOnTreasury(params: {
   return { hash: res.hash };
 }
 
-// ─── anchorDisputeEvidence (Rama C — manageData con hash SHA256 64) ──────────
-export async function anchorDataEntry(
-  sourcePublic: string,
-  name: string,
-  hexValue: string,
-): Promise<string> {
-  if (Buffer.byteLength(name, 'utf8') > 64) {
-    throw new Error(`manageData name excede 64 bytes: ${name}`);
+// ─── Rama C: anchor evidence hash on the escrow account via 2-of-2 ──────────
+// The escrow account was created with masterWeight:0 and thresholds
+// (low=0, med=2, high=2), plus signers platform(weight 1) + arbiter(weight 1).
+// To place a manageData entry on the escrow account we therefore need both
+// signatures on the transaction envelope. The platform account pays the fee
+// (it has XLM); the escrow's only on-chain role is as the data-entry owner.
+//
+// Inputs:
+//   escrowAccountPublic — public key of the (already-funded) escrow account.
+//   arbiterSecret       — raw decrypted secret of the persistent arbiter keypair.
+//   name                — ≤64-byte UTF-8 data-entry label.
+//   hexValue            — ≤64-char hex (typically SHA-256 of the evidence photo).
+//
+// Returns: the submitted transaction hash; the caller persists it on
+// TransactionLog.metadata.stellarAnchorTxHash. Any throw propagates to the
+// caller, which is expected to log and proceed with '' so the user is not
+// blocked by a Horizon outage.
+export async function anchorDataEntry(params: {
+  escrowAccountPublic: string;
+  arbiterSecret: string;
+  name: string;
+  hexValue: string;
+}): Promise<string> {
+  if (Buffer.byteLength(params.name, 'utf8') > 64) {
+    throw new Error(`manageData name excede 64 bytes: ${params.name}`);
   }
-  if (hexValue.length > 64) {
-    throw new Error(`manageData value excede 64 hex chars: ${hexValue.length}`);
+  if (params.hexValue.length === 0 || params.hexValue.length > 64) {
+    throw new Error(`manageData value excede 64 hex chars: ${params.hexValue.length}`);
+  }
+  if (!/^[0-9a-f]+$/i.test(params.hexValue)) {
+    throw new Error(`manageData value debe ser hex: ${params.hexValue}`);
   }
 
-  const source = await horizon.loadAccount(sourcePublic);
+  // Fee-payer = platform account: it has XLM reserves and signs as the
+  // envelope source. The arbiter then signs for the escrow account's
+  // threshold-2 signers policy (the escrow itself has masterWeight:0 and
+  // cannot sign for itself).
+  const platformAccount = await horizon.loadAccount(PLATFORM_PUBLIC_KEY);
   const fee = (await horizon.fetchBaseFee()).toString();
-
-  // ⚠️ manageData value debe ser Buffer.from(hex, 'hex') o string — Stellar SDK acepta string.
-  const tx = new TransactionBuilder(source, {
+  const tx = new TransactionBuilder(platformAccount, {
     fee,
     networkPassphrase: STELLAR_NETWORK_PASSPHRASE,
   })
-    .addOperation(Operation.manageData({ name, value: hexValue, source: sourcePublic }))
+    .addOperation(
+      Operation.manageData({
+        name: params.name,
+        value: params.hexValue,
+        source: params.escrowAccountPublic, // data entry lives on the escrow
+      }),
+    )
     .setTimeout(30)
     .build();
-
-  // La tx es firmada por platform + árbitro (la cuenta del escrow no tiene fondos para fee
-  // — fee la cubre la platform account). Necesitamos una cuenta distinta que pague la fee.
-  // ⚠️ Esta implementación requiere que el caller ajuste `source` a la platform account
-  // y use setOptions remoto — ver Bloque 7. Aquí dejamos la firma simple con platformKeypair.
   tx.sign(platformKeypair);
-
+  tx.sign(Keypair.fromSecret(params.arbiterSecret));
   const res = await horizon.submitTransaction(tx);
   return res.hash;
 }

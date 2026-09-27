@@ -1,20 +1,27 @@
-// instrumentation.ts — Hook oficial de Next.js (Next 16).
+// instrumentation.ts — Hook oficial de Next.js. Arranca UNA vez cuando el
+// servidor Node se inicializa (Next 16). Aquí opt-in para el cron in-process
+// de dev, gateado por ENABLE_CRON.
 //
-// En producción, el cron es manejado por Vercel Cron (§11.3) llamando
-// `/api/cron/timeout-check` cada minuto — NO necesita código de
-// instrumentación.
+// En producción el cron lo ejecuta Vercel Cron (§11.3) llamando a
+// `/api/cron/timeout-check` cada minuto con Bearer CRON_SECRET. Sin código
+// adicional aquí. Tampoco hace falta vercel.json en el repo si configuras
+// el cron desde el dashboard de Vercel contra `/api/cron/timeout-check`.
 //
-// En dev local, el cron está disponible vía el comando `npm run cron:once`
-// (también manual). Lo dejamos fuera de instrumentation para evitar que
-// Next 16 trace los imports de `lib/db.ts`/`generated/prisma` al Edge runtime
-// (lo cual falla: db usa node:url/path que Edge no soporta).
+// El import de `lib/cron-dev` es DINÁMICO (await import) a propósito:
+// evita que Turbopack tracee estáticamente `lib/db.ts` / `@/generated/prisma`
+// al bundle del Edge runtime, donde los módulos node:* fallan.
 //
-// Si en el futuro se quiere auto-cron en dev, mover a un cron externo
-// (Railway) o un proceso Node separado.
+// Opt-in por env: ENABLE_CRON=true (el mismo flag que ya parsea lib/config.ts
+// y que boot.sh expone con `ENABLE_CRON=true npm run dev`).
 
 export async function register(): Promise<void> {
-  // No-op intencional.
-  // Las apps que necesiten el cron en dev lo levantan con `npm run cron:once`
-  // o el script `lib/cron-dev.ts` directamente.
-  void process.env.NODE_ENV;
+  if (process.env.NODE_ENV === 'production') return;
+  if (process.env.ENABLE_CRON !== 'true') return;
+
+  const { startDevCron } = await import('./lib/cron-dev');
+  startDevCron();
+  console.log(
+    '[instrumentation] dev cron wired (runTimeoutCheck cada 30s). ' +
+      'Si quieres apagarlo: ENABLE_CRON no en .env.local.',
+  );
 }
