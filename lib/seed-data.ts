@@ -98,6 +98,22 @@ export const seedUsers: SeedUser[] = [
     balanceXlm: 180_000, // 1,800 XLM
     pollarWalletId: 'G_PLACEHOLDER_usrmf',
   },
+  // Diego — el "demo persona" pensado para enseñar ambos lados de un
+  // escrow end-to-end. Tiene listings propios para vender *y* ofertas
+  // entrantes en esos listings, asi cuando un juez hace login como
+  // usr_diego ve: (a) su propio marketplace, (b) envios recibidos que
+  // puede aceptar/rechazar. Cumple el rol que el PRD llama "account
+  // bidireccional" para validar el flujo completo sin alternar entre
+  // cuentas.
+  {
+    id: 'usr_diego',
+    email: 'diego.Gremium+seed1@mail.tm',
+    displayName: 'Diego G.',
+    major: 'Ing. Mecánica',
+    bio: 'Mecatrónica y proyectos maker. Trueco herramientas y componentes.',
+    balanceXlm: 150_000, // 1,500 XLM
+    pollarWalletId: 'G_PLACEHOLDER_usrdg',
+  },
 ];
 
 // ─── Listings (PRD §1 + §8, 10 listings) ──────────────────────────────────
@@ -227,6 +243,95 @@ export const seedListings: SeedListing[] = [
     photoUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400',
     videoVerified: true,
   },
+
+  // ─── Listings adicionales (variedad para el demo — PRD §8) ───
+  // Estas entradas extra cubren categorías que el seed original no tocaba
+  // (herramientas mecánicas / óptica / inmobiliario) para que el
+  // marketplace luzca con oferta real y un juez vea variedad de tipos.
+  {
+    id: 'lst_calipers',
+    sellerId: 'usr_diego',
+    title: 'Calibrador Vernier 6" digital',
+    description: 'Calibrador digital Mitutoyo-style. Resolución 0.01mm. Pilas nuevas.',
+    priceXlm: 90_000,
+    type: 'laboratorio',
+    majors: JSON.stringify(['Ing. Mecánica', 'Ing. Eléctrica', 'Física']),
+    condition: 'bueno',
+    photoUrl: 'https://images.unsplash.com/photo-1581092160562-3aa2d2d6d3a4?w=400',
+    videoVerified: true,
+  },
+  {
+    id: 'lst_solder',
+    sellerId: 'usr_diego',
+    title: 'Estación de soldadura 60W + puntas',
+    description: 'Estación de soldadura Hakko-style. Incluye 3 puntas de repuesto y base.',
+    priceXlm: 70_000,
+    type: 'electronica',
+    majors: JSON.stringify(['Ing. Eléctrica', 'Ing. en Computación', 'Ing. Mecánica']),
+    condition: 'bueno',
+    photoUrl: 'https://images.unsplash.com/photo-1573165078090-4096b03b5c4f?w=400',
+    videoVerified: true,
+  },
+  {
+    id: 'lst_bicicleta',
+    sellerId: 'usr_diego',
+    title: 'Bicicleta urbana plegable',
+    description: 'Bicicleta plegable rodada 20. Cambios Shimano. Candado incluido.',
+    priceXlm: 320_000,
+    type: 'transporte',
+    majors: JSON.stringify(['Otra']),
+    condition: 'bueno',
+    photoUrl: 'https://images.unsplash.com/photo-1532298229144-0ec0c57515c7?w=400',
+    videoVerified: false,
+  },
+  {
+    id: 'lst_casio',
+    sellerId: 'usr_pablo',
+    title: 'Calculadora Casio fx-991ES PLUS',
+    description: 'Calculadora científica. Ideal para clase de cálculo y álgebra.',
+    priceXlm: 25_000,
+    type: 'calculadoras',
+    majors: JSON.stringify(['Matemáticas', 'Física', 'Ing. en Computación']),
+    condition: 'como-nuevo',
+    photoUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=400',
+    videoVerified: true,
+  },
+  {
+    id: 'lst_stewart',
+    sellerId: 'usr_pablo',
+    title: 'Stewart — Cálculo de una variable',
+    description: 'Edición 7. Sin marcas, subrayado fino en un par de capítulos.',
+    priceXlm: 45_000,
+    type: 'libros',
+    majors: JSON.stringify(['Matemáticas', 'Física', 'Ing. en Computación']),
+    condition: 'bueno',
+    photoUrl: 'https://images.unsplash.com/photo-1535905557558-afc4877a26fc?w=400',
+    videoVerified: true,
+  },
+  {
+    id: 'lst_gafas_lab',
+    sellerId: 'usr_andrea',
+    title: 'Gafas de seguridad laboratorio (par)',
+    description: 'Goggles anti-empañantes con protección UV. Par nuevo, sin uso.',
+    priceXlm: 12_000,
+    type: 'laboratorio',
+    majors: JSON.stringify(['Química', 'Biología', 'Ing. en Computación']),
+    condition: 'como-nuevo',
+    photoUrl: 'https://images.unsplash.com/photo-1581093588401-fb6cefa9d2cf?w=400',
+    videoVerified: true,
+  },
+  {
+    id: 'lst_sd_card',
+    sellerId: 'usr_sofia',
+    title: 'MicroSD 256GB Clase 10',
+    description: 'microSDXC SanDisk Extreme. Ideal para Raspberry Pi o cámara.',
+    priceXlm: 35_000,
+    type: 'electronica',
+    majors: JSON.stringify(['Ing. en Computación', 'Ing. Eléctrica', 'Otra']),
+    condition: 'como-nuevo',
+    photoUrl: 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=400',
+    videoVerified: true,
+  },
 ];
 
 // ─── Offers (PRD §3 — 4 ofertas en el tablero inicial del demo) ────────────
@@ -274,6 +379,46 @@ export const seedOffers: SeedOffer[] = [
     offeredItems: null,
     xlmAmount: 600_000, // 6,000 XLM (70% del precio)
     message: 'Por ahora no me alcanza para el total pero arranco con 6k.',
+    status: 'pending',
+  },
+  // ─── Ofertas adicionales para que escrow tenga ambos lados vivos ───
+  // Cuando un juez hace login como usr_diego ve lst_calipers /
+  // lst_solder / lst_bicicleta en su marketplace y estas ofertas
+  // entrantes pendientes en /incoming-offers. Aceptar una dispara el
+  // flujo escrow real (cap. Sesgo + 2-of-2 + grabación on-chain en
+  // testnet).
+  {
+    id: 'ofr_maria_hybrid_solder',
+    listingId: 'lst_solder',
+    offererId: 'usr_maria',
+    type: 'hybrid',
+    offeredItems: null,
+    xlmAmount: 65_000, // 650 XLM (~93% del precio)
+    message: 'Te doy 650 XLM al cash. La uso para el proyecto de sistemas.',
+    status: 'pending',
+  },
+  {
+    id: 'ofr_pablo_barter_calipers',
+    listingId: 'lst_calipers',
+    offererId: 'usr_pablo',
+    type: 'barter',
+    offeredItems: JSON.stringify([
+      { title: 'Calculadora Casio fx-991ES PLUS', estimatedValueXlm: 25_000 },
+    ]),
+    xlmAmount: null,
+    // Pablo no puede llegar al precio (90k vs 25k del trueque); queda
+    // como pendiente para que el juez active el flujo de contraoferta.
+    message: 'Te ofrezco mi Casio por el vernier — puedo añadir algo de cash si interesa.',
+    status: 'pending',
+  },
+  {
+    id: 'ofr_juan_saldo_bici',
+    listingId: 'lst_bicicleta',
+    offererId: 'usr_juan',
+    type: 'saldo-only',
+    offeredItems: null,
+    xlmAmount: 280_000, // 2,800 XLM (~88% del precio)
+    message: 'La uso para ir al campus. Saldo cash ahora.',
     status: 'pending',
   },
 ];

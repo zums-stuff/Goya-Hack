@@ -44,7 +44,7 @@ async function main() {
     catch { console.warn('SEED_WALLET_IDS no es JSON válido — usando placeholders.'); return {}; }
   })();
 
-  console.log('👥 Creando 5 users...');
+  console.log(`👥 Creando ${seedUsers.length} users...`);
   await prisma.user.createMany({
     data: seedUsers.map((u) => ({
       ...u,
@@ -52,17 +52,22 @@ async function main() {
     })),
   });
 
-  console.log('📦 Creando 10 listings...');
+  console.log(`📦 Creando ${seedListings.length} listings...`);
   await prisma.listing.createMany({ data: seedListings });
 
-  console.log('✋ Creando 4 offers en el tablero de demo...');
+  console.log(`✋ Creando ${seedOffers.length} offers en el tablero de demo...`);
   await prisma.offer.createMany({ data: seedOffers });
 
-  console.log('✅ Seed completo: 5 users · 10 listings · 4 offers');
+  console.log(
+    `✅ Seed completo: ${seedUsers.length} users · ${seedListings.length} listings · ${seedOffers.length} offers`,
+  );
   console.log('');
   console.log('Próximos pasos:');
   console.log('  1. Levanta `npm run dev`.');
-  console.log('  2. Loguéate una vez por cada seed user (mail.tm OTP — §13.3).');
+  console.log('  2. Loguéate como cualquiera de los seed users (mail.tm OTP — §13.3).');
+  console.log('     Si quieres ver ESCROW desde ambos lados, prueba como');
+  console.log('     diego.Gremium+seed1@mail.tm — tiene listings propios');
+  console.log('     Y ofertas entrantes pendientes sobre ellos.');
   console.log('  3. El dev helper fondea XLM y captura SEED_WALLET_IDS.');
   console.log('  4. Corre `npm run capture:wallets` para verificar.');
 }
