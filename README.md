@@ -14,24 +14,78 @@ Todo se mueve en **Lumens (XLM)**, la moneda nativa de la red **Stellar** (testn
 
 ---
 
-## Quickstart (demo local)
+## Demo en un solo comando
 
 ```bash
-# 1. Setup
+git clone https://github.com/zums-stuff/Goya-Hack.git
+cd Goya-Hack
+npm install
+npm run demo          # ← UN comando. Levanta todo.
+```
+
+`npm run demo` corre `scripts/demo.mjs`, que en orden:
+
+1. Verifica Node ≥ 20 + Docker.
+2. Levanta Postgres local en Docker (`pumatrade-db`, puerto 5433) — idempotente.
+3. Espera a que Postgres acepte conexiones (`pg_isready`).
+4. `prisma migrate deploy` (idempotente, corre migrations SQL).
+5. `prisma/seed.ts` — siembra los 6 usuarios (`juan / maría / andrea / pablo / sofía / diego`) + 17 listings + 7 offers. Siembra omite si la DB ya tiene users (idempotente).
+6. Arranca `next dev` con `ENABLE_CRON=true`, `DEMO_TTL_MINUTES=3`, `CONFIRM_WINDOW_MINUTES=10`, `HACKATHON_FREE_FEES=true` (TTL de 3 min para demos rápidos).
+7. Hace polling contra `/api/auth/me` hasta 200.
+8. Imprime:
+
+```
+   ✓ Self-check (0.1s)
+   ✓ Postgres up (1.8s)
+   ✓ Postgres healthy (0.1s)
+   ✓ Prisma migrations (0.4s)
+   ✓ Demo seed (0.3s)
+   ✓ Start dev server (4.0s)
+   ✓ Wait for server (1.2s)
+
+  ╔═════════════════════════════════════════════════╗
+  ║   🎉 READY — open http://localhost:3000         ║
+  ╚═════════════════════════════════════════════════╝
+```
+
+Al correr Ctrl-C, el dev server se detiene. Para volver a montar: `npm run demo` otra vez (idempotente).
+
+### Personas de prueba disponibles
+
+| Persona | Interest | Listings | Pendientes de aceptar |
+|---|---|---|---|
+| María R.   | Ing. Computación  | 3 (TI-89, Fluke, Bata M)         | 0 |
+| Juan P.    | Ing. Eléctrica    | 2 (Arduino, Sadiku)              | 0 |
+| Andrea L.  | Matemáticas       | 2 (Spivak, Bata CH, Gafas lab)   | 0 |
+| Pablo M.   | Física            | 3 (Tipler, Casio fx-991, Stewart)| 0 |
+| Sofía C.   | Ing. Computación  | 3 (ThinkPad, RPi4, microSD)      | 0 |
+| **Diego G.** | **Ing. Mecánica** | **3 (Vernier, Soldador, Bici)** | **3 ofertas pendientes** ⭐ |
+
+**Diego** es la "persona demo" — su `/incoming-offers` muestra tres ofertas entrantes (María le ofrece 650 XLM cash por la estación de soldadura, Pablo truequea su Casio por el Vernier, Juan 2800 XLM cash por la bici). Esa vista es la única donde se puede disparar el flow completo de escrow sin alternar cuentas: acepta una oferta y verás el cap. Sesgo → 2-of-2 → grabación en Stellar testnet.
+
+### Reset rápido
+
+```bash
+npm run db:reset      # recrea contenedor Postgres vacío
+npm run demo          # vuelve a correr todo desde cero
+```
+
+---
+
+## Quickstart (control fino)
+
+Si prefieres paso a paso manual en vez de `npm run demo`, la versión larga sigue aquí. Útil sólo cuando estés depurando algo específico del bootstrap.
+
+```bash
+# Requisitos: Node 22 LTS, Docker Desktop corriendo.
 nvm use                                # Node 22 LTS
 npm install
-npm run setup:env                      # genera .env.local + fondea treasury testnet (2 cuentas friendbot)
-npm run db:up                          # levanta Postgres local en Docker (puerto 5433)
-npx prisma migrate dev --name init     # crea tablas
-npm run db:seed                        # siembra 5 users + 10 listings + 4 offers
+npm run db:up                          # Postgres local (puerto 5433)
+npx prisma migrate deploy              # aplica migrations
+npm run db:seed                        # 6 users + 17 listings + 7 offers
 
-# 2. Arranca el dev server con cron in-process
-ENABLE_CRON=true DEMO_TTL_MINUTES=3 CONFIRM_WINDOW_MINUTES=10 \
-  HACKATHON_FREE_FEES=true npm run dev
-
-# 3. Pre-crear 5 inboxes en mail.tm y loguearse con cada uno (paso §15.10).
-#    El dev helper fondea cada wallet con el saldo PRD §1.
-npm run capture:wallets                # valida las 5 wallets seed en Horizon
+# Arranca con cron in-process (TTL corto para demos rápidos):
+npm run dev
 ```
 
 > ⚠️ **Importante:** para el demo en celulares por LAN, agrega la IP de tu máquina

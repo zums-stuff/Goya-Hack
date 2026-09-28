@@ -1,0 +1,8 @@
+# Enforce LF for shell scripts on Windows clones.  bash refuses to
+# interpret CRLF; PowerShell editors often write CRLF, so this keeps
+# scripts/demo.sh portable across clones.
+scripts/*.sh        text eol=lf
+
+# Generated files: leave alone.
+package-lock.json   -text
+prisma/migrations/*  -text
