@@ -1,0 +1,42 @@
+name: Deploy presentation to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'presentacion/**'
+      - '.github/workflows/pages.yml'
+  # permite relanzar el deploy a mano desde la pestaña Actions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# nunca dos deploys concurrentes: el segundo cancela al primero
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      # el sitio es el contenido de presentacion/, no la raíz del repo:
+      # así index.html queda en la raíz del site y la app Next.js no se publica
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: presentacion
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
