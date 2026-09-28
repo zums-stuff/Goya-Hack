@@ -12,11 +12,11 @@ Cuando una oferta se aceptan, el saldo del comprador se **congela en un smart co
 
 Todo se mueve en **Lumens (XLM)**, la moneda nativa de la red **Stellar** (testnet para el demo), gestionada a través del SDK [Pollar](https://pollar.xyz) — wallets embebidas que se crean con solo iniciar sesión con Google o email OTP. Cero seed phrases, cero conocimiento de blockchain. Sin tokens propios ni emisores: el saldo de la app ES XLM real.
 
-https://gremium.lightinnovationlab.com
-
 ---
 
 ## ⚡ Demo en un solo comando
+
+https://gremium.lightinnovationlab.com
 
 ```bash
 git clone https://github.com/zums-stuff/Goya-Hack.git
