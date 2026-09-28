@@ -136,7 +136,7 @@ export default async function HomePage() {
             <p className="sec-eyebrow">Modo demo</p>
             <p className="sec-sub">
               Jueces sin Pollar configurado pueden entrar como uno de los
-              cinco seed users. Las wallets pre-fondeadas son de prueba.
+              seis seed users. Las wallets pre-fondeadas son de prueba.
             </p>
             <DemoLoginPanel users={seedRows} />
           </div>

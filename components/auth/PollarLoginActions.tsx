@@ -84,6 +84,7 @@ export function PollarLoginActions() {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [walletAdapters, setWalletAdapters] = useState<WalletAdapter[]>([]);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const fired = useRef(false);
   const fallbackTimer = useRef<number | null>(null);
 
@@ -122,7 +123,7 @@ export function PollarLoginActions() {
 
   // Sync lives in this always-mounted component. Fires once on
   // wallet binding, posts to /api/auth/sync, redirects to /home on
-  // success. Backup: 2.5s fallback timer + manual "Ir al dashboard".
+  // success. Backup: 2.5s watchdog (see below) + manual retry.
   useEffect(() => {
     if (fired.current) return;
     if (!isAuthenticated || !verified) return;
@@ -131,11 +132,23 @@ export function PollarLoginActions() {
     void runSync(stellarAddress);
   }, [isAuthenticated, verified, stellarAddress, getClient]);
 
+  // Watchdog. ANTES este timer hacía `window.location.assign('/home')`, lo
+  // que era un DEAD END garantizado: si el sync no había corrido, no había
+  // cookie, y el layout de (authed) rebotaba a `/`. Ademásaba con el
+  // mensaje de "Sesion activa" mientras te expulsaba. Ahora solo marca el
+  // fallo para que la tarjeta muestre el error y ofrezca reintentar /
+  // Modo demo. La navegación successful la hace `runSync` en su `try`.
   useEffect(() => {
     if (!isAuthenticated || !wallet?.address) return;
     if (fallbackTimer.current !== null) return;
     fallbackTimer.current = window.setTimeout(() => {
-      window.location.assign('/home');
+      fallbackTimer.current = null;
+      if (fired.current) return; // el sync está en curso o ya terminó
+      setSyncError(
+        'Pollar te autenticó pero no pudimos verificar la wallet. ' +
+          'Revisa que Freighter/Albedo estén desbloqueadas, o usa el ' +
+          'Modo demo de esta página.',
+      );
     }, 2500);
     return () => {
       if (fallbackTimer.current !== null) {
@@ -186,9 +199,21 @@ export function PollarLoginActions() {
         throw new Error(j.message ?? j.error ?? `HTTP ${res.status}`);
       }
       window.location.assign('/home');
-    } catch {
-      // Sync failed but wallet is bound in Pollar. Fallback timer
-      // takes the user to /home in 2.5s.
+    } catch (e) {
+      // ⚠️ Este catch ANTES era `catch {}` — se comía el error y el
+      // fallback timer mandaba a /home sin cookie. El layout de (authed)
+      // hace `redirect('/')` cuando no hay sesión, así que el usuario
+      // veía la página recargarse en loop y "Ir al dashboard" no
+      // llevaba a ninguna parte. Ahora paramos el timer y mostramos el
+      // motivo real, que es la diferencia entre un bug y un misterio.
+      if (fallbackTimer.current !== null) {
+        window.clearTimeout(fallbackTimer.current);
+        fallbackTimer.current = null;
+      }
+      setSyncError(
+        (e as Error).message ||
+          'No pudimos iniciar sesión en Gremium con esta cuenta.',
+      );
     }
   }
 
@@ -308,34 +333,87 @@ export function PollarLoginActions() {
           <div className="pollar-login-wordmark">pollar</div>
           <span className="pollar-demo-pill">Gremium</span>
         </div>
-        <h2 className="pollar-login-h2">Sesion activa</h2>
-        <div className="form-success-pill" style={{ marginTop: 12 }}>
-          <Wallet style={{ width: 14, height: 14 }} />
-          <span
+        <h2 className="pollar-login-h2">
+          {syncError ? 'No pudimos entrar' : 'Sesion activa'}
+        </h2>
+        {syncError ? (
+          <div
+            className="pollar-status-sub"
             style={{
-              fontFamily:
-                'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
-              fontSize: 12,
+              color: 'var(--primary)',
+              textAlign: 'left',
+              marginTop: 12,
+              display: 'flex',
+              gap: 8,
+              alignItems: 'flex-start',
             }}
           >
-            {wallet.address.slice(0, 6)}...
-            {wallet.address.slice(-4)}
-          </span>
-        </div>
-        <p className="pollar-status-sub">Recargando al dashboard...</p>
+            <AlertCircle
+              style={{ width: 14, height: 14, flexShrink: 0, marginTop: 2 }}
+            />
+            <span>{syncError}</span>
+          </div>
+        ) : (
+          <>
+            <div className="form-success-pill" style={{ marginTop: 12 }}>
+              <Wallet style={{ width: 14, height: 14 }} />
+              <span
+                style={{
+                  fontFamily:
+                    'ui-monospace, "SF Mono", Menlo, Consolas, monospace',
+                  fontSize: 12,
+                }}
+              >
+                {wallet.address.slice(0, 6)}...
+                {wallet.address.slice(-4)}
+              </span>
+            </div>
+            <p className="pollar-status-sub">Recargando al dashboard...</p>
+          </>
+        )}
         <button
           type="button"
           className="pollar-modal-primary"
-          style={{ marginTop: 4 }}
-          onClick={() => window.location.assign('/home')}
+          style={{ marginTop: 12 }}
+          onClick={() => {
+            // Sin sesión server-side, /home rebota a /. Tiene que
+            // quedar claro en el botón que esto no es un enlace normal.
+            if (syncError) return;
+            window.location.assign('/home');
+          }}
+          disabled={!!syncError}
         >
-          Ir al dashboard
+          {syncError ? 'Sesion incompleta' : 'Ir al dashboard'}
         </button>
+        {syncError && (
+          <p className="pollar-status-sub" style={{ marginTop: 10 }}>
+            Pollar sí te autenticó, pero Gremium no pudo abrir tu sesión.
+            Puedes usar el <strong>Modo demo</strong> de esta página para
+            entrar sin configuración, o reintentar.
+          </p>
+        )}
+        {syncError && (
+          <button
+            type="button"
+            className="pollar-modal-primary"
+            style={{ marginTop: 10 }}
+            onClick={() => {
+              fired.current = false;
+              setSyncError(null);
+              if (stellarAddress) void runSync(stellarAddress);
+            }}
+          >
+            Reintentar
+          </button>
+        )}
         <button
           type="button"
           className="gre-pillar-btn-retry"
           style={{ marginTop: 8 }}
-          onClick={() => logout()}
+          onClick={() => {
+            setSyncError(null);
+            logout();
+          }}
         >
           Cerrar sesion
         </button>

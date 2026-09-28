@@ -20,6 +20,7 @@
     "capture:wallets": "tsx scripts/capture-wallets.ts",
     "cron:once": "tsx -e \"import('./lib/cron.ts').then(m => m.runTimeoutCheck().then(r => console.log(JSON.stringify(r))))\"",
     "demo:check": "tsx scripts/demo-check.ts",
+    "pretest": "tsx scripts/test-db-setup.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e:demo": "tsx scripts/e2e-demo.ts",

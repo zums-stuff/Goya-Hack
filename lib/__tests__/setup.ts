@@ -5,11 +5,16 @@
 // Por eso NUNCA importamos lib/db estáticamente aquí — todo es dinámico,
 // después de que loadEnvOnce() + fallbacks hayan poblado process.env.
 //
-// Estrategia de DB:
-//   - DB_AVAILABLE = true si hay un Postgres alcanzable (local Docker via
-//     `npm run db:up`, Neon, etc.). Si no, los tests DB-dependent se skipean
-//     con describe.skip (no fallan).
-//   - cleanDb() trunca todas las tablas en orden FK-seguro entre tests.
+// ⚠️⚠️ AISLAMIENTO DE DB — NO REVERTIR. Los tests usan SIEMPRE una base
+// dedicada con sufijo `_test`. Antes apuntaban a la misma base que la app
+// (`pumatrade`) y `cleanDb()` hacía TRUNCATE de todas las tablas, así que
+// `npm test` destruía el seed del demo (6 usuarios · 17 listings · 7
+// ofertas) y dejaba los fixtures del último test como datos reales — que es
+// exactamente lo que rompía el login por Modo demo. La redirección de abajo
+// es incondicional: si la base de tests no existe o no tiene schema,
+// `DB_AVAILABLE` queda en false y los tests DB se skipean. NUNCA se vuelve
+// a la base de la app como fallback — un fallback silencioso volvería a
+// destruir el demo. `npm run pretest` crea la base y aplica las migraciones.
 
 import 'dotenv/config';
 import { loadEnvOnce } from '@/lib/load-env';
@@ -25,6 +30,24 @@ process.env.PLATFORM_SECRET_KEY ??= 'S' + 'A'.repeat(55);
 process.env.APP_SECRET_KEY ??= '0'.repeat(64);
 process.env.ADMIN_EMAILS ??= 'demo@local';
 process.env.NEXT_PUBLIC_PLATFORM_FEE_BPS ??= '200';
+
+// Apunta a <db>_test. Hecho aquí (y no en un .env separado) para que sea
+// imposible que un test escriba en la base de la app por accidente.
+process.env.DATABASE_URL = testDatabaseUrl(process.env.DATABASE_URL);
+
+/** Deriva la URL de la base de tests añadiendo el sufijo `_test`. */
+export function testDatabaseUrl(appUrl: string): string {
+  try {
+    const u = new URL(appUrl);
+    const name = u.pathname.replace(/^\//, '') || 'pumatrade';
+    if (!name.endsWith('_test')) u.pathname = `/${name}_test`;
+    return u.toString();
+  } catch {
+    // URL no parseable: no la tocamos. `isDbReachable()` fallará y los
+    // tests DB se skipean, que es el resultado seguro.
+    return appUrl;
+  }
+}
 
 /** True si hay Postgres alcanzable — los tests DB-dependent lo usan para skip. */
 export const DB_AVAILABLE = await isDbReachable();
@@ -42,9 +65,27 @@ async function isDbReachable(): Promise<boolean> {
   try {
     const { prisma } = await import('@/lib/db');
     await prisma.$queryRaw`SELECT 1`;
+    // `SELECT 1` pasa incluso en una base VACÍA. Si `pretest` no corrió,
+    // la base `_test` existe pero sin tablas, y los tests DB fallarían con
+    // "relation does not exist" en vez de skipear. Comprobamos que el
+    // schema esté realmente aplicado.
+    const tables = await prisma.$queryRaw<{ n: bigint }[]>`
+      SELECT count(*)::bigint AS n
+      FROM information_schema.tables
+      WHERE table_schema = current_schema()
+        AND table_name IN ('User', 'Listing', 'Offer', 'Escrow')
+    `;
+    const first = tables[0];
+    if (!first || Number(first.n) < 4) return false;
     await prisma.$disconnect();
     return true;
   } catch {
+    try {
+      const { prisma } = await import('@/lib/db');
+      await prisma.$disconnect();
+    } catch {
+      /* el cliente ni siquiera se pudo construir */
+    }
     return false;
   }
 }

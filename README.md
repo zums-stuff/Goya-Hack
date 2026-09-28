@@ -167,9 +167,17 @@ https://stellar.expert/explorer/testnet/tx/049e63ccb9b92dc0c588f6a693b635fb12467
 
 ```bash
 npm run typecheck    # tsc --noEmit
-npm test             # vitest run  — 6 archivos · 57 tests
+npm test             # pretest crea pumatrade_test · vitest 6 archivos · 57 tests
 npm run e2e:demo     # smoke test contra el server corriendo — 6 checks
 ```
+
+> ⚠️ **`npm test` no toca tu demo.** Los tests corren contra una base
+> aparte (`pumatrade_test`) que `pretest` crea a partir de `DATABASE_URL`.
+> Esto NO es negociable: los tests hacen `TRUNCATE` de todas las tablas
+> entre casos, y antes apuntaban a la misma base que la app — o sea,
+> `npm test` te borraba el seed (6 users · 17 listings · 7 offers) y te
+> dejaba los fixtures del último test como si fueran datos reales. Para
+> reponer el seed: `npm run db:reset && npm run demo`.
 
 `npm run e2e:demo` requiere el dev server arriba (o sea, `npm run demo` en otra terminal). Sus 6 checks:
 
@@ -206,6 +214,7 @@ npm run dev                    # next dev (sin el env de TTL corto)
 | `npm run db:up` / `db:down` / `db:reset` | Ciclo de vida del contenedor Postgres |
 | `npm run db:seed` | Siembra (idempotente) |
 | `npm run demo:check` | Verifica que la DB tenga el dataset demo completo |
+| `npm test` | Tests unitarios + integración (base `pumatrade_test`, aislada) |
 | `npm run e2e:demo` | Smoke test HTTP end-to-end |
 | `npm run test:stellar` | Prueba real contra Horizon testnet |
 | `npm run cron:once` | Dispara un ciclo del cron de TTL a mano |

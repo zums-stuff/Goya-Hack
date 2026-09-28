@@ -9,6 +9,18 @@
 // ⚠️ Solo actualiza `pollarWalletId` cuando el valor actual es un placeholder
 // del seed (`G_PLACEHOLDER_*`). Para usuarios reales, el re-login siempre
 // devuelve el mismo G-address (Pollar es estable por usuario).
+//
+// ⚠️ Wallet binding rule, dirección inversa (este fix):
+//   `pollarWalletId` es UNIQUE en el schema. El guard de arriba solo
+//   busca por EMAIL, así que nunca detectaba que esa wallet ya perteneciera
+//   a OTRO user. El `upsert` reventaba entonces con
+//   `Unique constraint failed on the constraint: User_pollarWalletId_key`,
+//   que handleApiError traduce a un 500 genérico "Error inesperado". El
+//   cliente (`runSync` en PollarLoginActions) se tragaba ese error y
+//   mandaba al usuario a /home sin cookie → el layout lo rebotaba a `/`.
+//   Para el usuario eso era "le doy Ir al dashboard y solo recarga".
+//   Ahora chequeamos wallet→email también y devolvemos 409 con mensaje
+//   legible en vez de un 500.
 
 import { z } from 'zod';
 import { prisma } from '@/lib/db';
@@ -39,6 +51,24 @@ export async function POST(req: Request) {
         {
           error: 'wallet_mismatch',
           message: 'Esta cuenta ya está vinculada a otra wallet.',
+        },
+        { status: 409 },
+      );
+    }
+
+    // ⚠️ Dirección inversa: esa wallet ¿ya es de otro email? Sin este
+    // chequeo, el `upsert` de abajo viola el unique de `pollarWalletId`.
+    const walletOwner = await prisma.user.findUnique({
+      where: { pollarWalletId: body.pollarWalletId },
+    });
+    if (walletOwner && walletOwner.email !== body.email) {
+      return Response.json(
+        {
+          error: 'wallet_already_bound',
+          message:
+            'Esta wallet ya está vinculada a otra cuenta de Gremium. ' +
+            'Cierra sesión en Pollar y entra con la cuenta original, o ' +
+            'usa el Modo demo de esta página.',
         },
         { status: 409 },
       );
@@ -84,6 +114,23 @@ export async function POST(req: Request) {
 
     return Response.json({ user });
   } catch (e) {
+    // Red de seguridad: si alguna otra ruta de código choca contra el
+    // unique de pollarWalletId, no queremos un 500 genérico. Le ponemos
+    // nombre al constraint y lo traducimos a 409 accionable.
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg.includes('User_pollarWalletId_key')) {
+      console.error('[sync] wallet ya ligada a otro usuario:', msg);
+      return Response.json(
+        {
+          error: 'wallet_already_bound',
+          message:
+            'Esta wallet ya está vinculada a otra cuenta de Gremium. ' +
+            'Cierra sesión en Pollar y entra con la cuenta original, o ' +
+            'usa el Modo demo de esta página.',
+        },
+        { status: 409 },
+      );
+    }
     return handleApiError(e);
   }
 }
