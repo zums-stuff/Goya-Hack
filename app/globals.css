@@ -1842,10 +1842,22 @@ input[type="file"].form-field::file-selector-button {
   margin-top: 6px;
   margin-bottom: 4px;
 }
-.pollar-login-brandrow svg {
+/* The real Pollar mark, public/brand/mark-blue.png (474x512). It is an
+   <img>, not an inline SVG, because it is an official raster asset pulled
+   from Pollar's own brand directory -- the previous inline path here was a
+   hand-drawn shield that was not actually Pollar's logo. */
+.pollar-login-mark {
   display: block;
+  object-fit: contain;
+}
+.pollar-login-brandrow .pollar-login-mark {
   width: 30px;
   height: 36px;
+}
+/* "Protegido por pollar" footer. */
+.pollar-login-mark-sm {
+  width: 14px;
+  height: 16px;
 }
 .pollar-login-wordmark {
   font-size: 28px;

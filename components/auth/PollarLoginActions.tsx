@@ -38,11 +38,7 @@ import {
   X,
 } from 'lucide-react';
 import { usePollar } from '@pollar/react';
-import {
-  gre_github,
-  gre_google,
-  gre_pollar_mark,
-} from './pollar-svgs';
+import { gre_github, gre_google } from './pollar-svgs';
 
 type OAuthProvider = 'google' | 'github';
 
@@ -320,15 +316,11 @@ export function PollarLoginActions() {
     return (
       <div className="pollar-login-card">
         <div className="pollar-login-brandrow">
-          <div
+          <img
             aria-hidden="true"
-            style={{
-              width: 38,
-              height: 42,
-              display: 'inline-grid',
-              placeItems: 'center',
-            }}
-            dangerouslySetInnerHTML={{ __html: gre_pollar_mark }}
+            src="/brand/mark-blue.png"
+            alt=""
+            className="pollar-login-mark"
           />
           <div className="pollar-login-wordmark">pollar</div>
           <span className="pollar-demo-pill">Gremium</span>
@@ -427,15 +419,11 @@ export function PollarLoginActions() {
   return (
     <div className="pollar-login-card">
       <div className="pollar-login-brandrow">
-        <div
+        <img
           aria-hidden="true"
-          style={{
-            width: 38,
-            height: 42,
-            display: 'inline-grid',
-            placeItems: 'center',
-          }}
-          dangerouslySetInnerHTML={{ __html: gre_pollar_mark }}
+          src="/brand/mark-blue.png"
+          alt=""
+          className="pollar-login-mark"
         />
         <div className="pollar-login-wordmark">pollar</div>
         <span className="pollar-demo-pill">Gremium</span>
@@ -526,10 +514,11 @@ export function PollarLoginActions() {
 
           <div className="pollar-login-footer">
             <span>Protegido por</span>
-            <span
+            <img
               aria-hidden="true"
-              style={{ width: 14, height: 16, display: 'inline-block' }}
-              dangerouslySetInnerHTML={{ __html: gre_pollar_mark }}
+              src="/brand/mark-blue.png"
+              alt=""
+              className="pollar-login-mark pollar-login-mark-sm"
             />
             <strong>pollar</strong>
           </div>

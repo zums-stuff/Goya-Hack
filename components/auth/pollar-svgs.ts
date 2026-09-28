@@ -1,16 +1,21 @@
 // components/auth/pollar-svgs.ts — Inline SVG strings for brand icons we
 // render inside PollarLoginActions. Inlined so we don't take on a runtime
-// icon-lib dependency just for these 6 glyphs, and so they match the
+// icon-lib dependency just for these glyphs, and so they match the
 // colors used on the pollar.xyz interactive-demo (those exact brand colors
 // are the visual contract on this surface).
 //
 // Each export is the inner markup of an SVG. Render inside a 16-22px
 // sized <svg> via dangerouslySetInnerHTML, or move to JSX if size grows.
 
-export const gre_pollar_mark = `
-<svg viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <path d="M32 0C14.327 0 0 16.149 0 36.04c0 27.408 27.643 36.92 30.823 36.04 1.493-.413 1.748-.95 1.748-1.985v-7.005c-.066 0-.637.103-1.453.156-3.55.23-6.78-1.493-6.78-6.2 0-2.55 1.667-4.39 1.667-4.39-3.55-3.7 0-7.46 0-7.46 1.667-.103 3.86 1.36 6.5 2.71.95-3.46 4.27-3.86 4.27-3.86 1.493-.566 5.27-1.61 5.27 1.493 0 1.667-1.493 4.21-2.71 6.5 3.46-2.55 7.46-1.667 7.46-1.667 1.493.103 5.04 1.493 5.04 6.2 0 3.86-2.71 6.5-6.5 6.5-1.493 0-3.86-.103-4.38-.156v7.005c0 1.035.255 1.572 1.748 1.985 3.18.88 30.823-8.632 30.823-36.04C64 16.149 49.673 0 32 0Z" fill="#005DB4"/>
-</svg>`;
+// NOTE: there is deliberately no `gre_pollar_mark` here anymore. The one
+// that used to live in this file was a hand-drawn shield path, not
+// Pollar's logo, and it shipped as the auth-card mark. The real mark is
+// the official asset at public/brand/mark-blue.png (474x512, from
+// https://pollar.xyz/brand/, referenced in pollar.xyz's own HTML),
+// rendered as an <img class="pollar-login-mark"> in
+// components/auth/PollarLoginActions.tsx. Don't re-add an inline
+// stand-in -- pull the asset from Pollar's brand directory instead.
+
 
 export const gre_google = `
 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
