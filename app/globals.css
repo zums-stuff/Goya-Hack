@@ -2040,3 +2040,56 @@ input[type="file"].form-field::file-selector-button {
   align-items: center;
   gap: 4px;
 }
+
+/* --- PollarLoginActions extras ----------------------------------------- */
+
+.form-success-pill {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 12px 18px;
+  background: rgba(0, 93, 180, 0.08);
+  border: 1px solid rgba(0, 93, 180, 0.22);
+  border-radius: 11px;
+  color: #003e80;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pollar-status-sub {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 0;
+  letter-spacing: 0.1px;
+}
+
+.pollar-email-hint {
+  font-size: 10px;
+  color: #c45f4e;
+  margin: -4px 4px 0;
+  letter-spacing: 0.1px;
+  font-weight: 600;
+}
+
+.pollar-footnote {
+  font-size: 10px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 4px 6px 0;
+  letter-spacing: 0.1px;
+}
+.pollar-footnote a {
+  color: #005DB4;
+  font-weight: 700;
+  text-decoration: none;
+}
+.pollar-footnote a:hover { text-decoration: underline; }
+.pollar-footnote code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 9.5px;
+  background: rgba(0, 93, 180, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: #003e80;
+}
