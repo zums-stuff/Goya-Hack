@@ -2094,129 +2094,13 @@ input[type="file"].form-field::file-selector-button {
   color: #003e80;
 }
 
-/* --- PollarAuthModal: Gremium-built auth surface ---------------------- */
-/* Uses Pollar demo aesthetic but is rendered by us, not by PollarProvider.
-   Becomes the user-visible auth UI regardless of any internal state the
-   SDK falls into. Bypasses the degraded LoginModalStatus entirely. */
-
-.pollar-modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 21, 34, 0.55);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  z-index: 60;
-  animation: pollar-modal-bg-in 220ms ease-out;
-}
-@keyframes pollar-modal-bg-in { from { opacity: 0 } to { opacity: 1 } }
-
-.pollar-modal-card {
-  position: relative;
-  width: min(100%, 460px);
-  background: #fff;
-  border-radius: 16px;
-  padding: 36px 32px 32px;
-  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.35), 0 8px 28px -10px rgba(0, 93, 180, 0.18);
-  font-family: var(--font-sans), system-ui, sans-serif;
-  animation: pollar-modal-card-in 280ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-@keyframes pollar-modal-card-in {
-  from { opacity: 0; transform: translateY(20px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-
-.pollar-modal-close {
-  position: absolute;
-  right: 14px;
-  top: 14px;
-  border: 0;
-  background: #f3f4f6;
-  color: #6b7280;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
-}
-.pollar-modal-close:hover { background: #e5e7eb; color: #18222f; }
-.pollar-modal-close:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.4);
-}
-
-.pollar-modal-header {
-  text-align: center;
-  margin-bottom: 22px;
-}
-
-.pollar-modal-mark {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 12px;
-  border-radius: 14px;
-  overflow: hidden;
-  display: grid;
-  place-items: center;
-  background: rgba(0, 93, 180, 0.06);
-  border: 1px solid rgba(0, 93, 180, 0.18);
-}
-.pollar-modal-mark img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.pollar-modal-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.6px;
-  color: var(--ink);
-  margin: 0 0 4px;
-}
-
-.pollar-modal-subtitle {
-  font-size: 14px;
-  color: var(--muted);
-  margin: 0;
-  font-weight: 500;
-}
-
-.pollar-modal-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.pollar-modal-email {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.pollar-modal-input {
-  width: 100%;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 12px 14px;
-  font-size: 14px;
-  color: var(--ink);
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.pollar-modal-input:focus {
-  border-color: #005DB4;
-  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.15);
-}
-
+/* --- Pollar single-panel UI primitives ------------------------------
+   These rule names used to live inside a separate <PollarAuthModal>;
+   the modal was removed in favour of an in-place state-machine on the
+   card itself (mode: choice | code | busy | error). We keep the same
+   class names so the JSX mappings didn't need a rewrite -- just the
+   surrounding backdrop/card/close/header/etc went away with the modal.
+*/
 .pollar-modal-primary {
   width: 100%;
   background: #005DB4;
@@ -2262,93 +2146,6 @@ input[type="file"].form-field::file-selector-button {
   outline: none;
   border-color: #005DB4;
   box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.15);
-}
-
-.pollar-modal-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 4px 0 0;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-}
-.pollar-modal-divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--line);
-}
-.pollar-modal-divider-label { white-space: nowrap; }
-
-.pollar-modal-socials {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pollar-modal-social {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 11px 14px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink);
-  cursor: pointer;
-  letter-spacing: -0.1px;
-  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
-}
-.pollar-modal-social:hover {
-  border-color: #d6d6da;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-}
-.pollar-modal-social:active { transform: translateY(0); }
-.pollar-modal-social:focus-visible {
-  outline: none;
-  border-color: #005DB4;
-  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.18);
-}
-.pollar-modal-social-icon {
-  display: inline-grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  color: var(--ink);
-}
-
-.pollar-modal-wallet {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  width: 100%;
-  background: transparent;
-  border: 2px solid #005DB4;
-  color: #005DB4;
-  border-radius: 9px;
-  padding: 12px 14px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-top: 4px;
-  transition: background 0.15s ease, transform 0.15s ease;
-}
-.pollar-modal-wallet:hover {
-  background: rgba(0, 93, 180, 0.08);
-  transform: translateY(-1px);
-}
-.pollar-modal-wallet:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(0, 93, 180, 0.25);
 }
 
 .pollar-modal-error {
@@ -2414,27 +2211,4 @@ input[type="file"].form-field::file-selector-button {
   font-weight: 500;
   color: var(--muted);
   letter-spacing: 0.1px;
-}
-
-.pollar-modal-foot {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 14px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
-  font-size: 11px;
-  color: var(--muted);
-}
-.pollar-modal-foot strong {
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  color: var(--ink);
-}
-.pollar-modal-foot-mark { display: inline-block; }
-.pollar-modal-foot-mark svg { display: inline-block; width: 14px; height: 16px; vertical-align: middle; }
-
-@media (max-width: 480px) {
-  .pollar-modal-card { padding: 28px 22px 24px; }
 }
