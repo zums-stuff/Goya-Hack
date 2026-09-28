@@ -21,6 +21,7 @@ import {
   UserRound,
   WalletCards,
 } from 'lucide-react';
+import { usePollar } from '@pollar/react';
 import { fmtXlmShort } from '@/lib/format';
 
 type Me = {
@@ -49,8 +50,27 @@ export function AppShell({ me, children }: { me: Me; children: React.ReactNode }
   const router = useRouter();
   const [search, setSearch] = useState('');
 
+  // Pollar maintains its own authenticated state in IndexedDB. If we
+  // only clear our app cookie, the moment we land on / after, Pollar
+  // still sees the user as authenticated, PollarLoginActions's useEffect
+  // re-runs /api/auth/sync, and the server reissues the cookie -- quietly
+  // signing the user back in. We have to chain Pollar's logout() right
+  // after our cookie clear for the redirect to stick.
+  const { logout: pollarLogout } = usePollar();
+
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      // Even if the server call hangs, we still clear Pollar below;
+      // the cookie clear is what makes GET /api/auth/me return null.
+    }
+    try {
+      pollarLogout();
+    } catch {
+      // Pollar logout occasionally throws in restricted environments;
+      // cookie clear above is already enough to prevent reauth.
+    }
     router.push('/');
     router.refresh();
   }
