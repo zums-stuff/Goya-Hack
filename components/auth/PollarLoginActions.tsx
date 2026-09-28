@@ -446,22 +446,6 @@ export function PollarLoginActions() {
             </>
           )}
 
-          <p className="pollar-footnote">
-            Google y GitHub requieren un <strong>redirect URI</strong>{' '}
-            configurado en{' '}
-            <a
-              href="https://dashboard.pollar.xyz"
-              target="_blank"
-              rel="noreferrer"
-            >
-              dashboard.pollar.xyz
-            </a>{' '}
-            - Apps - Gremium Usuarios - Settings. Sin eso, OAuth muestra{' '}
-            <code>APPLICATION_HAS_NO_REDIRECT_URIS</code>. Email y
-            billeteras (Freighter, Albedo) funcionan sin esa
-            configuracion.
-          </p>
-
           <div className="pollar-login-footer">
             <span>Protegido por</span>
             <span
