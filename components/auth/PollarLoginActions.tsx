@@ -1,25 +1,31 @@
 // components/auth/PollarLoginActions.tsx -- Gremium-branded Pollar auth
-// trigger. The card on the page itself shows the Pollar demo aesthetic
-// (email field + social list + outlined wallet) AND drives the auth
-// flow end-to-end without opening any secondary modal. We use a
-// single-panel UX: the card transitions through the auth steps in
-// place ("Iniciar sesion" -> "Verificar codigo" -> "Iniciando
-// sesion con Google..." -> "Sesion activa / Recargando..."). For
-// OAuth, Pollar opens its own browser popup at
-// https://api.pollar.xyz/auth/<provider> -- that's the only external
-// surface during an OAuth round-trip, and it's an unavoidable Pollar
-// SDK behaviour (logged in core as `defaultWebOAuthOpener =
-// async ({ getUrl }) => { popup = window.open("about:blank",
-// "_blank"); ... popup.location.href = url; }`). The card transitions
-// to a busy spinner while that popup is open and back to /home once
-// the wallet binds.
+// trigger. Single-panel UX: the Pollar demo-aesthetic card on / IS the
+// auth surface. It transitions in place through the auth steps
+// (choice | code | busy | error | authed) without opening a second
+// modal.
 //
-// Sync lives here directly (no separate modal) because:
-//   1. PollarLoginActions is ALWAYS mounted while the user is on /
-//      -- there is no component that unmounts when auth flips, so
-//      the useEffect that runs runSync is reliable.
-//   2. Backup setTimeout redirects to /home after 2.5s if /api/auth/sync
-//      is slow, and a manual "Ir al dashboard" button skips the wait.
+// Provider surface (post SDK audit, see git log for 9570cf9 -> here):
+//   The Pollar SDK @pollar/react ships with these explicit providers:
+//     'email'  - sendEmailCode + verifyEmailCode
+//     'google' - OAuth via window.open popup
+//     'github' - OAuth via window.open popup
+//   Source: node_modules/@pollar/core/dist/index.d.ts
+//           type PollarAuthMethod = 'email' | 'google' | 'github' | 'oidc';
+//           for...of = oauthProvider("google"), oauthProvider("github"),
+//                       emailProvider()  (only registered by constructor)
+//           LoginModalTemplateProps.onSocialLogin:
+//             (provider: 'google' | 'github') => void
+//   Apple, X (Twitter), Discord are *not* wired in this SDK version and
+//   would set auth state to "No auth provider registered for 'apple'"
+//   if called via login({provider}). They're shown only as a footer
+//   hint that additional OAuth providers can be requested through
+//   Pollar support.
+//
+//   Wallet adapters: Freighter and Albedo ship in by default and are
+//   reached via getClient().login({ provider: 'freighter-native' })
+//   or 'albedo-native'. We surface them dynamically via
+//   getClient().listWalletAdapters() so the row stays in sync if
+//   Pollar adds more adapters in a future SDK update.
 
 'use client';
 
@@ -33,21 +39,35 @@ import {
 } from 'lucide-react';
 import { usePollar } from '@pollar/react';
 import {
-  gre_apple,
-  gre_discord,
   gre_github,
   gre_google,
-  gre_twitter,
   gre_pollar_mark,
 } from './pollar-svgs';
 
-type OAuthProvider = 'google' | 'apple' | 'x' | 'github';
+type OAuthProvider = 'google' | 'github';
+
+type WalletAdapter = {
+  id: string;
+  name: string;
+  iconUrl: string | null;
+  group: string | null;
+};
 
 type Mode =
-  | { kind: 'choice' }                       // show email + socials + wallet
-  | { kind: 'code'; email: string }           // show code-verify input
-  | { kind: 'busy'; provider: 'email' | OAuthProvider | 'wallet' | 'embedded' }
-  | { kind: 'error'; message: string; backTo: 'choice' | 'code'; lastEmail: string };
+  | { kind: 'choice' }
+  | { kind: 'code'; email: string }
+  | {
+      kind: 'busy';
+      provider: 'email' | OAuthProvider | 'wallet';
+      walletId?: string;
+      walletName?: string;
+    }
+  | {
+      kind: 'error';
+      message: string;
+      backTo: 'choice' | 'code';
+      lastEmail: string;
+    };
 
 export function PollarLoginActions() {
   const {
@@ -63,6 +83,7 @@ export function PollarLoginActions() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [walletAdapters, setWalletAdapters] = useState<WalletAdapter[]>([]);
   const fired = useRef(false);
   const fallbackTimer = useRef<number | null>(null);
 
@@ -71,10 +92,37 @@ export function PollarLoginActions() {
     wallet?.address ??
     null;
 
-  // runSync lives here, not in a modal that might unmount. Fires once on
+  // Discover registered wallet adapters once Pollar is ready. The
+  // SDK registers Freighter + Albedo by default; future adapter
+  // bundles added via config.walletAdapters will appear here too.
+  useEffect(() => {
+    let killed = false;
+    (async () => {
+      try {
+        const client = getClient();
+        await client.ready?.();
+        const list = client.listWalletAdapters?.() ?? [];
+        if (killed) return;
+        setWalletAdapters(
+          list.map((a) => ({
+            id: a.id,
+            name: a.meta?.label ?? humanizeAdapter(a.id),
+            iconUrl: a.meta?.iconUrl ?? null,
+            group: a.meta?.group ?? null,
+          })),
+        );
+      } catch {
+        // SDK not ready yet; keep empty list
+      }
+    })();
+    return () => {
+      killed = true;
+    };
+  }, [getClient]);
+
+  // Sync lives in this always-mounted component. Fires once on
   // wallet binding, posts to /api/auth/sync, redirects to /home on
-  // success. Belt-and-suspenders with the manual "Ir al dashboard"
-  // button + 2.5s fallback timer.
+  // success. Backup: 2.5s fallback timer + manual "Ir al dashboard".
   useEffect(() => {
     if (fired.current) return;
     if (!isAuthenticated || !verified) return;
@@ -140,7 +188,7 @@ export function PollarLoginActions() {
       window.location.assign('/home');
     } catch {
       // Sync failed but wallet is bound in Pollar. Fallback timer
-      // will take the user to /home in 2.5s.
+      // takes the user to /home in 2.5s.
     }
   }
 
@@ -162,7 +210,12 @@ export function PollarLoginActions() {
       await getClient().sendEmailCode(trimmed);
       setMode({ kind: 'code', email: trimmed });
     } catch (e) {
-      setMode({ kind: 'error', message: (e as Error).message, backTo: 'choice', lastEmail: trimmed });
+      setMode({
+        kind: 'error',
+        message: (e as Error).message,
+        backTo: 'choice',
+        lastEmail: trimmed,
+      });
     }
   }
 
@@ -178,7 +231,12 @@ export function PollarLoginActions() {
       await getClient().verifyEmailCode(code.trim());
       // success → isAuthenticated flips → useEffect runs runSync → /home
     } catch (e) {
-      setMode({ kind: 'error', message: (e as Error).message, backTo: 'code', lastEmail });
+      setMode({
+        kind: 'error',
+        message: (e as Error).message,
+        backTo: 'code',
+        lastEmail,
+      });
     }
   }
 
@@ -188,17 +246,32 @@ export function PollarLoginActions() {
     try {
       getClient().login({ provider });
     } catch (e) {
-      setMode({ kind: 'error', message: (e as Error).message, backTo: 'choice', lastEmail: email });
+      setMode({
+        kind: 'error',
+        message: (e as Error).message,
+        backTo: 'choice',
+        lastEmail: email,
+      });
     }
   }
 
-  function startWallet() {
+  function startWallet(adapterId: string, adapterName: string) {
     setError(null);
-    setMode({ kind: 'busy', provider: 'wallet' });
+    setMode({
+      kind: 'busy',
+      provider: 'wallet',
+      walletId: adapterId,
+      walletName: adapterName,
+    });
     try {
-      getClient().login({ provider: 'embedded' });
+      getClient().login({ provider: adapterId });
     } catch (e) {
-      setMode({ kind: 'error', message: (e as Error).message, backTo: 'choice', lastEmail: email });
+      setMode({
+        kind: 'error',
+        message: (e as Error).message,
+        backTo: 'choice',
+        lastEmail: email,
+      });
     }
   }
 
@@ -206,18 +279,18 @@ export function PollarLoginActions() {
     try {
       getClient().cancelLogin();
     } catch {
-      // ignore
+      /* ignore */
     }
     try {
       logout();
     } catch {
-      // ignore
+      /* ignore */
     }
     setMode({ kind: 'choice' });
     setError(null);
   }
 
-  // === Already-authenticated: success card, single panel =================
+  // === Already-authenticated: success card ==============================
   if (isAuthenticated && wallet?.address) {
     return (
       <div className="pollar-login-card">
@@ -249,9 +322,7 @@ export function PollarLoginActions() {
             {wallet.address.slice(-4)}
           </span>
         </div>
-        <p className="pollar-status-sub">
-          Recargando al dashboard...
-        </p>
+        <p className="pollar-status-sub">Recargando al dashboard...</p>
         <button
           type="button"
           className="pollar-modal-primary"
@@ -273,8 +344,8 @@ export function PollarLoginActions() {
     );
   }
 
-  // === Authed success card = single panel. Email-OTP, busy, error all
-  //     render INSIDE this same card -- no overlay, no second panel.
+  // === Auth UI: choice | code | busy | error -- all in the SAME card ===
+
   return (
     <div className="pollar-login-card">
       <div className="pollar-login-brandrow">
@@ -322,6 +393,7 @@ export function PollarLoginActions() {
             <span>o continuar con</span>
           </div>
 
+          {/* OAuth: only google + github are wired in this SDK version */}
           <div className="pollar-social-list">
             <button
               type="button"
@@ -339,32 +411,6 @@ export function PollarLoginActions() {
             <button
               type="button"
               className="pollar-social-btn"
-              onClick={() => startSocial('apple')}
-              aria-label="Continuar con Apple"
-            >
-              <span
-                aria-hidden="true"
-                style={{ width: 14, height: 14, display: 'inline-block' }}
-                dangerouslySetInnerHTML={{ __html: gre_apple }}
-              />
-              Apple
-            </button>
-            <button
-              type="button"
-              className="pollar-social-btn"
-              onClick={() => startSocial('x')}
-              aria-label="Continuar con X (Twitter)"
-            >
-              <span
-                aria-hidden="true"
-                style={{ width: 14, height: 14, display: 'inline-block' }}
-                dangerouslySetInnerHTML={{ __html: gre_twitter }}
-              />
-              X (Twitter)
-            </button>
-            <button
-              type="button"
-              className="pollar-social-btn"
               onClick={() => startSocial('github')}
               aria-label="Continuar con GitHub"
             >
@@ -375,35 +421,34 @@ export function PollarLoginActions() {
               />
               GitHub
             </button>
-            <button
-              type="button"
-              className="pollar-social-btn"
-              onClick={() => /* Pollar SDK only exposes google/apple/x/github + embedded in login({provider}); Discord is reachable via wallet providers separately */ null}
-              aria-label="Continuar con Discord"
-              disabled
-              style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            >
-              <span
-                aria-hidden="true"
-                style={{ width: 18, height: 18, display: 'inline-block' }}
-                dangerouslySetInnerHTML={{ __html: gre_discord }}
-              />
-              Discord
-            </button>
           </div>
 
-          <button
-            type="button"
-            className="pollar-wallet-btn"
-            onClick={startWallet}
-          >
-            <Wallet style={{ width: 16, height: 16 }} />
-            Continuar con una billetera
-          </button>
+          {/* Wallet adapters: Freighter, Albedo, ... dynamic */}
+          {walletAdapters.length > 0 && (
+            <>
+              <div className="pollar-divider">
+                <span>o con billetera</span>
+              </div>
+              <div className="pollar-social-list">
+                {walletAdapters.map((adapter) => (
+                  <button
+                    key={adapter.id}
+                    type="button"
+                    className="pollar-social-btn"
+                    onClick={() => startWallet(adapter.id, adapter.name)}
+                    aria-label={`Conectar ${adapter.name}`}
+                  >
+                    <Wallet style={{ width: 16, height: 16 }} />
+                    {adapter.name}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
 
           <p className="pollar-footnote">
-            Google, Apple, X, GitHub requieren un{' '}
-            <strong>redirect URI</strong> configurado en{' '}
+            Google y GitHub requieren un <strong>redirect URI</strong>{' '}
+            configurado en{' '}
             <a
               href="https://dashboard.pollar.xyz"
               target="_blank"
@@ -412,8 +457,9 @@ export function PollarLoginActions() {
               dashboard.pollar.xyz
             </a>{' '}
             - Apps - Gremium Usuarios - Settings. Sin eso, OAuth muestra{' '}
-            <code>APPLICATION_HAS_NO_REDIRECT_URIS</code>. Email y wallet
-            funcionan sin esa configuracion.
+            <code>APPLICATION_HAS_NO_REDIRECT_URIS</code>. Email y
+            billeteras (Freighter, Albedo) funcionan sin esa
+            configuracion.
           </p>
 
           <div className="pollar-login-footer">
@@ -488,9 +534,10 @@ export function PollarLoginActions() {
             {mode.provider === 'email'
               ? 'Enviando codigo...'
               : mode.provider === 'wallet'
-                ? 'Conectando tu wallet Pollar...'
+                ? `Conectando ${mode.walletName ?? 'tu wallet'}...`
                 : `Iniciando sesion con ${
-                    mode.provider.charAt(0).toUpperCase() + mode.provider.slice(1)
+                    mode.provider.charAt(0).toUpperCase() +
+                    mode.provider.slice(1)
                   }...`}
           </div>
           <div className="pollar-modal-busy">
@@ -498,7 +545,9 @@ export function PollarLoginActions() {
             <p className="pollar-modal-busy-sub">
               {mode.provider === 'email'
                 ? 'Revisa tu bandeja.'
-                : 'Completa la ventana emergente de Pollar y vuelve aqui.'}
+                : mode.provider === 'wallet'
+                  ? 'Confirma en la extension o ventana emergente.'
+                  : 'Completa la ventana emergente de Pollar y vuelve aqui.'}
             </p>
           </div>
           <button
@@ -555,8 +604,17 @@ export function PollarLoginActions() {
   );
 }
 
-// Inline keyframes for the login-card fade-in. Hoisted to module scope
-// so we don't re-emit the @keyframes on every render.
+function humanizeAdapter(id: string): string {
+  // freighter-native -> Freighter; albedo-native -> Albedo; etc.
+  const stripped = id.replace(/-native$/, '');
+  return stripped
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join(' ');
+}
+
+// Hoisted to module scope so we don't re-emit the @keyframes on every
+// render.
 function SinglePanelStyles() {
   return (
     <style>{`
