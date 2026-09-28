@@ -1,17 +1,23 @@
-// components/auth/PollarAuthModal.tsx -- Gremium-built auth modal that
-// calls Pollar's underlying client directly. Visually matches
-// https://www.pollar.xyz/interactive-demo (close enough to be
-// recognizable). Bypasses PollarProvider's <LoginModal> template,
-// which has been observed to fall back to the degraded
-// <LoginModalStatus> pane when it can't fully parse /applications/config
-// or when its style plumbing breaks under certain bundler conditions.
+// components/auth/PollarAuthModal.tsx -- Gremium-built auth modal. Shows
+// the Pollar demo aesthetic but the actual auth is delegated to Pollar
+// via getClient().login({provider}) / sendEmailCode / verifyEmailCode.
+//
+// This modal is the EMAIL path. For OAuth social buttons (Google, X,
+// GitHub, Apple, Discord) Pollar opens its own browser popup with the
+// OAuth consent flow; our modal just shows "we're opening it" via the
+// busy state, and our parent component runs the wallet-bound sync.
+//
+// The modal closes itself when Pollar reports authenticated (whether
+// through the email code OR through an OAuth flow finishing). The
+// parent's useEffect on isAuthenticated / verified runs sync and
+// redirects, regardless of whether this modal is in the tree.
 
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AlertCircle, Apple, Mail, RefreshCw, Wallet, X } from 'lucide-react';
+import { AlertCircle, Mail, RefreshCw, Wallet, X } from 'lucide-react';
 import { usePollar } from '@pollar/react';
-import { gre_github, gre_pollar_mark } from './pollar-svgs';
+import { gre_apple, gre_github, gre_pollar_mark } from './pollar-svgs';
 
 type Step = 'root' | 'code' | 'auth' | 'error';
 
@@ -27,8 +33,6 @@ export function PollarAuthModal({
   const {
     isAuthenticated,
     verified,
-    wallet,
-    wallets,
     getClient,
     logout,
   } = usePollar();
@@ -37,67 +41,11 @@ export function PollarAuthModal({
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [busyProvider, setBusyProvider] = useState<OAuthProvider | 'wallet' | null>(
-    null,
-  );
-  const fired = useRef(false);
+  const [busyProvider, setBusyProvider] = useState<
+    OAuthProvider | 'wallet' | null
+  >(null);
 
-  const stellarAddress =
-    wallets.find((w) => w.chain === 'STELLAR')?.address ??
-    wallet?.address ??
-    null;
-
-  useEffect(() => {
-    if (fired.current) return;
-    if (!isAuthenticated || !verified) return;
-    if (!stellarAddress || !stellarAddress.startsWith('G')) return;
-    fired.current = true;
-    void runSync(stellarAddress);
-  }, [isAuthenticated, verified, stellarAddress, getClient]);
-
-  async function runSync(address: string) {
-    try {
-      const client = getClient();
-      let mail: string | undefined;
-      let displayName: string;
-      try {
-        const profile = client.getUserProfile();
-        mail = profile?.mail;
-        const fn = profile?.first_name?.trim() ?? '';
-        const ln = profile?.last_name?.trim() ?? '';
-        displayName = [fn, ln].filter(Boolean).join(' ');
-        if (!displayName)
-          displayName = mail?.split('@')[0] ?? `user_${address.slice(0, 6)}`;
-      } catch {
-        mail = undefined;
-        displayName = `user_${address.slice(0, 6)}`;
-      }
-
-      const res = await fetch('/api/auth/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          pollarWalletId: address,
-          email: mail ?? `${address.slice(0, 12)}@stellar.local`,
-          displayName,
-        }),
-        credentials: 'same-origin',
-      });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as {
-          error?: string;
-          message?: string;
-        };
-        throw new Error(j.message ?? j.error ?? `HTTP ${res.status}`);
-      }
-      window.location.assign('/home');
-    } catch (e) {
-      setStep('error');
-      setError((e as Error).message);
-      fired.current = false;
-    }
-  }
-
+  // Body-scroll lock + Escape to close.
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -110,11 +58,20 @@ export function PollarAuthModal({
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') handleClose();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // Auto-close when the wallet binds.
+  useEffect(() => {
+    if (!open) return;
+    if (isAuthenticated && verified) {
+      onClose();
+    }
+  }, [open, isAuthenticated, verified, onClose]);
 
   if (!open) return null;
 
@@ -124,6 +81,21 @@ export function PollarAuthModal({
     setCode('');
     setError(null);
     setBusyProvider(null);
+  }
+
+  function handleClose() {
+    try {
+      getClient().cancelLogin();
+    } catch {
+      // ignore
+    }
+    try {
+      logout();
+    } catch {
+      // ignore
+    }
+    reset();
+    onClose();
   }
 
   async function startEmail() {
@@ -168,7 +140,7 @@ export function PollarAuthModal({
     }
   }
 
-  async function startWallet() {
+  function startWallet() {
     setError(null);
     setBusyProvider('wallet');
     setStep('auth');
@@ -181,17 +153,6 @@ export function PollarAuthModal({
     }
   }
 
-  function cancelAuthAndClose() {
-    try {
-      getClient().cancelLogin();
-    } catch {
-      // ignore
-    }
-    logout();
-    reset();
-    onClose();
-  }
-
   return (
     <div
       className="pollar-modal-backdrop"
@@ -199,7 +160,7 @@ export function PollarAuthModal({
       aria-modal="true"
       aria-label="Iniciar sesion con Pollar"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleClose();
       }}
     >
       <div className="pollar-modal-card">
@@ -207,9 +168,18 @@ export function PollarAuthModal({
           type="button"
           className="pollar-modal-close"
           aria-label="Cerrar"
-          onClick={onClose}
+          onClick={handleClose}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <path d="M18 6 6 18" />
             <path d="M6 6l12 12" />
           </svg>
@@ -217,7 +187,12 @@ export function PollarAuthModal({
 
         <div className="pollar-modal-header">
           <div className="pollar-modal-mark">
-            <img src="/Logo_Gremium.png" alt="Gremium" width={48} height={48} />
+            <img
+              src="/Logo_Gremium.png"
+              alt="Gremium"
+              width={48}
+              height={48}
+            />
           </div>
           <h2 className="pollar-modal-title">Gremium</h2>
           <p className="pollar-modal-subtitle">
@@ -248,7 +223,9 @@ export function PollarAuthModal({
 
             <div className="pollar-modal-divider">
               <div className="pollar-modal-divider-line" />
-              <span className="pollar-modal-divider-label">o continuar con</span>
+              <span className="pollar-modal-divider-label">
+                o continuar con
+              </span>
             </div>
 
             <div className="pollar-modal-socials">
@@ -267,9 +244,15 @@ export function PollarAuthModal({
                 className="pollar-modal-social"
                 onClick={() => startSocial('apple')}
               >
-                <span className="pollar-modal-social-icon">
-                  <Apple size={14} strokeWidth={2} />
-                </span>
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 14,
+                    height: 14,
+                    display: 'inline-block',
+                  }}
+                  dangerouslySetInnerHTML={{ __html: gre_apple }}
+                />
                 Apple
               </button>
               <button
@@ -309,6 +292,28 @@ export function PollarAuthModal({
               Continuar con una billetera
             </button>
 
+            <p
+              style={{
+                marginTop: 4,
+                fontSize: 11,
+                color: 'var(--muted)',
+                lineHeight: 1.45,
+                textAlign: 'center',
+              }}
+            >
+              <Mail size={11} style={{ verticalAlign: 'middle' }} /> sin passkey
+              ni email?{' '}
+              <a
+                href="https://dashboard.pollar.xyz"
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: '#005DB4', fontWeight: 700 }}
+              >
+                crea una cuenta Pollar
+              </a>
+              .
+            </p>
+
             {error && (
               <div className="pollar-modal-error">
                 <AlertCircle size={13} />
@@ -341,7 +346,9 @@ export function PollarAuthModal({
               placeholder="000000"
               value={code}
               onChange={(e) =>
-                setCode(e.target.value.replace(/\D/g, '').slice(0, 8))
+                setCode(
+                  e.target.value.replace(/\D/g, '').slice(0, 8),
+                )
               }
               className="pollar-modal-code"
               autoFocus
@@ -379,7 +386,10 @@ export function PollarAuthModal({
         {step === 'auth' && (
           <div className="pollar-modal-body">
             <div className="pollar-modal-busy">
-              <span className="gre-pollar-btn-spinner" aria-hidden="true" />
+              <span
+                className="gre-pollar-btn-spinner"
+                aria-hidden="true"
+              />
               <p>
                 {busyProvider === 'wallet'
                   ? 'Conectando tu wallet Pollar...'
@@ -398,7 +408,7 @@ export function PollarAuthModal({
             <button
               type="button"
               className="pollar-modal-secondary"
-              onClick={cancelAuthAndClose}
+              onClick={handleClose}
             >
               Cancelar
             </button>
@@ -415,7 +425,7 @@ export function PollarAuthModal({
               <button
                 type="button"
                 className="pollar-modal-secondary"
-                onClick={onClose}
+                onClick={handleClose}
               >
                 Cerrar
               </button>
@@ -426,7 +436,6 @@ export function PollarAuthModal({
                   setBusyProvider(null);
                   setStep('root');
                   setError(null);
-                  logout();
                 }}
               >
                 <RefreshCw size={12} strokeWidth={2} />
@@ -442,7 +451,12 @@ export function PollarAuthModal({
 
 function GoogleIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      aria-hidden="true"
+    >
       <path
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
         fill="#4285F4"
