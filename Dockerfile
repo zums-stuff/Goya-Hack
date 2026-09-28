@@ -1,4 +1,4 @@
-# PumaTrade — Next.js 16 standalone (prod)
+# Gremium — Next.js 16 standalone (prod)
 FROM node:22-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./

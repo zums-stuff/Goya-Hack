@@ -1,4 +1,4 @@
-// prisma/schema.prisma — PumaTrade
+// prisma/schema.prisma — Gremium 
 // Fuente del QUÉ persistimos. Spec completa en ARCHITECTURE.md §4.
 // Prisma 7: provider="prisma-client", output a src/generated/prisma,
 // datasource via prisma.config.ts (no inline url). Driver adapter

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/boot.sh — Arranque completo de PumaTrade tras un reboot / desde cero.
+# scripts/boot.sh — Arranque completo de Gremium tras un reboot / desde cero.
 #
 # Idempotente: se puede correr siempre y no rompe nada:
 #   - Si Docker no está, intenta arrancar el daemon (systemctl en Linux,
@@ -86,7 +86,7 @@ start_docker() {
 }
 
 echo
-echo "🚀 PumaTrade · arranque (puerto ${PORT})"
+echo "🚀 Gremium · arranque (puerto ${PORT})"
 echo "──────────────────────────────────────────────────────────"
 
 # ───────────────────────── 1. Docker daemon ─────────────────────────
@@ -183,7 +183,7 @@ fi
 # ───────────────────────── Resumen ──────────────────────────────────
 echo
 echo "══════════════════════════════════════════════════════════"
-echo "  ✅ PumaTrade listo →  ${BASE}"
+echo "  ✅ Gremium listo →  ${BASE}"
 echo "──────────────────────────────────────────────────────────"
 echo "  Login demo (dev):  /api/auth/dev-login  (5 seed users)"
 echo "    maria | juan | andrea | pablo | sofia"

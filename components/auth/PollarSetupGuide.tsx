@@ -25,17 +25,17 @@ const ROWS: Array<{
   {
     key: 'usersPub',
     varName: 'NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY',
-    source: 'App "PumaTrade Usuarios" -> Build -> API Keys -> Publishable key',
+    source: 'App "Gremium Usuarios" -> Build -> API Keys -> Publishable key',
   },
   {
     key: 'usersSec',
     varName: 'POLLAR_USERS_SECRET_KEY',
-    source: 'App "PumaTrade Usuarios" -> Build -> API Keys -> Secret key',
+    source: 'App "Gremium Usuarios" -> Build -> API Keys -> Secret key',
   },
   {
     key: 'opsSec',
     varName: 'POLLAR_OPS_SECRET_KEY',
-    source: 'App "PumaTrade Operacional" -> Build -> API Keys -> Secret key',
+    source: 'App "Gremium Operacional" -> Build -> API Keys -> Secret key',
   },
 ];
 
@@ -88,13 +88,13 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
         </p>
         <ul className="list-disc pl-5 text-xs text-[var(--muted)] space-y-1">
           <li>
-            <strong className="text-[var(--ink)]">PumaTrade Usuarios</strong>
+            <strong className="text-[var(--ink)]">Gremium Usuarios</strong>
             {' '}
             -- Auth: Google + email OTP, Funding: Immediate, Stellar testnet
           </li>
           <li>
             <strong className="text-[var(--ink)]">
-              PumaTrade Operacional
+              Gremium Operacional
             </strong>{' '}
             -- sin UI, solo server-side, Stellar testnet
           </li>
@@ -111,7 +111,7 @@ export function PollarSetupGuide({ status }: { status: PollarSetupStatus }) {
           <span>
             <strong>Antes de habilitar Google o cualquier OAuth:</strong>{' '}
             configura el redirect URI de cada proveedor en la app{' '}
-            <em>PumaTrade Usuarios</em> (Settings -&gt; OAuth / Redirect
+            <em>Gremium Usuarios</em> (Settings -&gt; OAuth / Redirect
             URIs). Sin esto Google devuelve{' '}
             <code
               style={{

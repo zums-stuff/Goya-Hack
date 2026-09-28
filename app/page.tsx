@@ -61,21 +61,19 @@ export default async function HomePage() {
         {/* Brand row -- single Logo_Gremium.png wordmark + caption.
             The Pollar-blue login card below this sits inside the same
             Gremium surface, so the surface is "Gremium" + the auth card
-            is "Pollar". Two distinct visual zones, on purpose. */}
+            is "Pollar". Two distinct visual zones, on purpose.
+            The previous `brand-mark` ("G" letter logo) was redundant
+            next to the wordmark image and made the row feel double-stacked;
+            only the wordmark + caption remain. */}
         <div className="prelogin-brand">
-          <span className="brand-mark" aria-hidden="true">
-            G
-          </span>
-          <div>
-            <img
-              src="/Logo_Gremium.png"
-              alt="Gremium"
-              width={120}
-              height={26}
-              style={{ height: 26, width: 'auto', display: 'block' }}
-            />
-            <small>Goya-Hack · UNAM 2026</small>
-          </div>
+          <img
+            src="/Logo_Gremium.png"
+            alt="Gremium"
+            width={140}
+            height={30}
+            style={{ height: 30, width: 'auto', display: 'block' }}
+          />
+          <small>Gremium · Goya-Hack · UNAM 2026</small>
         </div>
 
         {/* Headline -- same scale/weight as .welcome-row h1 so the type

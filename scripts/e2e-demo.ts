@@ -77,7 +77,7 @@ function summarize(body: unknown): string {
 }
 
 async function main() {
-  console.log(`\n  PumaTrade · E2E smoke (${BASE})\n  ${'─'.repeat(48)}\n`);
+  console.log(`\n  Gremium · E2E smoke (${BASE})\n  ${'─'.repeat(48)}\n`);
   console.log('  Waiting for server…\n');
 
   // 1. Server up

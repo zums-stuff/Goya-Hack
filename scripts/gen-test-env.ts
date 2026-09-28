@@ -125,7 +125,7 @@ async function main(): Promise<void> {
 
 # === Pollar ===
 # ⚠️ El login NO funciona hasta pegar las keys reales del dashboard
-# dashboard.pollar.xyz (app "PumaTrade Usuarios" → pub_testnet_users_… /
+# dashboard.pollar.xyz (app "Gremium Usuarios" → pub_testnet_users_… /
 # sec_testnet_users_…; app "Operacional" → sec_testnet_ops_…). Estas son
 # marcadores generados por setup:env.
 NEXT_PUBLIC_POLLA_USERS_PUBLISHABLE_KEY=${pollarUsersPublishable}
