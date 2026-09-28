@@ -246,6 +246,7 @@ npm run dev                    # next dev (sin el env de TTL corto)
 - **[`PRD.md`](PRD.md)** — Product Requirements Document (v3.4): QUÉ construimos — modelo de datos, los 3 tipos de oferta, máquina de estados del escrow (intercambio registrado → TTL → 3 ramas), wireframes, seed data, variables de entorno, checklist pre-hackathon y guión de demo de 3 minutos.
 - **[`ARCHITECTURE.md`](ARCHITECTURE.md)** — Blueprint de implementación (v1.3): CÓMO lo construimos — versiones pinned, Prisma schema completo, Stellar SDK 17 (multi-sig 2-de-2, reserva, operaciones), máquina de estados con carrera-safe `updateMany`, endpoints, componentes clave, cron, seguridad. **Es el documento que sigue el implementador.**
 - [`app/setup/page.tsx`](app/setup/page.tsx) — guía interactiva de configuración de Pollar + Stellar, servida en `/setup` dentro de la app.
+- [`presentacion/`](presentacion/) — deck de pitches (reveal.js) para el hackathon. `node presentacion/serve.mjs` y abre `http://localhost:4173`.
 - [Documento MVP](https://docs.google.com/document/d/1ut08s4x3h_ELaW86xqLz0RL17Ytuf7euiq6waGZi5yo/edit) — Especificación del Producto Mínimo Viable: EL LADRILLO.
 
 ---

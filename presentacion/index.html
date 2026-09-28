@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GREMIUM — Mercado universitario con trueque y saldo protegido</title>
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/theme/white.css" id="theme">
+
+<style>
+  :root {
+    --ink:    #18222f;
+    --muted:  #718096;
+    --line:   #e8edf2;
+    --bg:     #f7f9fc;
+    --primary:#ee705d;
+    --primary-dark:#d95d4b;
+    --lavender:#f1edff;
+    --mint:   #e8f7f1;
+    --yellow: #fff5d9;
+    --white:  #ffffff;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800;900&display=swap');
+
+  .reveal {
+    font-family: 'Inter Tight', 'Segoe UI', system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 30px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .reveal .slides { text-align: left; }
+  .reveal .slides section { padding: 0 12px; }
+
+  /* ── Títulos ─────────────────────────────────────────────── */
+  .reveal h1, .reveal h2, .reveal h3 {
+    font-family: 'Inter Tight', sans-serif;
+    color: var(--ink);
+    text-transform: none;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0 0 22px 0;
+    font-weight: 800;
+    text-shadow: none;
+  }
+  .reveal h1 { font-size: 2.5em; font-weight: 900; }
+  .reveal h2 { font-size: 1.85em; }
+  .reveal h3 { font-size: 1.15em; font-weight: 700; }
+
+  .reveal p  { line-height: 1.45; margin: 0 0 14px 0; }
+  .reveal strong { font-weight: 800; color: var(--ink); }
+  .reveal em { font-style: normal; color: var(--primary); font-weight: 700; }
+
+  .accent  { color: var(--primary); }
+  .muted   { color: var(--muted); }
+  .small   { font-size: 0.62em; }
+  .xs      { font-size: 0.5em; }
+
+  /* ── Eyebrow / kicker ────────────────────────────────────── */
+  .kicker {
+    display: inline-block;
+    font-size: 0.42em;
+    font-weight: 800;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--primary);
+    background: #fdece9;
+    border: 1px solid #f8d6d0;
+    padding: 7px 14px;
+    border-radius: 999px;
+    margin-bottom: 22px;
+  }
+  .kicker.dark { background: rgba(238,112,93,.16); border-color: rgba(238,112,93,.4); color: #ffb3a5; }
+
+  .rule { height: 4px; width: 78px; background: var(--primary); border-radius: 4px; margin: 0 0 26px 0; }
+
+  /* ── Slide base (light) ──────────────────────────────────── */
+  .reveal .slides section {
+    background: var(--bg);
+  }
+  .reveal .slides section.dark {
+    background: var(--ink);
+    color: #fff;
+  }
+  .reveal .slides section.dark h1,
+  .reveal .slides section.dark h2,
+  .reveal .slides section.dark h3 { color: #fff; }
+  .reveal .slides section.dark p { color: #cbd5e0; }
+  .reveal .slides section.dark strong { color: #fff; }
+  .reveal .slides section.dark em { color: #ffb3a5; }
+  .reveal .slides section.dark .muted { color: #8fa0b3; }
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .cards { display: grid; gap: 18px; margin-top: 26px; }
+  .cards.c2 { grid-template-columns: 1fr 1fr; }
+  .cards.c3 { grid-template-columns: repeat(3, 1fr); }
+  .cards.c4 { grid-template-columns: repeat(4, 1fr); }
+
+  .card {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 24px 24px 22px;
+    box-shadow: 0 1px 2px rgba(24,34,47,.04), 0 8px 24px rgba(24,34,47,.05);
+  }
+  .card.mint    { background: var(--mint);    border-color: #d3ece2; }
+  .card.lav     { background: var(--lavender); border-color: #e2dafc; }
+  .card.yellow  { background: var(--yellow);  border-color: #f5e6bb; }
+  .card.dark    { background: #22303f; border-color: #2f4152; }
+  .card.dark h3, .card.dark p, .card.dark li { color: #fff; }
+  .card.dark .muted { color: #93a5b7; }
+
+  .card h3 { margin: 0 0 10px 0; font-size: 0.72em; }
+  .card p  { font-size: 0.56em; color: var(--muted); line-height: 1.5; margin: 0; }
+  .card ul { font-size: 0.55em; color: var(--muted); line-height: 1.6; margin: 8px 0 0 0; padding-left: 18px; }
+  .card li { margin-bottom: 4px; }
+
+  .card .icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: grid; place-items: center;
+    background: var(--primary); color: #fff;
+    font-size: 0.62em; font-weight: 900; margin-bottom: 14px;
+  }
+  .card.mint .icon   { background: #1f9e77; }
+  .card.lav .icon    { background: #7c5cf0; }
+  .card.yellow .icon { background: #d99b12; }
+  .card.dark .icon   { background: var(--primary); }
+
+  .num {
+    font-size: 2.1em; font-weight: 900; color: var(--primary);
+    line-height: 1; letter-spacing: -0.04em; margin-bottom: 6px;
+  }
+  .num-label { font-size: 0.5em; color: var(--muted); font-weight: 600; line-height: 1.35; }
+
+  /* ── Hero ────────────────────────────────────────────────── */
+  .hero-mark {
+    width: 78px; height: 78px; border-radius: 22px;
+    background: var(--primary); color: #fff;
+    display: grid; place-items: center;
+    font-size: 1.5em; font-weight: 900;
+    box-shadow: 0 12px 30px rgba(238,112,93,.32);
+    margin-bottom: 28px;
+  }
+  .hero-sub { font-size: 0.62em; color: var(--muted); font-weight: 600; max-width: 780px; line-height: 1.5; }
+  .hero-tags { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+  .tag {
+    font-size: 0.4em; font-weight: 700; color: var(--muted);
+    border: 1px solid var(--line); background: #fff;
+    padding: 8px 14px; border-radius: 999px;
+  }
+
+  /* ── Flow / pipeline ─────────────────────────────────────── */
+  .flow { display: flex; align-items: stretch; gap: 0; margin-top: 30px; }
+  .step {
+    flex: 1; background: #fff; border: 1px solid var(--line);
+    border-radius: 16px; padding: 18px 16px; text-align: center;
+    position: relative;
+  }
+  .step .n {
+    font-size: 0.38em; font-weight: 900; color: var(--primary);
+    letter-spacing: 0.1em; margin-bottom: 8px;
+  }
+  .step .t { font-size: 0.55em; font-weight: 800; line-height: 1.2; margin-bottom: 6px; }
+  .step .d { font-size: 0.42em; color: var(--muted); line-height: 1.4; }
+  .arrow {
+    display: grid; place-items: center; padding: 0 8px;
+    color: var(--primary); font-size: 1.05em; font-weight: 900; flex: 0 0 auto;
+  }
+
+  /* ── Branch table ────────────────────────────────────────── */
+  .branch { display: grid; grid-template-columns: 78px 1fr; gap: 16px; align-items: start; margin-bottom: 16px; }
+  .branch .badge {
+    width: 66px; height: 66px; border-radius: 16px;
+    display: grid; place-items: center; color: #fff;
+    font-size: 0.62em; font-weight: 900; line-height: 1;
+  }
+  .branch .badge small { font-size: 0.42em; display: block; margin-top: 3px; font-weight: 700; }
+  .branch .bt { font-size: 0.66em; font-weight: 800; margin-bottom: 4px; }
+  .branch .bd { font-size: 0.52em; color: var(--muted); line-height: 1.45; }
+  .branch .bd strong { color: var(--ink); }
+
+  /* ── Pills ───────────────────────────────────────────────── */
+  .pills { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+  .pill {
+    font-size: 0.46em; font-weight: 700; padding: 9px 16px; border-radius: 999px;
+    background: #fff; border: 1px solid var(--line); color: var(--ink);
+  }
+  .pill.on   { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .pill.mint { background: var(--mint); border-color: #d3ece2; color: #1f7a5c; }
+  .pill.lav  { background: var(--lavender); border-color: #e2dafc; color: #5b3fd1; }
+  .pill.yel  { background: var(--yellow); border-color: #f5e6bb; color: #8a6208; }
+  .pill.ink  { background: var(--ink); border-color: var(--ink); color: #fff; }
+
+  /* ── Code / mono ─────────────────────────────────────────── */
+  .mono {
+    font-family: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    font-size: 0.44em; line-height: 1.65;
+    background: #0f1a26; color: #cfe3f5;
+    border-radius: 14px; padding: 20px 22px; text-align: left;
+    border: 1px solid #1e2d3d; overflow: hidden;
+  }
+  .mono .c { color: #6b8299; }
+  .mono .k { color: #ff9d8c; font-weight: 700; }
+  .mono .s { color: #8ee0b8; }
+  .mono .f { color: #b8a6ff; }
+
+  /* ── State machine ───────────────────────────────────────── */
+  .states { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 24px; }
+  .st {
+    font-size: 0.42em; font-weight: 700; padding: 9px 13px; border-radius: 10px;
+    background: #fff; border: 1px solid var(--line); color: var(--muted);
+    font-family: 'JetBrains Mono', Consolas, monospace;
+  }
+  .st.on { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .st.ok { background: var(--mint); border-color: #d3ece2; color: #1f7a5c; }
+  .st.bad{ background: #fdece9; border-color: #f8d6d0; color: var(--primary-dark); }
+  .st.arrow { border: none; background: none; color: var(--muted); padding: 0 2px; }
+  /* Dark-slide retint. The :not() guard keeps it from flattening the accent
+     pills (.on/.ok/.bad), which would otherwise tie on specificity and lose
+     by source order. */
+  .dark .st:not(.on):not(.ok):not(.bad):not(.arrow) {
+    background: #22303f; border-color: #2f4152; color: #c3d0dd;
+  }
+  .dark .st.arrow { color: #8fa0b3; }
+
+  /* ── Comparison table ────────────────────────────────────── */
+  table.cmp {
+    width: 100%; border-collapse: collapse; margin-top: 22px; font-size: 0.5em;
+  }
+  table.cmp th {
+    text-align: left; padding: 13px 16px; background: var(--ink); color: #fff;
+    font-weight: 800; font-size: 1.02em; letter-spacing: 0.01em;
+  }
+  table.cmp th:first-child { border-radius: 12px 0 0 0; }
+  table.cmp th:last-child  { border-radius: 0 12px 0 0; }
+  table.cmp td {
+    padding: 13px 16px; border-bottom: 1px solid var(--line); color: var(--muted);
+    font-weight: 500;
+  }
+  table.cmp td:first-child { color: var(--ink); font-weight: 700; }
+  table.cmp tr:last-child td { border-bottom: none; }
+  table.cmp .yes { color: #1f9e77; font-weight: 800; }
+  table.cmp .no  { color: #cbd5e0; font-weight: 700; }
+  table.cmp .part{ color: #d99b12; font-weight: 800; }
+
+  /* ── Footer ──────────────────────────────────────────────── */
+  .foot {
+    position: absolute; bottom: 22px; left: 12px; right: 12px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 0.36em; color: #9aa8b8; font-weight: 600;
+  }
+  .dark .foot { color: #7b8b9d; }
+  .foot .brand-mini { display: flex; align-items: center; gap: 8px; font-weight: 800; color: var(--muted); }
+  .dark .foot .brand-mini { color: #93a5b7; }
+  .foot .brand-mini i {
+    width: 18px; height: 18px; border-radius: 6px; background: var(--primary);
+    color: #fff; display: grid; place-items: center; font-style: normal;
+    font-size: 0.9em; font-weight: 900;
+  }
+
+  /* ── Controls ────────────────────────────────────────────── */
+  .reveal .progress { color: var(--primary); height: 4px; }
+  .reveal .controls { color: var(--primary); }
+  .reveal .slide-number {
+    background: rgba(24,34,47,.75); border-radius: 999px; font-size: 13px;
+    padding: 5px 11px; right: 16px; bottom: 14px;
+  }
+  .dark .reveal .slide-number { background: rgba(255,255,255,.16); }
+
+  .reveal .fragment { opacity: 0; visibility: hidden; }
+  .reveal .fragment.visible { opacity: 1; visibility: inherit; }
+
+  /* Print / PDF */
+  @media print {
+    .reveal .slides section { page-break-after: always; }
+  }
+</style>
+</head>
+
+<body>
+<div class="reveal">
+<div class="slides">
+
+  <!-- ══════════════════════════════════════════════════════ 1. PORTADA -->
+  <section data-background-color="#f7f9fc">
+    <div class="hero-mark">G</div>
+    <div class="kicker">Goya-Hack · Stellar × Pollar</div>
+    <h1>GREMIUM</h1>
+    <p class="hero-sub">
+      El marketplace universitario donde el <strong>trueque renace</strong> con
+      <strong>saldo digital</strong> y <strong>garantía de prueba</strong> entre estudiantes.
+    </p>
+    <div class="hero-tags">
+      <span class="tag">Next.js 16 · React 19</span>
+      <span class="tag">Stellar · XLM nativo</span>
+      <span class="tag">Pollar · wallets embebidas</span>
+      <span class="tag">Escrow multi-sig 2-de-2</span>
+    </div>
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>0:00 — Apertura</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 2. PROBLEMA: dinero muerto -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">El problema · 1 de 2</div>
+    <h2>Dinero muerto en el campus</h2>
+    <div class="rule"></div>
+
+    <p style="font-size:.72em; max-width:900px;">
+      Cada inicio de semestre nos toca el mismo golpe: libros de cálculo, batas, multímetros
+      o calculadoras graficadoras que cuestan <em>miles de pesos</em>.
+    </p>
+
+    <div class="cards c3" style="margin-top:30px;">
+      <div class="card">
+        <div class="num">16</div>
+        <div class="num-label">semanas de uso útil por cada equipo que compras nuevo</div>
+      </div>
+      <div class="card">
+        <div class="num">1</div>
+        <div class="num-label">cajón donde termina arrumbado cuando el ciclo termina</div>
+      </div>
+      <div class="card">
+        <div class="num">$0</div>
+        <div class="num-label">recuperación: el dinero que gastamos no vuelve a circular</div>
+      </div>
+    </div>
+
+    <p style="font-size:.62em; margin-top:28px; color:var(--muted); max-width:880px;">
+      Lo usamos dieciséis semanas, lo dejamos de usar, y ese capital no vuelve a entrar
+      a la economía del campus. Lo que sí alcanza es para el material del siguiente ciclo.
+    </p>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>0:08 — El gasto</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 3. PROBLEMA: desconfianza -->
+  <section class="dark" data-background-color="#18222f">
+    <div class="kicker dark">El problema · 2 de 2</div>
+    <h2>La desconfianza truena el trueque</h2>
+    <div class="rule" style="background:#ff9d8c;"></div>
+
+    <p style="font-size:.68em; max-width:900px;">
+      La alternativa informal ya la conocemos: grupos de Facebook o WhatsApp. Pero se traba
+      por dos razones opuestas:
+    </p>
+
+    <div class="cards c2" style="margin-top:26px;">
+      <div class="card dark">
+        <div class="icon">≠</div>
+        <h3>Casi nunca dos cosas valen lo mismo</h3>
+        <p>
+          El trueque tradicional exige simetría exacta. Un libro de Spivak no vale
+          un multímetro Fluke, y ahí se acaba la conversación.
+        </p>
+      </div>
+      <div class="card dark">
+        <div class="icon">!</div>
+        <h3>Comprar usado es un volado</h3>
+        <p>
+          Te arriesgas a que la pantalla venga rota o el circuito quemado. Y una vez
+          entregado el efectivo en mano, <strong style="color:#ffb3a5;">no hay vuelta atrás</strong>.
+        </p>
+      </div>
+    </div>
+
+    <p style="font-size:.6em; margin-top:26px; color:#8fa0b3; max-width:900px;">
+      No es un problema de confianza entre personas. Es un problema de <em>garantía</em>:
+      nadie tiene un mecanismo que lo respalde.
+    </p>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>0:28 — La desconfianza</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 4. SOLUCIÓN -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">La solución</div>
+    <h2>Hecha por estudiantes, para estudiantes</h2>
+    <div class="rule"></div>
+
+    <p style="font-size:.72em; max-width:920px;">
+      Gremium hace circular <strong>no sólo dinero digital</strong>, sino también
+      <strong>los recursos</strong>, para aprovecharlos al máximo.
+    </p>
+
+    <div class="cards c3" style="margin-top:32px;">
+      <div class="card mint">
+        <div class="icon">↔</div>
+        <h3>Trueque sin simetría</h3>
+        <p>La plataforma cuantifica lo que se ofrece en objetos y lo combina con saldo, así el intercambio deja de exigir valores idénticos.</p>
+      </div>
+      <div class="card lav">
+        <div class="icon">◎</div>
+        <h3>Saldo protegido</h3>
+        <p>El dinero no viaja directo al vendedor: queda congelado en custodia multi-firma mientras el comprador prueba el equipo.</p>
+      </div>
+      <div class="card yellow">
+        <div class="icon">✓</div>
+        <h3>Garantía de prueba</h3>
+        <p>Una ventana de 48 horas para encender, probar en clase y verificar. Si no funciona, se congela y se ancla la evidencia.</p>
+      </div>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>0:47 — La propuesta</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 5. LAS 3 VÍAS -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">Tres vías de intercambio</div>
+    <h2>Tres formas de cerrar un trato</h2>
+    <div class="rule"></div>
+
+    <table class="cmp" style="font-size:.56em;">
+      <tr>
+        <th style="width:26%">Vía</th>
+        <th style="width:32%">Cómo funciona</th>
+        <th>Ejemplo del campus</th>
+      </tr>
+      <tr>
+        <td><strong>1 · Trueque puro</strong></td>
+        <td>Cambias un libro por otro, mano a mano.</td>
+        <td class="muted">Pablo truequea su Casio fx-991 por el Vernier de Diego.</td>
+      </tr>
+      <tr>
+        <td><strong>2 · Solo saldo digital</strong></td>
+        <td>Adquieres el material con saldo protegido.</td>
+        <td class="muted">María ofrece 650 XLM por la estación de soldadura.</td>
+      </tr>
+      <tr>
+        <td><strong>3 · Modo híbrido</strong></td>
+        <td>Objeto + diferencia en saldo. Lo que la simetría no cubre, lo cubre XLM.</td>
+        <td class="muted">Te piden tu Arduino y no cubre el costo de una TI-89: <strong>pagas la diferencia con saldo</strong>.</td>
+      </tr>
+    </table>
+
+    <p style="font-size:.56em; margin-top:24px; color:var(--muted); max-width:900px;">
+      El vendedor <strong>elige la mejor oferta desde su tablero</strong>. Cada publicación
+      abre un solo escrow: al aceptar, el artículo pasa a <em>Pendiente</em> y deja de recibir ofertas.
+    </p>
+
+    <div class="pills">
+      <span class="pill on">saldo-only</span>
+      <span class="pill lav">barter</span>
+      <span class="pill yel">hybrid</span>
+      <span class="pill">1 escrow por publicación</span>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>1:00 — Las tres vías</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 6. ALERTA DE PRECIOS -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">Protección del bolsillo</div>
+    <h2>Alerta de precios integrada</h2>
+    <div class="rule"></div>
+
+    <p style="font-size:.68em; max-width:900px;">
+      Compara cada artículo contra <strong>referencias reales del mercado</strong>
+      y te avisa si alguien está cobrando de más.
+    </p>
+
+    <div class="cards c3" style="margin-top:30px;">
+      <div class="card">
+        <div class="icon" style="background:#1f9e77;">−</div>
+        <h3>Precio justo</h3>
+        <p>Dentro de ±50% del valor de referencia.</p>
+        <p style="margin-top:8px;"><span class="pill mint">fair</span></p>
+      </div>
+      <div class="card">
+        <div class="icon">↑</div>
+        <h3>Cobrando de más</h3>
+        <p>La alerta salta con el precio alvo y el desvío.</p>
+        <p style="margin-top:8px;"><span class="pill">overpriced</span></p>
+      </div>
+      <div class="card">
+        <div class="icon" style="background:#1f9e77;">↓</div>
+        <h3>Por debajo</h3>
+        <p>También lo detectamos: puede ser una ganga o un problema.</p>
+        <p style="margin-top:8px;"><span class="pill mint">underpriced</span></p>
+      </div>
+    </div>
+
+    <div class="mono" style="margin-top:28px;">
+      <span class="c">// /api/listings/&lt;id&gt;/price-alert</span><br>
+      { <span class="f">"verdict"</span>: <span class="s">"overpriced"</span>,<br>
+        <span class="f">"fairPriceCents"</span>: <span class="k">80000</span>,  <span class="c">// TI-89 → 800 XLM de referencia</span><br>
+        <span class="f">"actualCents"</span>: <span class="k">120000</span>, <span class="f">"deltaPct"</span>: <span class="k">+50</span> }
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>1:22 — Alerta de precios</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 7. ARQUITECTURA: EL CANDADO -->
+  <section class="dark" data-background-color="#18222f">
+    <div class="kicker dark">Arquitectura técnica</div>
+    <h2>Stellar y el candado de prueba</h2>
+    <div class="rule" style="background:#ff9d8c;"></div>
+
+    <p style="font-size:.64em; max-width:920px;">
+      Hay tanta mención de dinero digital, pero ¿cómo así? Al aceptar una oferta el dinero
+      <strong>no pasa al vendedor</strong>: queda congelado en custodia
+      <em>multi-firma 2-de-2</em> en la red Stellar.
+    </p>
+
+    <div class="flow" style="margin-top:34px;">
+      <div class="step" style="background:#22303f; border-color:#2f4152;">
+        <div class="n" style="color:#ff9d8c;">01 · ACEPTA</div>
+        <div class="t" style="color:#fff;">Se congela</div>
+        <div class="d" style="color:#93a5b7;">El vendedor elige. El saldo se mueve a la cuenta de custodia.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step" style="background:#22303f; border-color:#2f4152;">
+        <div class="n" style="color:#ff9d8c;">02 · 2-DE-2</div>
+        <div class="t" style="color:#fff;">Custodia</div>
+        <div class="d" style="color:#93a5b7;">Cuenta con <span style="color:#fff;">masterWeight: 0</span>. Nadie mueve fondos solo.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step" style="background:#22303f; border-color:#2f4152;">
+        <div class="n" style="color:#ff9d8c;">03 · ENTREGA</div>
+        <div class="t" style="color:#fff;">Intercambio</div>
+        <div class="d" style="color:#93a5b7;">Se ven en la facultad y ambos registran el momento en la app.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step" style="background:var(--primary); border-color:var(--primary);">
+        <div class="n" style="color:#fff;">04 · TTL</div>
+        <div class="t" style="color:#fff;">Ventana</div>
+        <div class="d" style="color:#ffe3de;">Arranca el período de prueba: 48 h en producción, 3 min en el demo.</div>
+      </div>
+    </div>
+
+    <div class="pills" style="margin-top:32px;">
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ XLM nativo · sin tokens propios</span>
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ Confirmación ~5 segundos</span>
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ Comisiones de red ≈ $0.000005</span>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>1:35 — El candado</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 8. LAS 3 RAMAS -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">El período de prueba</div>
+    <h2>Tres salidas, ningún funds secuestrado</h2>
+    <div class="rule"></div>
+
+    <p style="font-size:.6em; color:var(--muted); max-width:900px; margin-bottom:22px;">
+      Con comprador y vendedor juntos en el campus, el comprador tiene tiempo de
+      <strong style="color:var(--ink);">encender el equipo, ponerlo a prueba en clases o tareas
+      y verificar que funciona</strong>. Lo que pase después decide el contrato.
+    </p>
+
+    <div class="branch">
+      <div class="badge" style="background:#1f9e77;">A<small>happy</small></div>
+      <div>
+        <div class="bt">Si sirve → confirmas y el contrato libera los fondos al instante</div>
+        <div class="bd">Firma de la plataforma + la llave de arbitraje sobre Stellar. El vendedor recibe su XLM. Comisión del 2% (0% en hackathon).</div>
+      </div>
+    </div>
+
+    <div class="branch">
+      <div class="badge" style="background:#d99b12;">B<small>auto</small></div>
+      <div>
+        <div class="bt">Si se te olvida conformar → el sistema auto-libera al expirar el tiempo</div>
+        <div class="bd">El TTL vence y un cron resuelve solo, <strong>a favor del vendedor</strong>. Nadie puede sequestrar los fondos.</div>
+      </div>
+    </div>
+
+    <div class="branch">
+      <div class="badge" style="background:var(--primary);">C<small>disputa</small></div>
+      <div>
+        <div class="bt">Si el equipo viene dañado → se congela y se ancla la evidencia</div>
+        <div class="bd">Reporte con foto y descripción → el escrow queda <strong>congelado</strong> y el hash de evidencia se ancla en el libro mayor de Stellar. Se evita el riesgo para el comprador.</div>
+      </div>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>1:48 — Las tres ramas</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 9. EVIDENCIA ANCLADA -->
+  <section class="dark" data-background-color="#18222f">
+    <div class="kicker dark">Rama C · La evidencia</div>
+    <h2>Anclar la evidencia en el ledger</h2>
+    <div class="rule" style="background:#ff9d8c;"></div>
+
+    <p style="font-size:.64em; max-width:900px;">
+      Cuando el comprador reporta un daño, la evidencia no se queda en nuestra base de datos:
+      se escribe <strong>en la red Stellar</strong> mediante
+      <em>manageData</em>, y para hacerlo…
+    </p>
+
+    <div class="cards c2" style="margin-top:28px;">
+      <div class="card dark">
+        <div class="icon">⚿</div>
+        <h3>La operación va en la cuenta de custodia</h3>
+        <p>El <span style="color:#ffb3a5;">manageData</span> no lo firma la plataforma: lo firma la cuenta de escrow, que exige 2 de 2. El ancla hereda la misma garantía que el dinero.</p>
+      </div>
+      <div class="card dark">
+        <div class="icon">⛓</div>
+        <h3>Prueba pública e inalterable</h3>
+        <p>Cualquiera puede verificar que la evidencia existía <strong style="color:#fff;">antes</strong> de que la disputa se resolviera. El hash es inmutable una vez escrito.</p>
+      </div>
+    </div>
+
+    <div class="mono" style="margin-top:26px; background:#0a141e; border-color:#1e2d3d;">
+      <span class="c">// lib/stellar.ts — anchorDataEntry</span><br>
+      <span class="k">Operation</span>.manageData({ account: escrowAccount, name: <span class="s">'gremium:evid:&lt;id&gt;'</span>, value: hexHash })<br>
+      <span class="c">// límites del protocolo: name ≤ 64 bytes · value ≤ 64 hex chars</span><br>
+      <span class="c">// requiere 2 firmas sobre la misma cuenta 2-de-2</span>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:05 — El anclaje</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 10. POR QUÉ STELLAR -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">La decisión técnica</div>
+    <h2>Por qué Stellar y no otra red</h2>
+    <div class="rule"></div>
+
+    <table class="cmp" style="font-size:.5em;">
+      <tr>
+        <th style="width:34%">Criterio</th>
+        <th style="width:22%">Ethereum</th>
+        <th style="width:22%">Stellar</th>
+        <th>Por qué importa aquí</th>
+      </tr>
+      <tr>
+        <td>Comisión por operación</td>
+        <td class="no">~$1.00+</td>
+        <td class="yes">~$0.000005</td>
+        <td>Micro-transacciones entre estudiantes</td>
+      </tr>
+      <tr>
+        <td>Liquidación</td>
+        <td class="no">Minutos / horas</td>
+        <td class="yes">~5 segundos</td>
+        <td>El pago se libera en el momento de la prueba</td>
+      </tr>
+      <tr>
+        <td>Custodia programable</td>
+        <td class="part">Sí, con gas y complejidad</td>
+        <td class="yes">Multisig nativo, 1 tx</td>
+        <td>Creamos la cuenta 2-de-2 en una sola operación atómica</td>
+      </tr>
+      <tr>
+        <td>Activos</td>
+        <td class="no">Requiere emisión propia</td>
+        <td class="yes">XLM nativo</td>
+        <td>Sin tokens propios: el saldo de la app <strong>es</strong> XLM real</td>
+      </tr>
+    </table>
+
+    <p style="font-size:.56em; margin-top:22px; color:var(--muted); max-width:900px;">
+      El marketplace mueve muchos montos pequeños entre personas que no se conocen.
+      Ese patrón de uso favorece exactamente lo que Stellar optimiza.
+    </p>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:14 — Justificación</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 11. POLLAR / CERO FRICCIÓN -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">Cero fricción</div>
+    <h2>Entra con tu correo. Ya tienes saldo.</h2>
+    <div class="rule"></div>
+
+    <p style="font-size:.68em; max-width:900px;">
+      Lo mejor es que la tecnología no estorba. Entras directo con tu
+      <strong>correo institucional o Google</strong>, y <em>Pollar crea la billetera
+      inteligente embebida</em> por debajo.
+    </p>
+
+    <div class="flow" style="margin-top:32px;">
+      <div class="step">
+        <div class="n">01</div>
+        <div class="t">Login social</div>
+        <div class="d">Google, correo institucional o GitHub. Sin frase semilla.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="n">02</div>
+        <div class="t">Wallet embebida</div>
+        <div class="d">Pollar crea y fondea la cuenta Stellar en segundos.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step">
+        <div class="n">03</div>
+        <div class="t">Transacciones</div>
+        <div class="d">Lumens nativos, casi instantáneas.</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step" style="background:var(--ink); border-color:var(--ink);">
+        <div class="n" style="color:#ff9d8c;">04</div>
+        <div class="t" style="color:#fff;">A futuro</div>
+        <div class="d" style="color:#93a5b7;">Tarjeta física Tangem tipo credencial, un solo toque.</div>
+      </div>
+    </div>
+
+    <div class="cards c3" style="margin-top:30px;">
+      <div class="card mint">
+        <h3>Sin frases semilla</h3>
+        <p>Nadie escribe 24 palabras en un celular prestado en una facultad.</p>
+      </div>
+      <div class="card mint">
+        <h3>Saldo real</h3>
+        <p>Tu saldo está respaldado en la red Stellar. No es un punto de contabilidad interna.</p>
+      </div>
+      <div class="card mint">
+        <h3>Cero fricción</h3>
+        <p>Entrar y operar no requiere entender blockchain.</p>
+      </div>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:22 — Cero fricción</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 12. MÁQUINA DE ESTADOS -->
+  <section class="dark" data-background-color="#18222f">
+    <div class="kicker dark">Ingeniería</div>
+    <h2>Una máquina de estados a prueba de carreras</h2>
+    <div class="rule" style="background:#ff9d8c;"></div>
+
+    <p style="font-size:.6em; color:#cbd5e0; max-width:900px;">
+      El dinero en custodia no se puede liberar dos veces ni perderse por un doble clic.
+      Cada transición es condicional a nivel de base de datos.
+    </p>
+
+    <div class="states" style="margin-top:30px;">
+      <span class="st">awaiting-funding</span>
+      <span class="st arrow">→</span>
+      <span class="st on">awaiting-exchange</span>
+      <span class="st arrow">→</span>
+      <span class="st on">exchange-recorded</span>
+      <span class="st arrow">→</span>
+      <span class="st ok">released</span>
+      <span class="st arrow">|</span>
+      <span class="st yel" style="background:#3b2f10; border-color:#5c4a1c; color:#f0c65a;">auto-released</span>
+      <span class="st arrow">|</span>
+      <span class="st bad">disputed</span>
+    </div>
+
+    <div class="cards c3" style="margin-top:32px;">
+      <div class="card dark">
+        <div class="icon">⚔</div>
+        <h3>Carrera segura</h3>
+        <p><span style="color:#ffb3a5;">updateMany</span> condicional + <span style="color:#ffb3a5;">count === 1</span> en toda transición. Una doble solicitud: exactamente una gana.</p>
+      </div>
+      <div class="card dark">
+        <div class="icon">↺</div>
+        <h3>Idempotencia</h3>
+        <p>Un release o refund repetido con <span style="color:#ffb3a5;">stellarTxHash</span> ya registrado no vuelve a firmar en Stellar.</p>
+      </div>
+      <div class="card dark">
+        <div class="icon">⏱</div>
+        <h3>Auto-resolución</h3>
+        <p>Cron cada 30 s en dev, 1 min en producción: revisa TTL vencidos y libera a favor del vendedor.</p>
+      </div>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:26 — La ingeniería</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 13. ESTADO DEL PROYECTO -->
+  <section data-background-color="#f7f9fc">
+    <div class="kicker">No es una maqueta</div>
+    <h2>Lo que ya corre y está probado</h2>
+    <div class="rule"></div>
+
+    <div class="cards c4" style="margin-top:26px;">
+      <div class="card">
+        <div class="num">39/39</div>
+        <div class="num-label">pruebas Vitest en verde — 21 puras + 18 contra Postgres real</div>
+      </div>
+      <div class="card">
+        <div class="num">0</div>
+        <div class="num-label">errores de TypeScript en modo strict, build de producción limpio</div>
+      </div>
+      <div class="card">
+        <div class="num">1 XLM</div>
+        <div class="num-label">roundtrip real verificado en Stellar testnet, con deltas de saldo</div>
+      </div>
+      <div class="card">
+        <div class="num">1</div>
+        <div class="num-label">comando: <span class="mono" style="padding:2px 7px; font-size:1em;">npm run demo</span> levanta todo</div>
+      </div>
+    </div>
+
+    <div class="cards c2" style="margin-top:26px;">
+      <div class="card mint">
+        <h3>Verificado en la red</h3>
+        <ul>
+          <li>Ciclo de pago Stellar end-to-end con friendbot</li>
+          <li>Máquina de estados completa contra la base de datos</li>
+          <li>Alerta de precios y endpoints HTTP con datos reales</li>
+          <li>Trueque puro con amountXlm = 0 (no firma operaciones de pago)</li>
+        </ul>
+      </div>
+      <div class="card lav">
+        <h3>Demo listo</h3>
+        <ul>
+          <li>6 personas, 17 publicaciones y 7 ofertas sembradas</li>
+          <li>Una sola vista para disparar el flujo completo de escrow</li>
+          <li>TTL de 3 minutos y comisiones en 0% para el hackathon</li>
+          <li>Next.js 16 · React 19 · Prisma 7 · Stellar SDK 17</li>
+        </ul>
+      </div>
+    </div>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:30 — Pruebas</span>
+    </aside>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ 14. CIERRE -->
+  <section class="dark" data-background-color="#18222f">
+    <div class="hero-mark">G</div>
+    <div class="kicker dark">Cierre</div>
+    <h2 style="font-size:1.7em; max-width:900px;">
+      Gremium une la liquidez de Stellar y la sencillez de Pollar para que
+      <em>los materiales nunca dejen de servir</em> a quien más los necesita.
+    </h2>
+
+    <div class="rule" style="background:#ff9d8c; margin-top:30px;"></div>
+
+    <p style="font-size:.68em; max-width:880px; color:#cbd5e0;">
+      Que el trueque no se muera por falta de simetría. Que comprar usado no sea un volado.
+      Que el dinero del campus vuelva a circular.
+    </p>
+
+    <div class="pills" style="margin-top:34px;">
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ Tarjeta Tangem · un toque</span>
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ On-ramp fiat vía SEP-24</span>
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ Reputación post-transacción</span>
+      <span class="pill" style="background:rgba(255,255,255,.08); border-color:#2f4152; color:#cbd5e0;">✦ Soroban en lugar de multisig</span>
+    </div>
+
+    <p style="font-size:.8em; margin-top:44px; color:#fff; font-weight:800;">
+      Construyamos una comunidad universitaria más justa y accesible.
+      <span style="color:#ff9d8c;">Muchas gracias.</span>
+    </p>
+
+    <aside class="foot">
+      <span class="brand-mini"><i>G</i> GREMIUM</span>
+      <span>2:52 — Cierre</span>
+    </aside>
+  </section>
+
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/dist/reveal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/reveal.js@5.2.1/plugin/notes/notes.js"></script>
+<script>
+  Reveal.initialize({
+    hash: true,
+    slideNumber: 'c/t',
+    transition: 'slide',
+    transitionSpeed: 'fast',
+    backgroundTransition: 'fade',
+    width: 1280,
+    height: 720,
+    margin: 0.04,
+    minScale: 0.2,
+    maxScale: 1.6,
+    plugins: [ RevealNotes ]
+  });
+</script>
+</body>
+</html>
